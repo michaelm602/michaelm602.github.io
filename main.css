@@ -223,6 +223,9 @@
 		.container {
 			width: 100% !important;
 		}
+		.image .featured3 {
+			width: 200px;
+		}
 
 	}
 .rich-text {
@@ -2335,9 +2338,14 @@ img {
 			width: 100%;
 			}
 .box .image.featured3 img {
-			border-radius: 0;
-			display: block;
-			width: 100%;
+    border-radius: 0;
+    display: block;
+    width: 265px;
+			}
+.box .image.featured4 img {
+    border-radius: 0;
+    display: block;
+    width: 100%;
 			}
 
 
