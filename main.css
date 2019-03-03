@@ -2833,10 +2833,10 @@ img {
 					}
 
 					#header nav > ul > li a:not(.button) {
-						color: #fff;
-						display: inline-block;
-						text-decoration: none;
-						border: 0;
+    color: #fff;
+    display: inline-block;
+    text-decoration: none;
+    border: 0;
 					}
 
 						#header nav > ul > li a:not(.button).icon:before {
@@ -2856,6 +2856,10 @@ img {
 						margin: 0 0 0 0.5em;
 						position: relative;
 					}
+#nav a:hover {
+	background-color: #821234;
+
+}
 
 		#header input[type="submit"],
 		#header input[type="reset"],
@@ -3018,7 +3022,7 @@ img {
     color: white;
 		}
 
-		#banner h1, h2, #banner h3, #banner h4, #banner h5, #banner h6 {
+		#banner h1, #banner h3, #banner h4, #banner h5, #banner h6 {
     color: #323232;
 		}
 
@@ -3028,18 +3032,24 @@ img {
     margin: 0 0 0.5em 0;
     padding: 0;
     color: white;
+ text-shadow: 2px 2px #303030;
+
 		}
 		#banner h2 {
 			font-size: 3.0em;
 			line-height: 1em;
 			margin: 0 0 0.5em 0;
 			padding: 0;
+			color: white;
+			 text-shadow: 2px 2px #303030;
 		}
 
 		#banner p {
     font-size: 1.25em;
     margin-bottom: 1.75em;
     color: white;
+	 text-shadow: 2px 2px #303030;
+
 		}
 
 		#banner input[type="submit"],
@@ -3177,7 +3187,10 @@ a link {
 	text-decoration: none;
 }
 
+#cta h2 {
+	text-shadow: 2px 2px #303030;
 
+}
 
 		#cta h2, #cta h3, #cta h4, #cta h5, #cta h6 p {
 			color: inherit;
