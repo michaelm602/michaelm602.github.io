@@ -1,11 +1,7 @@
 @import url("font-awesome.min.css");
 @import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,300italic,400italic");
 
-/*
-	Alpha by HTML5 UP
-	html5up.net | @ajlkn
-	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
-*/
+
 
 /* Reset */
 
@@ -2031,6 +2027,7 @@ img {
     font-style: normal;
 		}
 
+
 /* Form */
 
 	form {
@@ -2237,7 +2234,6 @@ img {
     margin-left: 0;
     margin-bottom: 2em;
     padding: 3em;
-    -webkit-box-shadow: 0 2px 0 0 #821234;
 	}
 
 		.box > :last-child {
@@ -2479,18 +2475,16 @@ img {
     list-style: none;
     padding-left: 0;
     color: black;
+    text-decoration: none;
 		}
 
 			ul.icons li {
 				display: inline-block;
 				padding: 0 1.25em 0 0;
+
 			}
 
-				ul.icons li:last-child {
-					text-decoration: none;
-
-				}
-
+			
 				ul.icons li .icon {
 					color: inherit;
 				}
@@ -2763,16 +2757,16 @@ input[type="button"],
 	}
 
 	#header {
-		background: #444;
-		color: #bbb;
-		cursor: default;
-		height: 3.25em;
-		left: 0;
-		line-height: 3.25em;
-		position: fixed;
-		top: 0;
-		width: 100%;
-		z-index: 10000;
+    background: #444;
+    color: #821234;
+    cursor: default;
+    height: 3.25em;
+    left: 0;
+    line-height: 3.25em;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 10000;
 	}
 
 		#header h1 {
@@ -2793,12 +2787,12 @@ input[type="button"],
 			}
 
 			#header nav {
-				height: inherit;
-				line-height: inherit;
-				position: absolute;
-				right: 0.75em;
-				top: 0;
-				vertical-align: middle;
+    height: inherit;
+    line-height: inherit;
+    position: absolute;
+    right: 0.75em;
+    top: -12px;
+    vertical-align: middle;
 			}
 	
 				#header nav > ul {
@@ -2885,10 +2879,11 @@ input[type="button"],
 				}
 	
 			#header.reveal {
-				-moz-animation: reveal-header 0.5s;
-				-webkit-animation: reveal-header 0.5s;
-				-ms-animation: reveal-header 0.5s;
-				animation: reveal-header 0.5s;
+    -moz-animation: reveal-header 0.5s;
+    -webkit-animation: reveal-header 0.5s;
+    -ms-animation: reveal-header 0.5s;
+    animation: reveal-header 0.5s;
+    background-color: #821234;
 			}
 	
 			#header.alt {
@@ -3124,11 +3119,12 @@ input[type="button"],
 			-ms-transition: opacity 0.2s ease-in-out;
 			transition: opacity 0.2s ease-in-out;
 			opacity: 0.35;
+
 		}
 
 			#footer .icons a:hover {
-				color: #821234;
-				opacity: 0.75;
+    color: #821234;
+    opacity: 0.75;
 			}
 
 		#footer .copyright {
@@ -3142,12 +3138,14 @@ input[type="button"],
 
 			#footer .copyright a {
 				color: inherit;
+				
 			}
 
 			#footer .copyright li {
 				border-left: solid 1px #dddddd;
 				display: inline-block;
 				list-style: none;
+				text-decoration: none;
 				margin-left: 1em;
 				padding-left: 1em;
 			}
@@ -3410,15 +3408,15 @@ a link {
 			}
 
 				#navButton .toggle {
-					text-decoration: none;
-					height: 100%;
-					left: 0;
-					position: absolute;
-					top: 0;
-					width: 100%;
-					border: 0;
-					outline: 0;
-				}
+				text-decoration: none;
+				height: 100%;
+				left: 0;
+				position: absolute;
+				top: 0;
+				width: 100%;
+				border: 0 none;
+				outline: 0;
+							}
 
 					#navButton .toggle:before {
 						-moz-osx-font-smoothing: grayscale;
@@ -3796,7 +3794,9 @@ a link {
 		/* Main */
 
 			#main > .box:first-child {
-				margin-top: 0;
+    margin-top: 0;
+    margin-right: -29px;
+    margin-left: -25px;
 			}
 
 		/* CTA */
