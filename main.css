@@ -3610,10 +3610,10 @@ a link {
 		/* Box */
 
 			.box {
-    margin-top: -5px;
-    margin-right: -5px;
-    margin-left: -5px;
-    margin-bottom: -5px;
+    margin-top: 21px;
+    margin-right: 21px;
+    margin-left: 21px;
+    margin-bottom: 21px;
     overflow-x: hidden;
     padding-top: 22px;
     padding-right: 22px;
