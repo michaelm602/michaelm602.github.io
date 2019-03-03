@@ -1,11 +1,7 @@
 @import url("font-awesome.min.css");
 @import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,300italic,400italic");
 
-/*
-	Alpha by HTML5 UP
-	html5up.net | @ajlkn
-	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
-*/
+
 
 /* Reset */
 
@@ -257,6 +253,9 @@ img {
 		}
 		.rich-text {
 			margin: 10px auto;
+		}
+		.box {
+			margin: 0px auto;
 		}
 
 	}
@@ -2031,6 +2030,7 @@ img {
     font-style: normal;
 		}
 
+
 /* Form */
 
 	form {
@@ -2236,8 +2236,10 @@ img {
     margin-right: 0;
     margin-left: 0;
     margin-bottom: 2em;
-    padding: 3em;
-    -webkit-box-shadow: 0 2px 0 0 #821234;
+    padding-top: 3em;
+    padding-right: 3px;
+    padding-left: 3px;
+    padding-bottom: 3em;
 	}
 
 		.box > :last-child {
@@ -2482,15 +2484,13 @@ img {
 		}
 
 			ul.icons li {
-				display: inline-block;
-				padding: 0 1.25em 0 0;
+    display: inline-block;
+    padding: 0 1.25em 0 0;
+    text-decoration: none;
+
 			}
 
-				ul.icons li:last-child {
-
-
-				}
-
+			
 				ul.icons li .icon {
 					color: inherit;
 				}
@@ -2714,11 +2714,11 @@ input[type="button"],
 	input[type="button"]:disabled,
 	.button.disabled,
 	.button:disabled {
-		background-color: #777 !important;
-		box-shadow: inset 0 -0.15em 0 0 rgba(0, 0, 0, 0.15);
-		color: #f5f5f5 !important;
-		cursor: default;
-		opacity: 0.25;
+    background-color: #821234 !important;
+    box-shadow: inset 0 -0.15em 0 0 rgba(0, 0, 0, 0.15);
+    color: #666262 !important;
+    cursor: default;
+    opacity: 0.25;
 	}
 /* Header */
 
@@ -2763,16 +2763,16 @@ input[type="button"],
 	}
 
 	#header {
-		background: #444;
-		color: #bbb;
-		cursor: default;
-		height: 3.25em;
-		left: 0;
-		line-height: 3.25em;
-		position: fixed;
-		top: 0;
-		width: 100%;
-		z-index: 10000;
+    background: #444;
+    color: #821234;
+    cursor: default;
+    height: 3.25em;
+    left: 0;
+    line-height: 3.25em;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 10000;
 	}
 
 		#header h1 {
@@ -2793,12 +2793,12 @@ input[type="button"],
 			}
 
 			#header nav {
-				height: inherit;
-				line-height: inherit;
-				position: absolute;
-				right: 0.75em;
-				top: 0;
-				vertical-align: middle;
+    height: inherit;
+    line-height: inherit;
+    position: absolute;
+    right: 0.75em;
+    top: -12px;
+    vertical-align: middle;
 			}
 	
 				#header nav > ul {
@@ -2885,10 +2885,11 @@ input[type="button"],
 				}
 	
 			#header.reveal {
-				-moz-animation: reveal-header 0.5s;
-				-webkit-animation: reveal-header 0.5s;
-				-ms-animation: reveal-header 0.5s;
-				animation: reveal-header 0.5s;
+    -moz-animation: reveal-header 0.5s;
+    -webkit-animation: reveal-header 0.5s;
+    -ms-animation: reveal-header 0.5s;
+    animation: reveal-header 0.5s;
+    background-color: #821234;
 			}
 	
 			#header.alt {
@@ -3124,11 +3125,12 @@ input[type="button"],
 			-ms-transition: opacity 0.2s ease-in-out;
 			transition: opacity 0.2s ease-in-out;
 			opacity: 0.35;
+
 		}
 
 			#footer .icons a:hover {
-				color: #821234;
-				opacity: 0.75;
+    color: #821234;
+    opacity: 0.75;
 			}
 
 		#footer .copyright {
@@ -3142,12 +3144,14 @@ input[type="button"],
 
 			#footer .copyright a {
 				color: inherit;
+				
 			}
 
 			#footer .copyright li {
 				border-left: solid 1px #dddddd;
 				display: inline-block;
 				list-style: none;
+				text-decoration: none;
 				margin-left: 1em;
 				padding-left: 1em;
 			}
@@ -3410,15 +3414,15 @@ a link {
 			}
 
 				#navButton .toggle {
-					text-decoration: none;
-					height: 100%;
-					left: 0;
-					position: absolute;
-					top: 0;
-					width: 100%;
-					border: 0;
-					outline: 0;
-				}
+				text-decoration: none;
+				height: 100%;
+				left: 0;
+				position: absolute;
+				top: 0;
+				width: 100%;
+				border: 0 none;
+				outline: 0;
+							}
 
 					#navButton .toggle:before {
 						-moz-osx-font-smoothing: grayscale;
@@ -3433,7 +3437,7 @@ a link {
 						background: rgba(192, 192, 192, 0.75);
 						border-radius: 6px;
 						color: #fff;
-						content: '\f0c9';
+						content: '';
 						display: block;
 						font-size: 16px;
 						height: 2.25em;
@@ -3605,9 +3609,15 @@ a link {
 		/* Box */
 
 			.box {
-				margin: 1em;
-				overflow-x: hidden;
-				padding: 2em 2em !important;
+    margin-top: -5px;
+    margin-right: -5px;
+    margin-left: -5px;
+    margin-bottom: -5px;
+    overflow-x: hidden;
+    padding-top: 22px;
+    padding-right: 22px;
+    padding-left: 22px;
+    padding-bottom: 22px;
 			}
 
 				.box.features .features-row {
@@ -3796,7 +3806,8 @@ a link {
 		/* Main */
 
 			#main > .box:first-child {
-				margin-top: 0;
+    margin-top: 0;
+    margin-right: -29px;
 			}
 
 		/* CTA */
