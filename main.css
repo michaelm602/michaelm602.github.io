@@ -736,9 +736,8 @@ img {
 	@media screen and (max-width: 1280px) {
 
 		.row > * {
-    padding-right: auto;
-    padding-left: auto;
-    padding-top: 0em;
+    padding: 0px 0px 0px 0px;
+    margin: 0px auto;
 		}
 
 		.row {
@@ -953,7 +952,10 @@ img {
 	@media screen and (max-width: 980px) {
 
 		.row > * {
-			padding: 0 0 0 2em;
+    padding-top: 0;
+    padding-right: 0;
+    padding-left: 2px;
+    padding-bottom: 0;
 		}
 
 		.row {
@@ -1162,13 +1164,17 @@ img {
 		.\-1u\28narrow\29 {
 			margin-left: 8.33333%;
 		}
+		
 
 	}
 
 	@media screen and (max-width: 840px) {
 
 		.row > * {
-			padding: 0 0 0 2em;
+    padding-top: 0;
+    padding-right: 0;
+    padding-left: 0px;
+    padding-bottom: 0;
 		}
 
 		.row {
@@ -1383,7 +1389,11 @@ img {
 	@media screen and (max-width: 736px) {
 
 		.row > * {
-			padding: 0 0 0 2em;
+    padding-top: 0px;
+    padding-right: auto;
+    padding-left: auto;
+    margin: 0px auto;
+    padding-bottom: 0px;
 		}
 
 		.row {
@@ -1600,7 +1610,7 @@ img {
 	@media screen and (max-width: 480px) {
 
 		.row > * {
-			padding: 0 0 0 2em;
+    padding: 0 0 0 0;
 		}
 
 		.row {
@@ -1978,6 +1988,8 @@ img {
     margin-left: auto;
     margin-bottom: 0px;
     padding-top: 60px;
+    padding-left: auto;
+    padding-right: auto;
 	}
 
 	header p {
@@ -2236,7 +2248,6 @@ img {
     margin-left: 0;
     margin-bottom: 2em;
     padding: 3em;
-    -webkit-box-shadow: 0 2px 0 0 #821234;
 	}
 
 		.box > :last-child {
@@ -2337,6 +2348,7 @@ img {
     border-radius: 0;
     display: block;
     width: 265px;
+	margin: 0px auto;
 			}
 .box .image.featured4 img {
     border-radius: 0;
@@ -3173,6 +3185,7 @@ img {
     color: #D5D5D5;
     padding: 3.5em 0 4em 0;
     text-align: center;
+    margin-top: 20px;
 	}
 
 .number {
@@ -3350,7 +3363,7 @@ a link {
 
 		/* Box */
 
-			.box .box special1{
+			.box .box special{
 				padding: 3em 2em;
 			}
 
@@ -3787,3 +3800,5 @@ a link {
 			}
 
 	}
+.row1 {
+}
