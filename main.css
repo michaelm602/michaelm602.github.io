@@ -1,11 +1,7 @@
 @import url("font-awesome.min.css");
 @import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,300italic,400italic");
 
-/*
-	Alpha by HTML5 UP
-	html5up.net | @ajlkn
-	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
-*/
+
 
 /* Reset */
 
@@ -2771,8 +2767,7 @@ img {
 	}
 
 	#header {
-    background: #444;
-    color: #821234;
+    background: #821234;
     cursor: default;
     height: 3.25em;
     left: 0;
@@ -3028,11 +3023,10 @@ img {
 
 		#banner h1 {
     font-size: 3.7em;
-    line-height: 1em;
     margin: 0 0 0.5em 0;
     padding: 0;
     color: white;
- text-shadow: 2px 2px #303030;
+    text-shadow: 2px 2px #303030;
 
 		}
 		#banner h2 {
@@ -3048,7 +3042,8 @@ img {
     font-size: 1.25em;
     margin-bottom: 1.75em;
     color: white;
-	 text-shadow: 2px 2px #303030;
+    text-shadow: 2px 2px #303030;
+    margin-top: 20px;
 
 		}
 
