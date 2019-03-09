@@ -82,6 +82,44 @@
 	.container {
 		width: 60em;
 	}
+/*--prices-- */
+.table-sub-title ul li {
+    display: block;
+    color: #f0f0f0;
+    margin-bottom: 3px;
+}
+
+.table-list-txt ul li {
+  padding-top: 3px;
+}
+.table-mid-head {
+    padding: 20px 20px;
+    background:#fbbe30;
+}
+.table-sub-title h5 {
+    font-size: 52px;
+    color: #f0f0f0;
+}
+.table-sub-title h5 span {
+  font-size: 20px;
+}
+.table-sub-title h5 span {
+    font-size: 52px;
+    color: #f0f0f0;
+    margin-right: 4px;
+}
+
+.table-sub-title h6 {
+    font-size: 14px;
+    color: #D9D9D9;
+    font-weight: bold;
+}
+.table-wthree-price, .clients-info  {
+    background:#f7f7f7;
+    padding: 1em 1.5em;
+    box-shadow: 0px 0px 8px #adadad;
+}
+/*--//prices-- */
 
 	@media screen and (max-width: 1680px) {
 
@@ -222,6 +260,9 @@
 		.image .featured3 {
 			width: 200px;
 		}
+		.table-wthree-price, .clients-info {
+padding: .9em 1.2em;
+}
 
 	}
 .rich-text {
@@ -269,11 +310,8 @@ img {
 		box-sizing: border-box;
 	}
 
-	.row > * {
-		float: left;
-		-moz-box-sizing: border-box;
-		-webkit-box-sizing: border-box;
-		box-sizing: border-box;
+	.row.uniform > * {
+		padding: 2em 0 0 2em;
 	}
 
 	.row:after, .row:before {
@@ -1490,6 +1528,7 @@ img {
 			margin-left: 0;
 		}
 
+
 		.\39 u\28mobile\29, .\39 u\24\28mobile\29 {
 			width: 75%;
 			clear: none;
@@ -1604,6 +1643,9 @@ img {
 		.\-1u\28mobile\29 {
 			margin-left: 8.33333%;
 		}
+		.table-wthree-price, .clients-info {
+padding: .9em 1.2em;
+}
 
 	}
 
@@ -1876,7 +1918,6 @@ img {
 	}
 
 		h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
-			color: inherit;
 			text-decoration: none;
 		}
 
@@ -1986,7 +2027,7 @@ img {
     margin-top: 20px;
     margin-right: auto;
     margin-left: auto;
-    margin-bottom: 0px;
+    margin-bottom: 20px;
     padding-top: 60px;
     padding-left: auto;
     padding-right: auto;
@@ -2493,8 +2534,8 @@ img {
 		ul.icons {
     cursor: default;
     list-style: none;
-    padding-left: 0;
     color: black;
+    padding-top: 11px;
 		}
 
 			ul.icons li {
@@ -2738,7 +2779,7 @@ img {
 
 /* Header */
 
-	#page-wrapper {
+		#page-wrapper {
 		padding-top: 3em;
 	}
 
@@ -2792,20 +2833,17 @@ img {
 
 		#header h1 {
     color: #F8F7F7;
-    height: inherit;
     left: 1.25em;
-    line-height: inherit;
-    margin: 0;
+    margin-top: 14px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 0px;
     padding: 0;
     position: absolute;
     top: 0;
 		}
 
-			#header h1 a {
-				color: #fff;
-				font-weight: 400;
-				border: 0;
-			}
+			
 
 		#header nav {
     height: inherit;
@@ -3120,6 +3158,8 @@ img {
 
 	body.landing #main {
     margin-top: -10em;
+    margin-bottom: -11px;
+    padding-bottom: 0px;
 	}
 
 /*Massage Section*/
@@ -3133,9 +3173,8 @@ img {
 
 
 	#footer {
-		background: #f0f0f0;
-		padding: 4em 0 6em 0;
-		text-align: center;
+    background: #f0f0f0;
+    text-align: center;
 	}
 
 		#footer .icons a {
@@ -3183,9 +3222,15 @@ img {
 	#cta {
     background: #821234;
     color: #D5D5D5;
-    padding: 3.5em 0 4em 0;
+    padding-top: 40px;
+    padding-right: 0;
+    padding-left: 0;
+    padding-bottom: 40px;
+    margin-top: 50px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 0px;
     text-align: center;
-    margin-top: 20px;
 	}
 
 .number {
@@ -3261,6 +3306,7 @@ a link {
 .minor a:hover {
     color: #821234;
     text-decoration: none;
+
 }
 
 #cta p {
@@ -3638,6 +3684,9 @@ a link {
 						margin-bottom: -2em;
 						margin-top: 2em;
 					}
+		.table-wthree-price, .clients-info {
+padding: .9em 1.2em;
+}
 
 		/* Banner */
 
@@ -3801,4 +3850,14 @@ a link {
 
 	}
 .row1 {
+}
+
+.table-wthree-price, .clients-info  {
+    background:#f7f7f7;
+    padding: 1em 1.5em;
+    box-shadow: 0px 0px 8px #adadad;
+}
+
+a:hover #contact .btn a {
+	color: #821234;
 }
