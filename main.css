@@ -2025,12 +2025,9 @@ padding: .9em 1.2em;
 		section.special, article.special {
     text-align: center;
     margin-top: 20px;
-    margin-right: auto;
-    margin-left: auto;
+    margin-right: 20px;
+    margin-left: 20px;
     margin-bottom: 20px;
-    padding-top: 60px;
-    padding-left: auto;
-    padding-right: auto;
 	}
 
 	header p {
@@ -3159,7 +3156,7 @@ padding: .9em 1.2em;
 	body.landing #main {
     margin-top: -10em;
     margin-bottom: -11px;
-    padding-bottom: 0px;
+    /* [disabled]padding-bottom: 0px; */
 	}
 
 /*Massage Section*/
