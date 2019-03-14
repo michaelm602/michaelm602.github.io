@@ -120,6 +120,10 @@
     box-shadow: 0px 0px 8px #adadad;
 }
 /*--//prices-- */
+.antispam { 
+	display:none;
+}
+
 
 	@media screen and (max-width: 1680px) {
 
@@ -787,7 +791,10 @@ img {
 		}
 
 		.row.uniform {
-			margin: -2em 0 -1px -2em;
+    /* [disabled]margin-top: 2px; */
+    /* [disabled]margin-right: 0; */
+    /* [disabled]margin-left: -2em; */
+    /* [disabled]margin-bottom: 2px; */
 		}
 
 		.row.\32 00\25 > * {
