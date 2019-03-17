@@ -80,6 +80,9 @@ input, select, textarea {
 		html, body {
 			min-width: 320px;
 		}
+		#jssor_1 {
+			max-width: 100%;
+		}
 
 	}
 
