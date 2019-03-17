@@ -1231,8 +1231,11 @@ input, select, textarea {
 				padding: 3rem 2rem;
 			}
 			#jssor_1 {
-				max-width: 100%;
-			}
+    margin-top: 196px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 20px;
+	}
 
 		}
 
@@ -1242,8 +1245,11 @@ input, select, textarea {
 				padding: 2rem 1rem;
 			}
 			#jssor_1 {
-				max-width: 100%;
-			}
+    margin-top: 196px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 20px;
+	}
 
 		}
 
@@ -1253,12 +1259,11 @@ input, select, textarea {
 				padding: 1rem;
 			}
 			#jssor_1 {
-    margin-top: 0px;
+    margin-top: 196px;
     margin-right: auto;
     margin-left: auto;
-    margin-bottom: 0px;
-    max-width: 100%;
-			}
+    margin-bottom: 20px;
+	}
 
 		}
 
@@ -1453,6 +1458,12 @@ input, select, textarea {
 			#header .content p br {
 				display: none;
 			}
+			#jssor_1 {
+    margin-top: 196px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 20px;
+	}
 
 		}
 
@@ -1484,6 +1495,12 @@ input, select, textarea {
 			#header .content p {
 				line-height: 1.875;
 			}
+			#jssor_1 {
+    margin-top: 196px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 20px;
+	}
 
 		}
 
@@ -1525,6 +1542,12 @@ input, select, textarea {
 				#header nav.use-middle:after {
 					display: none;
 				}
+			#jssor_1 {
+    margin-top: 196px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 20px;
+	}
 
 		}
 
@@ -1647,6 +1670,12 @@ input, select, textarea {
 			#main article {
 				padding: 3rem 1.5rem 0.5rem 1.5rem ;
 			}
+			#jssor_1 {
+    margin-top: 196px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 20px;
+	}
 
 		}
 
