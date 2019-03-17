@@ -129,6 +129,9 @@ input, select, textarea {
 			html {
 				font-size: 11pt;
 			}
+			#jssor_1 img {
+				max-width: 100%;
+			}
 
 		}
 
@@ -136,6 +139,9 @@ input, select, textarea {
 
 			html {
 				font-size: 10pt;
+			}
+			#jssor_1 {
+				max-width: 100%;
 			}
 
 		}
