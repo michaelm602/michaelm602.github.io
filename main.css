@@ -382,9 +382,12 @@ input, select, textarea {
 					form > .fields > .field.quarter {
 						width: calc(100% - 1.5rem);
 					}
-			#jssor_1  {
-				max-width: 100%;
-			}
+			#jssor_1 {
+    margin-top: 196px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 20px;
+	}
 
 		}
 
