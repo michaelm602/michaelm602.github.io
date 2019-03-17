@@ -83,7 +83,7 @@ input, select, textarea {
 		
 		.article-image {
 			max-width: 100%;
-			max-height: 100%
+			overflow: hidden;
 		}
 
 	}
@@ -133,6 +133,7 @@ input, select, textarea {
 			}
 			.article-image  {
 				max-width: 100%;
+				overflow: hidden;
 			}
 
 		}
@@ -144,6 +145,7 @@ input, select, textarea {
 			}
 			.article-image {
 				max-width: 100%;
+				overflow: hidden;
 			}
 			
 
@@ -249,6 +251,7 @@ input, select, textarea {
 		}
 		.article-image  {
 				max-width: 100%;
+			overflow: hidden;
 			}
 
 	}
@@ -1244,6 +1247,7 @@ input, select, textarea {
 			.article-image {
 				max-width: 100%;
 				text-align: center;
+				overflow: hidden;
 			}
 
 		}
@@ -1256,6 +1260,7 @@ input, select, textarea {
 			.article-image {
 				max-width: 100%;
 				text-align: center;
+				overflow: hidden;
 			}
 
 		}
@@ -1454,6 +1459,7 @@ input, select, textarea {
 			.article-image {
 				max-width: 100%;
 				text-align: center;
+				overflow: hidden;
 			}
 
 		}
@@ -1489,6 +1495,7 @@ input, select, textarea {
 			.article-image {
 				max-width: 100%;
 				text-align: center;
+				overflow: hidden;
 			}
 
 		}
@@ -1534,6 +1541,7 @@ input, select, textarea {
 			.article-image {
    			    max-width: 100%;
 				text-align: center;
+				overflow: hidden;
 	}
 
 		}
@@ -1652,6 +1660,7 @@ input, select, textarea {
 			.article-image {
     			max-width: 100%;
 				text-align: center;
+				overflow: hidden;
 	}
 
 		}
@@ -1664,6 +1673,7 @@ input, select, textarea {
 			.article-image {
 				max-width: 100%;
 				text-align: center;
+				overflow: hidden;
 			}
 
 		}
