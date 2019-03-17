@@ -143,6 +143,9 @@ input, select, textarea {
 			#jssor_1 {
 				max-width: 100%;
 			}
+			#jssor_1 img {
+				max-width: 100%;
+			}
 
 		}
 
@@ -244,6 +247,9 @@ input, select, textarea {
 			font-size: 1.25em;
 			line-height: 1.5;
 		}
+		#jssor_1 img {
+				max-width: 100%;
+			}
 
 	}
 
@@ -378,6 +384,9 @@ input, select, textarea {
 					form > .fields > .field.quarter {
 						width: calc(100% - 1.5rem);
 					}
+			#jssor_1 img {
+				max-width: 100%;
+			}
 
 		}
 
