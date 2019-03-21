@@ -1261,6 +1261,7 @@ input, select, textarea {
 				max-width: 100%;
 				text-align: center;
 				overflow: hidden;
+				margin: 0px auto;
 			}
 
 		}
