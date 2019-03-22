@@ -1234,7 +1234,8 @@ input, select, textarea {
 				padding: 3rem 2rem;
 			}
 			#jssor_1 {
-    margin: 0px auto;
+	margin: 0px auto;
+	text-align: center;
 	}
 
 		}
