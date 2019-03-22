@@ -1234,8 +1234,7 @@ input, select, textarea {
 				padding: 3rem 2rem;
 			}
 			#jssor_1 {
-	margin: 0px auto;
-	text-align: center;
+    margin: 0px auto;
 	}
 
 		}
@@ -1257,6 +1256,9 @@ input, select, textarea {
 
 			#wrapper {
 				padding: 1rem;
+			}
+			.jssor_1 {
+				margin: 0px auto;
 			}
 			.article-image {
 				max-width: 100%;
