@@ -334,10 +334,11 @@
 	}
 
 		p:last-child {
-    margin: 0;
-    color: #FFFFFF;
-    font-size: 25px;
-    font-family: 'Euphoria Script', cursive;
+	margin: 0;
+	color: #FFFFFF;
+	font-size: 25px;
+	font-family: 'Euphoria Script', cursive;
+	text-align: center;
 		}
 
 		p.special {
