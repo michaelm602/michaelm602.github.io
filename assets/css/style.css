@@ -388,27 +388,7 @@
 	
 }
 
-@media (max-width: 416px){
-	
-	.container {
-		height: 100%;
-		
-	}
-	
-	.heading {
-		font-size: 30px;
-		top: 5%;
-	}
-	
-	.heading::after {
-		width: 3px;
-    	height: 30px;
-	}
-	
-	
-	
-	
-}
+
 
 
 @media (max-width: 526px){
