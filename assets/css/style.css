@@ -11,7 +11,7 @@
 .container {
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(rgba(0, 0, 0, .6), rgba(0, 0, 0, .0)), url(../../../../WebSite%20Portfolio/images/bg.jpg) center no-repeat;
+    background: linear-gradient(rgba(0, 0, 0, .6), rgba(0, 0, 0, .0)), url(../../images/bg.jpg) center no-repeat;
     background-size: cover;
 }
 
@@ -375,7 +375,7 @@
 		overflow: hidden;
 		width: 100vw;
     height: 100vh;
-    background: linear-gradient(rgba(0, 0, 0, .6), rgba(0, 0, 0, .0)), url(../../../../WebSite%20Portfolio/images/bg.jpg) center no-repeat;
+    background: linear-gradient(rgba(0, 0, 0, .6), rgba(0, 0, 0, .0)), url(../../images/bg.jpg) center no-repeat;
     background-size: cover;
 	}
 	
@@ -388,7 +388,27 @@
 	
 }
 
-
+@media (max-width: 416px){
+	
+	.container {
+		height: 100%;
+		
+	}
+	
+	.heading {
+		font-size: 30px;
+		top: 5%;
+	}
+	
+	.heading::after {
+		width: 3px;
+    	height: 30px;
+	}
+	
+	
+	
+	
+}
 
 
 @media (max-width: 526px){
