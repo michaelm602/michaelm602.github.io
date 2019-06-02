@@ -15,6 +15,11 @@
     background-size: cover;
 }
 
+.cards-wrapper {
+	top: 50%;
+	width: 70%;
+}
+
 .heading {
     color: #fff;
     font-size: 50px;
@@ -289,4 +294,30 @@
 	}
 }
 
-
+@media (max-width: 416px){
+	
+	.container {
+		height: 100%;
+	}
+	
+	.heading {
+		font-size: 30px;
+		top: 5%;
+	}
+	
+	.heading::after {
+		width: 3px;
+    	height: 30px;
+	}
+	
+	.cards-wrapper {
+		flex-wrap: wrap;
+		padding: 100px 0 100px 0;
+		justify-content: center;
+	}
+	
+	.card {
+		margin: 25px 0;
+		overflow: hidden;
+	}
+}
