@@ -368,7 +368,6 @@ body {
 		padding-top: 200px;
         background: linear-gradient(rgba(0, 0, 0, .6), rgba(0, 0, 0, .0)), url(../../images/bg.jpg) center no-repeat;
         background-size: cover;
-        overflow: hidden;
 	}
 	
 	
