@@ -245,11 +245,25 @@ body {
     -o-transition: opacity 1s;
 }
 
+#jssor_1 {
+	position: relative; 
+	margin-top: 9%; 
+	margin-right: auto; 
+	margin-left: auto; 
+	margin-bottom: 0; 
+	top: 0px; 
+	left: 0px; 
+	width: 900px; 
+	height: 480px; 
+	overflow: hidden; 
+	visibility: hidden;
+}
+
 .x-btn {
     color: rgb(255, 255, 255);
     position: absolute;
     bottom: 6%;
-    right: 22%;
+    right: 23%;
     font-size: 23px;
     font-weight: bold;
     cursor: pointer;
@@ -284,6 +298,11 @@ body {
 }
 
 @media (max-width: 1024px){
+	
+	.cards-wrapper {
+		top: 15%;
+	}
+	
 	.heading {
 		font-size: 40px;
 	}
@@ -295,18 +314,28 @@ body {
 	}
 	
 	.website-wrapper {
-		width: 65vw;
+		width: 75vw;
+		height: 25%;
+		top: 30%;
+	}
+	
+	#jssor_1 {
+		
 	}
 	
 	.x-btn {
-		right: 18%;
+		right: 13%;
 		font-size: 21px;
-		bottom: 8%;
+		bottom: 15%;
 	}
 }
 
 @media (max-width: 860px){
     
+	body {
+		overflow: visible;
+		overflow-x: hidden;
+	}
 	
 	.heading {
 		font-size: 35px;
@@ -319,11 +348,20 @@ body {
 	
 	.cards-wrapper {
         width: 90%;
-        
 	}
 	
 	.card {
 		width: 300px;
+	}
+	
+	.website-wrapper {
+		width: 85vw;
+	}
+	
+	.x-btn {
+		right: 9%;
+		font-size: 19px;
+		bottom: 17%;
 	}
 	
 }
@@ -333,6 +371,7 @@ body {
 @media (max-width: 662px){
 	
 	body {
+		height: 100%;
         overflow: visible;
         overflow-x: hidden;
     }
@@ -355,7 +394,6 @@ body {
 		flex-wrap: wrap;
 		padding: 100px 0 100px 0;
 		justify-content: center;
-		
 	}
 	
 	.card {
@@ -363,18 +401,21 @@ body {
 	}
 	
 	.website-wrapper {
-		width: 100%;
+		width: 100vw;
 		height: 100%;
-		padding-top: 200px;
+		padding-top: 300px;
         background: linear-gradient(rgba(0, 0, 0, .6), rgba(0, 0, 0, .0)), url(../../images/bg.jpg) center no-repeat;
         background-size: cover;
+		overflow: hidden;
 	}
 	
-	
+	#jssor_1 {
+		top: 22%;
+	}
 	
 	.x-btn {
-		right: 0;
-		bottom: 18%;
+		right: 2%;
+		bottom: 9%;
 	}
 	
 }
