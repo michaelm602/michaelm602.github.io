@@ -99,16 +99,16 @@
 
        <div class="form-container">
 		   <h1>Say hello and let me create your vision</h1>
-         <form class="sign-up-form" action="">
-              <input type="text" class="form-input" placeholder="First Name">
-              <input type="text" class="form-input" placeholder="Last Name">
-              <input type="text" class="form-input" placeholder="Email Address">
+         <form class="sign-up-form" method="POST" action="contact-form-handler.php">
+              <input type="firstname" class="form-input" placeholder="First Name" required>
+              <input type="lastname" class="form-input" placeholder="Last Name" required>
+              <input type="email" class="form-input" placeholder="Email Address" required>
               <select name="services" class="selection">
                   <option value="options" class="drop-down-menu">Websites or Tattoo Work</option>
                 <option value="websites" class="drop-down-menu">Websites</option>
                 <option value="tattoos" class="drop-down-menu">Tattoo Work</option>
               </select>
-              <textarea class="text-area" placeholder="Enter message here..." maxlength="1000"></textarea>
+              <textarea name="message" class="text-area" placeholder="Enter message here..." maxlength="1000"></textarea>
               <button class="contact-btn">Send Message</button>
          </form>
        </div>
