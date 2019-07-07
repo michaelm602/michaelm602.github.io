@@ -5,7 +5,7 @@
     $services = $_POST['options'];
     $message = $_POST['message']
 
-    $email_from = 'michaelm602@yahoo.com';
+    $email_from = 'michaelm602.github.io';
 
     $email_subject = "New Submission";
 
