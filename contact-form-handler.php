@@ -1,17 +1,20 @@
 <?php
-    if (isset($_POST['submit'])) {
-        $name = $_POST['firstname, lastname'];
-        $email_from = $_POST['email'];
-        $message = $_POST['message'];
-        $selection = $_POST['selection'];
-    }
+    $name = $_POST['firstname, lastname'];
+    $email = $_POST['email'];
+    $message = $_POST['message'];
+    $selection = $_POST['selection'];
+    $from = 'From: michaelm602.github.io'; 
+    $to = 'michaelm602@yahoo.com';
+    $subject = 'Services';
 
-    $emailTo = "michaelm602#yahoo.com";
-    $headers = "From: ".$email_from;
-    $txt = "You have a new email from ".$name.".\n\n".$message;
+    $body = "From: $name\n E-Mail: $email\n Message:\n $message";
 
-    mail($mailTo,$headers,$txt,$message,$selection,$email_from,$name);
-
-    header("Location: index.html");
+    if ($_POST['submit']) {				 
+        if (mail ($to, $subject, $body, $from)) { 
+	    echo '<p>Your message has been sent!</p>';
+	} else { 
+	    echo '<p>Something went wrong, go back and try again!</p>'; 
+	} 
+    } 
 
 ?>
