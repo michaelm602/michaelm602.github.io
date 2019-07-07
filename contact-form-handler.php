@@ -1,25 +1,16 @@
 <?php
-    $firstname = $_POST['firstname'];
-    $lastname = $_POST['lastname'];
-    $visitor_email = $_POST['email'];
-    $services = $_POST['options'];
-    $message = $_POST['message']
+    if (isset($_POST['submit'])) {
+        $name = $_POST['firstname, lastname'];
+        $email_from = $_POST['email'];
+        $message = $_POST['message'];
+        $selection = $_POST['selection'];
+    }
 
-    $email_from = 'michaelm602.github.io';
+    $emailTo = "michaelm602#yahoo.com";
+    $headers = "From: ".$email_from;
+    $txt = "You have a new email from ".$name.".\n\n".$message;
 
-    $email_subject = "New Submission";
-
-    $email_body = "User First Name: $firstname.\n".
-                    "User Last Name: $lastname.\n". 
-                    "User Email: $visitor_email.\n".
-                    "Services: $services.\n".
-                    "User Message: $message.\n".
-
-    $to = "michaelm602@yahoo.com";
-    $headers = "From: $email_from \r\n";
-    $headers .= "Reply-To: $visitor_email \r\n";
-
-    mail($to,$email_subject,$email_body,$headers);
+    mail($mailTo,$headers,$txt,$message,$selection,$email_from,$name);
 
     header("Location: index.html");
 
