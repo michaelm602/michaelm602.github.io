@@ -1,8 +1,19 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+.page-wrapper {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .logo {
@@ -18,6 +29,33 @@
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+.lightbox-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lightbox-content img {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+.lightbox-caption {
+  margin-top: 1rem;
+  font-size: 1.1rem;
+  color: white;
+  text-align: center;
+}
+
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
@@ -31,12 +69,4 @@
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
   }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }

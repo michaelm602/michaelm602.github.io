@@ -1,0 +1,55 @@
+.shop-container {
+    padding: 2rem;
+}
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.shop-card {
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    overflow: hidden;
+    background-color: #fff;
+    transition: box-shadow 0.3s ease;
+}
+
+.shop-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.shop-image {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+}
+
+.shop-info {
+    padding: 1rem;
+    text-align: center;
+}
+
+.price {
+    font-weight: bold;
+    margin: 0.5rem 0;
+}
+
+.buy-btn {
+    padding: 0.5rem 1rem;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.buy-btn:hover {
+    background-color: #444;
+}
+
+.sold-out {
+    color: crimson;
+    font-weight: bold;
+}
