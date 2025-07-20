@@ -8,7 +8,7 @@ import Navbar from "./Components/Navbar";
 import GalleryPage from './pages/GalleryPage';
 import UploadImage from "./components/UploadImage";
 import LoginForm from "./components/LogInForm";
-import Footer from "./components/Footer";
+import Footer from "./Components/Footer";
 
 // auth & protected route
 import { auth } from "./firebase"

@@ -93,7 +93,11 @@ export default function Home() {
 
       {/* & INK LABEL BEHIND CTA */}
 <section
-  className="relative min-h-[35vh] sm:min-h-[30vh] md:min-h-[25vh] lg:min-h-[20vh] flex flex-col justify-center items-center pt-[6vh] pb-[4vh] overflow-visible"
+  className="relative min-h-[30vh] sm:min-h-[15vh] md:min-h-[20vh] lg:min-h-[33vh] 
+  flex flex-col justify-center 
+  items-center pb-[4vh] overflow-visible
+  pt-[8vh] sm:pt-[6vh] md:pt-[4vh] lg:pt-[2vh]
+  pb-[8vh] sm:pb-[6vh] md:pb-[3vh] lg:pb-[2vh] "
   ref={inkRef}
 >
   {/* 👇 This wrapper clips horizontal overflow but allows vertical overflow */}
@@ -101,7 +105,8 @@ export default function Home() {
     <SectionLabel text="& INK" show={showInk} />
   </div>
 
-  <div className="relative z-10 flex justify-center items-center h-full">
+    {/* CTA styles */}
+  <div className="relative z-10 flex justify-center items-center h-full pt-[8vh] sm:pt-[1vh] md:pt-[4vh] lg:pt-[2vh] pb-[2vh] sm:pb-[6vh] md:pb-[4vh] lg:pb-[1vh]">
     <CTA />
   </div>
 </section>

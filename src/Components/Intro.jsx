@@ -8,8 +8,9 @@ export default function Intro() {
         Who Am I?
       </h2>
       <p className="text-base sm:text-lg md:text-[1.1rem] leading-relaxed text-[#ddd]">
-        I'm Sonny — a manufacturing tech by day, and a visual hitman by night.
-        Tattoos, airbrush, acrylic — I turn ideas into ink and canvas into chaos.
+        I'm not here to blend in — I'm here to create something that stops you in your tracks. Every piece I make is a mix of instinct, emotion, and obsession with detail. Whether it's airbrush, ink, or canvas, I bring raw ideas to life with color, contrast, and movement. Art isn’t just what I do — it’s how I communicate when words fall short.
+
+        If you're into bold visuals, clean lines, and work that tells a story, you're in the right place. Take a look around — you’ll see exactly what I mean.
       </p>
     </section>
   );
