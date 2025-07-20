@@ -92,24 +92,24 @@ export default function Home() {
       </section>
 
       {/* & INK LABEL BEHIND CTA */}
-<section
-  className="relative min-h-[20vh] sm:min-h-[15vh] md:min-h-[20vh] lg:min-h-[33vh] 
+      <section
+        className="relative min-h-[20vh] sm:min-h-[15vh] md:min-h-[20vh] lg:min-h-[33vh] 
   flex flex-col justify-center 
   items-center pb-[4vh] overflow-visible
   pt-[4vh] sm:pt-[6vh] md:pt-[4vh] lg:pt-[2vh]
   pb-[4vh] sm:pb-[6vh] md:pb-[3vh] lg:pb-[2vh] "
-  ref={inkRef}
->
-  {/* 👇 This wrapper clips horizontal overflow but allows vertical overflow */}
-  <div className="w-full overflow-x-hidden">
-    <SectionLabel text="& INK" show={showInk} />
-  </div>
+        ref={inkRef}
+      >
+        {/* 👇 This wrapper clips horizontal overflow but allows vertical overflow */}
+        <div className="w-full overflow-x-hidden">
+          <SectionLabel text="& INK" show={showInk} />
+        </div>
 
-    {/* CTA styles */}
-  <div className="relative z-10 flex justify-center items-center h-full pt-[8vh] sm:pt-[1vh] md:pt-[4vh] lg:pt-[2vh] pb-[2vh] sm:pb-[6vh] md:pb-[4vh] lg:pb-[1vh]">
-    <CTA />
-  </div>
-</section>
+        {/* CTA styles */}
+        <div className="relative z-10 flex justify-center items-center h-full pt-[8vh] sm:pt-[1vh] md:pt-[4vh] lg:pt-[2vh] pb-[2vh] sm:pb-[6vh] md:pb-[4vh] lg:pb-[1vh]">
+          <CTA />
+        </div>
+      </section>
 
 
     </div>
