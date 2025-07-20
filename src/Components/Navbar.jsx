@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
+import { FaFacebookF, FaInstagram, FaTiktok, FaEnvelope } from "react-icons/fa";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -51,27 +52,73 @@ export default function Navbar() {
         `}
       >
         <div className="flex flex-col items-center justify-center gap-10 text-2xl font-semibold text-white tracking-wide">
+          {/* Nav Links */}
           <Link
             to="/"
             onClick={closeMenu}
-            className="hover:text-[#ccc] transition-all duration-300 ease-out transform scale-95 hover:scale-100"
+            className={`transition-all duration-300 ease-out transform scale-95 hover:scale-100 
+                        ${menuOpen ? 'animate-slideInLeft delay-[100ms]' : ''}`}
           >
             Home
           </Link>
           <Link
             to="/portfolio"
             onClick={closeMenu}
-            className="hover:text-[#ccc] transition-all duration-300 ease-out transform scale-95 hover:scale-100"
+            className={`transition-all duration-300 ease-out transform scale-95 hover:scale-100 
+                        ${menuOpen ? 'animate-slideInLeft delay-[200ms]' : ''}`}
           >
             Portfolio
           </Link>
           <Link
             to="/contact"
             onClick={closeMenu}
-            className="hover:text-[#ccc] transition-all duration-300 ease-out transform scale-95 hover:scale-100"
+            className={`transition-all duration-300 ease-out transform scale-95 hover:scale-100 
+                        ${menuOpen ? 'animate-slideInLeft delay-[300ms]' : ''}`}
           >
             Contact
           </Link>
+
+          {/* Social Icons */}
+          <div className="flex gap-6 mt-8 text-xl text-white">
+            <a
+              href="https://facebook.com/yourpage"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`hover:text-[#ccc] transition-colors 
+                          ${menuOpen ? 'animate-slideInLeft delay-[400ms]' : ''}`}
+              aria-label="Facebook"
+            >
+              <FaFacebookF />
+            </a>
+            <a
+              href="https://instagram.com/yourhandle"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`hover:text-[#ccc] transition-colors 
+                          ${menuOpen ? 'animate-slideInLeft delay-[500ms]' : ''}`}
+              aria-label="Instagram"
+            >
+              <FaInstagram />
+            </a>
+            <a
+              href="https://tiktok.com/@yourhandle"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`hover:text-[#ccc] transition-colors 
+                          ${menuOpen ? 'animate-slideInLeft delay-[600ms]' : ''}`}
+              aria-label="TikTok"
+            >
+              <FaTiktok />
+            </a>
+            <a
+              href="mailto:your@email.com"
+              className={`hover:text-[#ccc] transition-colors 
+                          ${menuOpen ? 'animate-slideInLeft delay-[700ms]' : ''}`}
+              aria-label="Email"
+            >
+              <FaEnvelope />
+            </a>
+          </div>
         </div>
       </div>
     </nav>
