@@ -93,7 +93,7 @@ export default function Home() {
 
       {/* & INK LABEL BEHIND CTA */}
 <section
-  className="relative min-h-[45vh] sm:min-h-[40vh] md:min-h-[35vh] lg:min-h-[30vh] flex flex-col justify-center items-center pt-[8vh] pb-[10vh] overflow-visible"
+  className="relative min-h-[35vh] sm:min-h-[30vh] md:min-h-[25vh] lg:min-h-[20vh] flex flex-col justify-center items-center pt-[6vh] pb-[4vh] overflow-visible"
   ref={inkRef}
 >
   {/* 👇 This wrapper clips horizontal overflow but allows vertical overflow */}
