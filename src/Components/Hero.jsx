@@ -11,13 +11,13 @@ export default function Hero() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
-    }, 3000); // 4.5 seconds per image
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <section className="relative h-screen w-full bg-black overflow-hidden">
-      {/* Background images layered with fade transition */}
+    <section className="relative w-full h-[90vh] md:h-screen bg-black overflow-hidden">
+      {/* Background images */}
       {images.map((img, idx) => (
         <img
           key={idx}
@@ -31,16 +31,12 @@ export default function Hero() {
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full text-white text-center px-4">
-        <h1 className="text-5xl font-bold mb-4">AIRBRUSH & INK</h1>
-        <p className="text-xl max-w-xl mb-8">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">
+          AIRBRUSH & INK
+        </h1>
+        <p className="text-base sm:text-lg md:text-xl max-w-md sm:max-w-lg mb-6 sm:mb-8">
           Unique visuals and layered detail in every piece. Explore the work.
         </p>
-        <a
-          href="/portfolio"
-          className="bg-white text-black py-2 px-6 rounded shadow hover:bg-gray-100 transition"
-        >
-          View Portfolio
-        </a>
       </div>
     </section>
   );

@@ -4,7 +4,7 @@ import Hero from "../Components/Hero";
 import Intro from "../Components/Intro";
 import SectionLabel from "../Components/SectionLabel";
 import ServiceCard from "../components/ServiceCard";
-import CTA from "../components/CTA";
+import CTA from "../Components/CTA";
 import airbrushingImg from "../assets/services/airbrushing.jpg";
 import psLogoImg from "../assets/services/ps-logo.jpg";
 import tattooingImg from "../assets/services/tattooing.jpg";
@@ -43,7 +43,7 @@ export default function Home() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setShowInk(entry.isIntersecting),
-      { threshold: 0.2 }
+      { threshold: 0.05 }
     );
     const ref = inkRef.current;
     if (ref) observer.observe(ref);
@@ -51,7 +51,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="relative z-0">
+    <div className="relative z-0 overflow-x-hidden">
       {/* HERO SECTION */}
       <Hero currentImage={heroImages[currentImageIndex]} />
 
@@ -93,14 +93,14 @@ export default function Home() {
 
       {/* & INK LABEL BEHIND CTA */}
       <section
-        className="relative min-h-[30vh] pt-[8vh]" // 👈 removed overflow-hidden
-        ref={inkRef}
-      >
-        <SectionLabel text="& INK" show={showInk} />
-        <div className="relative z-10 bg-transparent mt-[-2vh]">
-          <CTA />
-        </div>
-      </section>
+  className="relative min-h-[150px] flex flex-col justify-center items-center"
+  ref={inkRef} // ✅ THIS is required
+>
+  <SectionLabel text="& INK" show={showInk} />
+  <div className="relative z-10 flex justify-center items-center h-full">
+    <CTA />
+  </div>
+</section>
     </div>
   );
 }
