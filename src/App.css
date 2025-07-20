@@ -3,17 +3,16 @@
   margin: 0;
   padding: 0;
   text-align: left;
+  overflow-x: hidden;
 }
 
 html, body {
   height: 100%;
-  overflow-x: hidden;
 }
 
 .page-wrapper {
   position: relative;
   min-height: 100vh;
-  overflow-x: hidden;
 }
 
 .logo {

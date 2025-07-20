@@ -51,7 +51,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="relative z-0 overflow-x-hidden">
+    <div className="relative z-0">
       {/* HERO SECTION */}
       <Hero currentImage={heroImages[currentImageIndex]} />
 
@@ -92,15 +92,21 @@ export default function Home() {
       </section>
 
       {/* & INK LABEL BEHIND CTA */}
-      <section
-  className="relative min-h-[150px] flex flex-col justify-center items-center"
-  ref={inkRef} // ✅ THIS is required
+<section
+  className="relative min-h-[45vh] sm:min-h-[40vh] md:min-h-[35vh] lg:min-h-[30vh] flex flex-col justify-center items-center pt-[8vh] pb-[10vh] overflow-visible"
+  ref={inkRef}
 >
-  <SectionLabel text="& INK" show={showInk} />
+  {/* 👇 This wrapper clips horizontal overflow but allows vertical overflow */}
+  <div className="w-full overflow-x-hidden">
+    <SectionLabel text="& INK" show={showInk} />
+  </div>
+
   <div className="relative z-10 flex justify-center items-center h-full">
     <CTA />
   </div>
 </section>
+
+
     </div>
   );
 }

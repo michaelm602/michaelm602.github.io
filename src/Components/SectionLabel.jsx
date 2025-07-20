@@ -29,8 +29,10 @@ export default function SectionLabel({ text, show }) {
   const opacityClass = show ? "opacity-100" : "opacity-0";
 
   return (
+    <div className="absolute inset-0 w-full  pointer-events-none z-[-1]">
     <div className={`${baseClasses} ${positionClass} ${sizeClass} ${opacityClass}`}>
       {text}
+    </div>
     </div>
   );
 }
