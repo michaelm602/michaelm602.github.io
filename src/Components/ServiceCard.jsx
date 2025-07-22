@@ -5,7 +5,7 @@ export default function ServiceCard({ title, description, image, link, tag }) {
   return (
     <Link
       to={link}
-      className="rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition duration-300 w-full sm:w-[300px] md:w-[320px] flex flex-col"
+      className="rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition duration-300 w-full sm:w-[300px] md:w-[320px] flex flex-col bg-gradient-to-r from-black to-[#222]"
     >
       <div className="relative">
         {tag && (

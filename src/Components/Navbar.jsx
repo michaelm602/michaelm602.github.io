@@ -1,10 +1,30 @@
 import { Link } from "react-router-dom";
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 import { FaFacebookF, FaInstagram, FaTiktok, FaEnvelope } from "react-icons/fa";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const goToServices = () => {
+    const currentPath = window.location.pathname;
+
+    if (currentPath === "/") {
+      const el = document.getElementById("services");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+      setMenuOpen(false);
+    } else {
+      sessionStorage.setItem("scrollToServices", "true");
+      navigate("/");
+      setMenuOpen(false);
+    }
+  };
+
+
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -12,7 +32,7 @@ export default function Navbar() {
     <nav className="sticky top-0 z-[1000] bg-gradient-to-r from-black to-[#222] text-white shadow-md mb-10">
       <div className="flex justify-between items-center px-6 py-2">
         {/* Logo */}
-        <h1 className="text-[1.4rem] font-bold tracking-[0.03em] font-['Courier_New']">
+        <h1 className="font-decipher text-[1.4rem] tracking-[0.03em]">
           Airbrush & Ink
         </h1>
 
@@ -24,9 +44,12 @@ export default function Navbar() {
             </Link>
           </li>
           <li className="flex items-center relative before:content-[''] before:inline-block before:w-px before:h-4 before:bg-white before:mx-3">
-            <Link to="/portfolio" className="text-[#ccc] hover:text-white transition-colors">
+            <button
+              onClick={goToServices}
+              className="text-[#ccc] hover:text-white transition-colors"
+            >
               Portfolio
-            </Link>
+            </button>
           </li>
           <li className="flex items-center relative before:content-[''] before:inline-block before:w-px before:h-4 before:bg-white before:mx-3">
             <Link to="/contact" className="text-[#ccc] hover:text-white transition-colors">
@@ -61,14 +84,13 @@ export default function Navbar() {
           >
             Home
           </Link>
-          <Link
-            to="/portfolio"
-            onClick={closeMenu}
+          <button
+            onClick={goToServices}
             className={`transition-all duration-300 ease-out transform scale-95 hover:scale-100 
-                        ${menuOpen ? 'animate-slideInLeft delay-[200ms]' : ''}`}
+              ${menuOpen ? 'animate-slideInLeft delay-[200ms]' : ''}`}
           >
             Portfolio
-          </Link>
+          </button>
           <Link
             to="/contact"
             onClick={closeMenu}

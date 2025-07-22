@@ -29,29 +29,28 @@ function App() {
     <Router>
       <div className="flex flex-col min-h-screen">
         <Navbar />
-          <main className="flex-grow" >
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/portfolio" element={<Portfolio />} />
-          <Route path="/gallery" element={<GalleryPage />} />
-          <Route path="/portfolio/airbrush" element={<Airbrush />} />
-          <Route path="/portfolio/tattoos" element={<Tattoos />} />
-          <Route path="/portfolio/photoshop" element={<Photoshop />} />
-          <Route path="/upload" element={
-            user ? (
-              <UploadImage />
-            ) : (
-              <div className="p-8 text-center text-red-500 font-bold text-xl">
-                🔒 You must be signed in to access this page.
-              </div>
-            )
-          } />
-          <Route path="/login" element={<LoginForm />} />
-        </Routes>
-          </main>
+        <main className="flex-grow" >
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/gallery" element={<GalleryPage />} />
+            <Route path="/portfolio/airbrush" element={<Airbrush />} />
+            <Route path="/portfolio/tattoos" element={<Tattoos />} />
+            <Route path="/portfolio/photoshop" element={<Photoshop />} />
+            <Route path="/upload" element={
+              user ? (
+                <UploadImage />
+              ) : (
+                <div className="p-8 text-center text-red-500 font-bold text-xl">
+                  🔒 You must be signed in to access this page.
+                </div>
+              )
+            } />
+            <Route path="/login" element={<LoginForm />} />
+          </Routes>
+        </main>
         <Footer />
       </div>
-      
+
     </Router>
   );
 }
