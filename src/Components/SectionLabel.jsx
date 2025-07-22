@@ -13,7 +13,7 @@ export default function SectionLabel({ text, show }) {
   // Position and centering
   const positionClass =
     text === "& INK"
-      ? "top-[1%] sm:top-[1%] md:top-[8%] lg:top-[5%] -translate-y-1/2"
+      ? "top-[0%] sm:top-[1%] md:top-[8%] lg:top-[5%] -translate-y-1/2"
       : text === "AIRBRUSH"
         ? "top-1/2 -translate-y-1/2"
         : "top-[5%]";
