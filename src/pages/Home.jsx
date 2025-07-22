@@ -84,7 +84,7 @@ export default function Home() {
       </section>
 
       {/* SERVICE CARDS */}
-      <section id="services" className="relative z-10 mt-[2vh] px-8 pt-5 pb-16">
+      <section id="services" className="relative z-10 mt-[2vh] px-8 pt-5 pb-12">
         <div className="flex flex-wrap justify-center gap-8">
           <ServiceCard
             tag="AIRBRUSH"
@@ -112,7 +112,7 @@ export default function Home() {
 
       {/* & INK LABEL BEHIND CTA */}
       <section
-        className="relative min-h-[10vh] sm:min-h-[15vh] md:min-h-[20vh] lg:min-h-[20vh]
+        className="relative min-h-[8vh] sm:min-h-[17vh] md:min-h-[26vh] lg:min-h-[20vh]
   flex flex-col justify-center items-center
   pt-[2vh] sm:pt-[3vh] md:pt-[2vh] lg:pt-[1vh]
   pb-[2vh] sm:pb-[3vh] md:pb-[2vh] lg:pb-[1vh]"

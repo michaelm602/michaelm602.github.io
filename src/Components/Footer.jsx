@@ -2,7 +2,7 @@ import { FaFacebookF, FaInstagram, FaTiktok, FaEnvelope } from "react-icons/fa";
 
 export default function Footer() {
   return (
-    <footer className="bg-black text-gray-400 text-sm py-4 sm:py-3 md:py-7 mt-[1vh] sm:mt-[-4vh] md:mt-[-4vh] border-t border-neutral-800">
+    <footer className="bg-black text-gray-400 text-sm py-6 sm:py-3 md:py-7 mt-[1vh] sm:mt-[-6vh] md:mt-[-8vh] lg:mt-[-2vh] border-t border-neutral-800">
       <div className="max-w-screen-xl mx-auto px-4 text-center">
         <p>&copy; 2025 Airbrush & Ink — All rights reserved.</p>
 
