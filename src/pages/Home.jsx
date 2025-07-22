@@ -112,7 +112,7 @@ export default function Home() {
 
       {/* & INK LABEL BEHIND CTA */}
       <section
-        className="relative min-h-[8vh] sm:min-h-[17vh] md:min-h-[26vh] lg:min-h-[20vh]
+        className="relative min-h-[8vh] sm:min-h-[14vh] md:min-h-[22vh] lg:min-h-[18vh]
   flex flex-col justify-center items-center
   pt-[2vh] sm:pt-[3vh] md:pt-[2vh] lg:pt-[1vh]
   pb-[2vh] sm:pb-[3vh] md:pb-[2vh] lg:pb-[1vh]"
