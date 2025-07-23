@@ -19,9 +19,9 @@ export default function Navbar() {
   }, []);
 
   const goToServices = () => {
-    const currentPath = window.location.pathname;
+    const currentPath = window.location.hash;
 
-    if (currentPath === "/") {
+    if (currentPath === "#/") {
       const el = document.getElementById("services");
       if (el) {
         el.scrollIntoView({ behavior: "smooth" });
@@ -29,7 +29,7 @@ export default function Navbar() {
       setMenuOpen(false);
     } else {
       sessionStorage.setItem("scrollToServices", "true");
-      navigate("/");
+      navigate("/"); // triggers scroll after landing
       setMenuOpen(false);
     }
   };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import Hero from "../Components/Hero";
 import Intro from "../Components/Intro";
 import SectionLabel from "../Components/SectionLabel";
@@ -19,6 +19,7 @@ export default function Home() {
   const inkRef = useRef(null);
   const [showAirbrush, setShowAirbrush] = useState(false);
   const [showInk, setShowInk] = useState(false);
+  const location = useLocation
 
   // Hero image rotator
   useEffect(() => {
@@ -51,21 +52,24 @@ export default function Home() {
   }, []);
 
   // Scroll to services
+
   useEffect(() => {
     const shouldScroll = sessionStorage.getItem("scrollToServices");
 
     if (shouldScroll) {
       sessionStorage.removeItem("scrollToServices");
 
-      const section = document.getElementById("services");
-      if (section) {
-        setTimeout(() => {
-          const yOffset = -100; // adjust this to match your navbar height
+      const scrollToServices = () => {
+        const section = document.getElementById("services");
+        if (section) {
+          const yOffset = -100; // adjust for navbar
           const y = section.getBoundingClientRect().top + window.pageYOffset + yOffset;
-
           window.scrollTo({ top: y, behavior: "smooth" });
-        }, 300);
-      }
+        }
+      };
+
+      // Wait for DOM to settle
+      setTimeout(scrollToServices, 500);
     }
   }, []);
 
