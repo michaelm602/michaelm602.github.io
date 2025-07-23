@@ -10,11 +10,13 @@ import GalleryPage from './pages/GalleryPage';
 import UploadImage from "./components/UploadImage";
 import LoginForm from "./components/LogInForm";
 import Footer from "./Components/Footer";
+import Contact from "./pages/Contact";
 
 // auth & protected route
 import { auth } from "./firebase"
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
+
 
 function App() {
   const [user, setUser] = useState(null);
@@ -38,6 +40,7 @@ function App() {
             <Route path="/portfolio/airbrush" element={<Airbrush />} />
             <Route path="/portfolio/tattoos" element={<Tattoos />} />
             <Route path="/portfolio/photoshop" element={<Photoshop />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/upload" element={
               <ProtectedRoute>
                 <UploadImage />
