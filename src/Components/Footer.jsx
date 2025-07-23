@@ -1,4 +1,5 @@
 import { FaFacebookF, FaInstagram, FaTiktok, FaEnvelope } from "react-icons/fa";
+import { Link } from "react-router-dom";
 
 export default function Footer() {
   return (
@@ -35,13 +36,13 @@ export default function Footer() {
           >
             <FaTiktok />
           </a>
-          <a
-            href="mailto:your@email.com"
+          <Link
+            to="/contact"
             className="hover:text-white transition-colors"
-            aria-label="Email"
+            aria-label="Contact Page"
           >
             <FaEnvelope />
-          </a>
+          </Link>
         </div>
       </div>
     </footer>

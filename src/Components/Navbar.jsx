@@ -169,14 +169,15 @@ export default function Navbar() {
             >
               <FaTiktok />
             </a>
-            <a
-              href="mailto:your@email.com"
+            <Link
+              to="/contact"
+              onClick={closeMenu}
               className={`hover:text-[#ccc] transition-colors 
-                          ${menuOpen ? 'animate-slideInLeft delay-[700ms]' : ''}`}
-              aria-label="Email"
+              ${menuOpen ? 'animate-slideInLeft delay-[700ms]' : ''}`}
+              aria-label="Contact Page"
             >
               <FaEnvelope />
-            </a>
+            </Link>
           </div>
         </div>
       </div>
