@@ -1,62 +1,63 @@
-// src/components/UploadImage.jsx
-import React, { useState } from 'react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
-import { v4 as uuidv4 } from 'uuid';
+import React, { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase";
+import { useNavigate } from "react-router-dom";
 
-const UploadImage = () => {
-  const [image, setImage] = useState(null);
-  const [url, setUrl] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState('');
+export default function LoginForm() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
 
-  const handleUpload = () => {
-    if (!image) return;
+  const handleLogin = async (e) => {
+    e.preventDefault();
 
-    setIsUploading(true);
-    setUploadStatus('Uploading...');
-
-    const imageRef = ref(storage, `uploads/${uuidv4()}-${image.name}`);
-    uploadBytes(imageRef, image)
-      .then(snapshot => getDownloadURL(snapshot.ref))
-      .then(downloadURL => {
-        setUrl(downloadURL);
-        setUploadStatus('Upload successful!');
-      })
-      .catch(error => {
-        console.error('Upload failed:', error);
-        setUploadStatus('Upload failed. Try again.');
-      })
-      .finally(() => {
-        setIsUploading(false);
-      });
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      alert("Login successful");
+      navigate("/upload"); // or wherever your protected route is
+    } catch (err) {
+      console.error("Login error:", err);
+      alert("Login failed");
+    }
   };
 
   return (
-    <div className="p-6 max-w-lg mx-auto bg-white rounded-lg shadow-md mt-6 border border-gray-200">
-      <h2 className="text-2xl font-semibold text-center mb-4 text-gray-800">Upload Your Artwork</h2>
-      <input
-        type="file"
-        accept="image/*"
-        className="w-full p-2 border rounded mb-4"
-        onChange={e => setImage(e.target.files[0])}
-      />
-      <button
-        onClick={handleUpload}
-        disabled={isUploading}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition duration-200"
+    <div className="flex justify-center items-center min-h-screen bg-black text-white">
+      <form
+        onSubmit={handleLogin}
+        className="p-8 rounded-2xl shadow-xl w-full max-w-md"
+        style={{
+          background: "linear-gradient(to right, #000000, #222222)",
+        }}
       >
-        {isUploading ? 'Uploading...' : 'Upload'}
-      </button>
-      {uploadStatus && <p className="mt-3 text-center text-sm text-gray-700">{uploadStatus}</p>}
-      {url && (
-        <div className="mt-6 text-center">
-          <p className="text-gray-800 font-medium">Uploaded Image:</p>
-          <img src={url} alt="Uploaded preview" className="mt-2 max-w-xs mx-auto rounded" />
-        </div>
-      )}
+        <h1 className="text-2xl font-bold text-center mb-6">Admin Login</h1>
+
+        <input
+          type="email"
+          placeholder="Email"
+          className="w-full mb-4 p-3 rounded-md bg-[#111] text-white"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full mb-6 p-3 rounded-md bg-[#111] text-white"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button
+          type="submit"
+          className="w-full py-3 rounded-md font-semibold"
+          style={{
+            background: "linear-gradient(to right, #000000, #222222)",
+          }}
+        >
+          Login
+        </button>
+      </form>
     </div>
   );
-};
-
-export default UploadImage;
+}

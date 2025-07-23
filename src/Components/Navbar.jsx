@@ -1,12 +1,22 @@
 import { Link } from "react-router-dom";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import { FaFacebookF, FaInstagram, FaTiktok, FaEnvelope } from "react-icons/fa";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((firebaseUser) => {
+      setUser(firebaseUser);
+    });
+    return () => unsub();
+  }, []);
 
   const goToServices = () => {
     const currentPath = window.location.pathname;
@@ -24,9 +34,12 @@ export default function Navbar() {
     }
   };
 
-
-
   const closeMenu = () => setMenuOpen(false);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/");
+  };
 
   return (
     <nav className="sticky top-0 z-[1000] bg-gradient-to-r from-black to-[#222] text-white shadow-md mb-10">
@@ -56,6 +69,17 @@ export default function Navbar() {
               Contact
             </Link>
           </li>
+
+          {user && (
+            <li className="ml-4">
+              <button
+                onClick={handleLogout}
+                className="px-3 py-1 text-sm rounded bg-gradient-to-r from-black to-[#444] hover:from-[#111] hover:to-[#555] transition-colors"
+              >
+                Log Out
+              </button>
+            </li>
+          )}
         </ul>
 
         {/* Mobile Icon */}
@@ -99,6 +123,19 @@ export default function Navbar() {
           >
             Contact
           </Link>
+
+          {user && (
+            <button
+              onClick={() => {
+                handleLogout();
+                closeMenu();
+              }}
+              className={`text-lg mt-6 px-6 py-2 rounded bg-gradient-to-r from-black to-[#444] hover:from-[#111] hover:to-[#555] transition-colors 
+                        ${menuOpen ? 'animate-slideInLeft delay-[400ms]' : ''}`}
+            >
+              Log Out
+            </button>
+          )}
 
           {/* Social Icons */}
           <div className="flex gap-6 mt-8 text-xl text-white">

@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import ProtectedRoute from "./Components/ProtectedRoute"
 import Home from './pages/Home';
 import Portfolio from "./pages/Portfolio";
 import Airbrush from "./pages/Airbrush";
@@ -20,6 +21,7 @@ function App() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
+      console.log("Current User:", auth.currentUser);
       setUser(currentUser);
     });
     return () => unsub();
@@ -37,13 +39,9 @@ function App() {
             <Route path="/portfolio/tattoos" element={<Tattoos />} />
             <Route path="/portfolio/photoshop" element={<Photoshop />} />
             <Route path="/upload" element={
-              user ? (
+              <ProtectedRoute>
                 <UploadImage />
-              ) : (
-                <div className="p-8 text-center text-red-500 font-bold text-xl">
-                  🔒 You must be signed in to access this page.
-                </div>
-              )
+              </ProtectedRoute>
             } />
             <Route path="/login" element={<LoginForm />} />
           </Routes>
