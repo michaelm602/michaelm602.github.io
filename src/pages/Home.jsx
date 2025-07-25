@@ -1,24 +1,20 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
 import Hero from "../Components/Hero";
 import Intro from "../Components/Intro";
 import SectionLabel from "../Components/SectionLabel";
 import ServiceCard from "../components/ServiceCard";
 import airbrushingImg from "../assets/services/airbrushing.jpg";
 import psLogoImg from "../assets/services/ps-logo.jpg";
-import tattooingImg from "../assets/services/tattooing.jpg";
 import img1 from "../assets/images/hero-images/iwata.jpg";
 import img2 from "../assets/images/hero-images/photoshop.jpg";
-import img3 from "../assets/images/hero-images/tattoomachine.jpg";
 
 export default function Home() {
-  const heroImages = [img1, img2, img3];
+  const heroImages = [img1, img2];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const airbrushRef = useRef(null);
   const inkRef = useRef(null);
   const [showAirbrush, setShowAirbrush] = useState(false);
   const [showInk, setShowInk] = useState(false);
-  const location = useLocation
 
   // Hero image rotator
   useEffect(() => {
@@ -88,27 +84,20 @@ export default function Home() {
 
       {/* SERVICE CARDS */}
       <section id="services" className="relative z-10 mt-[2vh] px-8 pt-5 pb-12">
-        <div className="flex flex-wrap justify-center gap-8">
+        <div className="flex flex-wrap justify-center gap-x-20 gap-y-12">
           <ServiceCard
             tag="AIRBRUSH"
             title="Custom Airbrush"
-            description="Whether you have a specific concept in mind..."
+            description="Every airbrush project is a story told in paint. Whether it’s a wild concept or something close to home, I create custom visuals that speak louder than words."
             image={airbrushingImg}
             link="/portfolio/airbrush"
           />
           <ServiceCard
             tag="DIGITAL"
             title="Photoshop/Digital Art"
-            description="Every tattoo and individual is unique..."
+            description="This is where creativity gets surgical. I use Photoshop to craft visuals that feel real — layered, emotional, and built to connect. Every pixel tells a story."
             image={psLogoImg}
             link="/portfolio/photoshop"
-          />
-          <ServiceCard
-            tag="TATTOO"
-            title="Custom Tattoo Design"
-            description="Whether you envision a full sleeve or half sleeve..."
-            image={tattooingImg}
-            link="/portfolio/tattoos"
           />
         </div>
       </section>

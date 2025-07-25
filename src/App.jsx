@@ -1,13 +1,11 @@
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./Components/ProtectedRoute"
 import Home from './pages/Home';
-import Portfolio from "./pages/Portfolio";
 import Airbrush from "./pages/Airbrush";
-import Tattoos from "./pages/Tattoos";
 import Photoshop from "./pages/Photoshop";
 import Navbar from "./Components/Navbar";
 import GalleryPage from './pages/GalleryPage';
-import UploadImage from "./components/UploadImage";
+import UploadImage from "./Components/UploadImage";
 import LoginForm from "./components/LogInForm";
 import Footer from "./Components/Footer";
 import Contact from "./pages/Contact";
@@ -19,8 +17,9 @@ import { useEffect, useState } from "react";
 
 
 function App() {
-  const [user, setUser] = useState(null);
+  const [setUser] = useState(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       console.log("Current User:", auth.currentUser);
@@ -38,7 +37,6 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/portfolio/airbrush" element={<Airbrush />} />
-            <Route path="/portfolio/tattoos" element={<Tattoos />} />
             <Route path="/portfolio/photoshop" element={<Photoshop />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/upload" element={

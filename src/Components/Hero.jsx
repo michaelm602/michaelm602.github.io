@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import img1 from "../assets/images/hero-images/iwata.jpg";
 import img2 from "../assets/images/hero-images/photoshop.jpg";
-import img3 from "../assets/images/hero-images/tattoomachine.jpg";
 
-const images = [img1, img2, img3];
+const images = [img1, img2];
 
 export default function Hero() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -23,9 +22,8 @@ export default function Hero() {
           key={idx}
           src={img}
           alt={`Hero Background ${idx + 1}`}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
-            idx === currentIndex ? "opacity-40" : "opacity-0"
-          }`}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === currentIndex ? "opacity-40" : "opacity-0"
+            }`}
         />
       ))}
 

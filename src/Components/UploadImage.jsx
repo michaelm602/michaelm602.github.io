@@ -12,11 +12,11 @@ import {
 export default function AdminPanel() {
   const [image, setImage] = useState(null);
   const [images, setImages] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState("tattoos");
+  const [selectedFolder, setSelectedFolder] = useState("airbrush");
   const [user, setUser] = useState(null);
   const [userLoaded, setUserLoaded] = useState(false);
 
-  const FOLDERS = ["airbrush", "tattoos", "photoshop", "portfolio-videos"];
+  const FOLDERS = ["airbrush", "photoshop", "portfolio-videos"];
   const ADMIN_EMAIL = "airbrushnink@gmail.com";
 
   useEffect(() => {
