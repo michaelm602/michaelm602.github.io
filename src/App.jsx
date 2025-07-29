@@ -9,20 +9,22 @@ import UploadImage from "./Components/UploadImage";
 import LoginForm from "./components/LogInForm";
 import Footer from "./Components/Footer";
 import Contact from "./pages/Contact";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // auth & protected route
 import { auth } from "./firebase"
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
+import ShopPage from "./pages/ShopPage";
 
 
 function App() {
-  const [setUser] = useState(null);
+  const [user, setUser] = useState(null);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
-      console.log("Current User:", auth.currentUser);
       setUser(currentUser);
     });
     return () => unsub();
@@ -38,6 +40,7 @@ function App() {
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/portfolio/airbrush" element={<Airbrush />} />
             <Route path="/portfolio/photoshop" element={<Photoshop />} />
+            <Route path="/shop" element={<ShopPage />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/upload" element={
               <ProtectedRoute>
@@ -49,6 +52,7 @@ function App() {
         </main>
         <Footer />
       </div>
+      <ToastContainer position="top-right" autoClose={2000} />
 
     </Router>
   );

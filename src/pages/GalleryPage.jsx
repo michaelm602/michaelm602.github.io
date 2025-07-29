@@ -1,12 +1,6 @@
-import HeroParallaxVideo from '../Components/HeroParallaxVideo';
-
 export default function GalleryPage() {
   return (
     <>
-      <HeroParallaxVideo
-        videoSrc="https://firebasestorage.googleapis.com/v0/b/airbrushnink-9f735.firebasestorage.app/o/portfolio-videos%2Fairbrushing.mp4?alt=media&token=394baf69-0bbe-4111-9027-60c602a7f869"
-        title="AIRBRUSH & INK"
-      />
 
 
       <div className="min-h-screen bg-black text-white pt-24 px-4">

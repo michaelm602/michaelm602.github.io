@@ -48,7 +48,7 @@ export default function Contact() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white flex justify-center items-center p-6">
+        <div className="min-h-screen text-white flex justify-center items-center p-6">
             <form
                 ref={form}
                 onSubmit={sendEmail}
