@@ -18,16 +18,19 @@ export default function CartDrawer({ isOpen, onClose }) {
             </div>
 
             <div className="p-4 overflow-y-auto h-[calc(100%-170px)]">
-                {cartItems.length === 0 ? (
-                    <p className="text-gray-500 text-center mt-10">Your shopping bag is empty</p>
-                ) : (
-                    cartItems.map((item, index) => (
-                        <div key={index} className="mb-4 border-b pb-3">
-                            <h3 className="font-semibold">{item.title}</h3>
-                            <p className="text-sm text-white">
+                {cartItems.map((item, index) => (
+                    <div key={index} className="flex items-center gap-4 mb-4 border-b pb-3">
+                        <img
+                            src={item.image}
+                            alt={item.title}
+                            className="w-16 h-16 object-cover rounded shadow"
+                        />
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-white">{item.title}</h3>
+                            <p className="text-sm text-white/80">
                                 Size: {item.size} — Qty: {item.quantity}
                             </p>
-                            <p className="text-sm text-white">${item.price * item.quantity}</p>
+                            <p className="text-sm text-white/90">${item.price * item.quantity}</p>
                             <button
                                 onClick={() => removeFromCart(index)}
                                 className="text-red-500 text-xs mt-2"
@@ -35,8 +38,8 @@ export default function CartDrawer({ isOpen, onClose }) {
                                 Remove
                             </button>
                         </div>
-                    ))
-                )}
+                    </div>
+                ))}
             </div>
 
             <div className="p-4 border-t border-gray-300">

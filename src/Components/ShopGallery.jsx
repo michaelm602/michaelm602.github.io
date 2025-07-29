@@ -138,9 +138,10 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                                     size: selectedSize,
                                     quantity: selectedQty,
                                     price,
+                                    image: item.url, // ✅ This fixes the broken image
                                 });
 
-                                if (onAddToCart) onAddToCart(); // 👈 trigger auto-open drawer
+                                if (onAddToCart) onAddToCart();
                                 toast.success(`${selectedQty} of "${item.title}" added to cart!`);
                             }}
                             disabled={!selectedOptions[i]?.size}
