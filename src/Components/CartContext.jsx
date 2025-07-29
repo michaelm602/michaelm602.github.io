@@ -13,6 +13,8 @@ export default function CartProvider({ children }) {
         return stored ? JSON.parse(stored) : [];
     });
 
+    const [isCartOpen, setIsCartOpen] = useState(false);
+
     useEffect(() => {
         localStorage.setItem("cart", JSON.stringify(cart));
     }, [cart]);
@@ -42,12 +44,16 @@ export default function CartProvider({ children }) {
     }
 
     return (
+        // And include them in the provider value
         <CartContext.Provider
             value={{
                 cartItems: cart,
+                setCart,
                 addToCart,
                 removeFromCart,
                 clearCart,
+                isCartOpen,       // 🆕
+                setIsCartOpen,    // 🆕
             }}
         >
             {children}

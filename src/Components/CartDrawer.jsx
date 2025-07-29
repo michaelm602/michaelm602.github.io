@@ -1,9 +1,12 @@
 import React from "react";
 import { useCart } from "./CartContext";
 import { X } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function CartDrawer({ isOpen, onClose }) {
     const { cartItems, removeFromCart, clearCart } = useCart();
+    const navigate = useNavigate();
+    const location = useLocation();
 
     return (
         <div
@@ -46,6 +49,17 @@ export default function CartDrawer({ isOpen, onClose }) {
                 <button
                     className="w-full bg-gradient-to-r from-black to-[#222] text-white py-2 rounded hover:bg-green-700 mb-2"
                     disabled={cartItems.length === 0}
+                    onClick={() => {
+                        onClose();
+
+                        if (location.pathname === "/shop") {
+                            setTimeout(() => {
+                                navigate("/shop", { state: { openCart: true } });
+                            }, 0);
+                        } else {
+                            navigate("/shop", { state: { openCart: true } });
+                        }
+                    }}
                 >
                     Checkout / Edit Cart
                 </button>

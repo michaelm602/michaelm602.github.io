@@ -6,6 +6,7 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
     const [folder, setFolder] = useState(initialFolder);
     const [items, setItems] = useState([]);
     const [selectedOptions, setSelectedOptions] = useState({});
+    const [loading, setLoading] = useState(true);
 
     const { addToCart } = useCart();
 
@@ -25,10 +26,10 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
 
     useEffect(() => {
         const fetchImages = async () => {
+            setLoading(true); // Start loading
             const folderRef = ref(storage, `${folder}`);
             try {
                 const result = await listAll(folderRef);
-
                 const itemsWithMeta = await Promise.all(
                     result.items.map(async (itemRef) => {
                         const url = await getDownloadURL(itemRef);
@@ -46,15 +47,17 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                         };
                     })
                 );
-
                 setItems(itemsWithMeta);
             } catch (err) {
                 console.error("🔥 Storage error:", err.message);
+            } finally {
+                setLoading(false); // Done loading
             }
         };
 
         fetchImages();
     }, [folder]);
+
 
     const handleSizeChange = (index, value) => {
         setSelectedOptions((prev) => ({
@@ -142,6 +145,7 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                                 });
 
                                 if (onAddToCart) onAddToCart();
+                                sessionStorage.setItem("openCartOnReturn", "true")
                                 toast.success(`${selectedQty} of "${item.title}" added to cart!`);
                             }}
                             disabled={!selectedOptions[i]?.size}
@@ -155,11 +159,35 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
             </div>
 
             {/* 📭 No Items Fallback */}
-            {items.length === 0 && (
+            {loading ? (
+                <div className="col-span-full text-center mt-12">
+                    <svg
+                        className="animate-spin h-8 w-8 text-white mx-auto"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                        ></circle>
+                        <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                        ></path>
+                    </svg>
+                    <p className="mt-4 text-sm text-gray-400">Loading products...</p>
+                </div>
+            ) : items.length === 0 ? (
                 <p className="text-white col-span-full text-center mt-12">
                     No products found in <span className="font-semibold">{folder}</span>.
                 </p>
-            )}
+            ) : null}
         </div>
     );
 }

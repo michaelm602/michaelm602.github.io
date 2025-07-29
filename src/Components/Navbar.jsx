@@ -12,7 +12,7 @@ import { useCart } from "./CartContext"; // Fixed named import
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState();
   const { cartItems } = useCart();
   const navigate = useNavigate();
 
