@@ -11,7 +11,7 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
 
     const storage = getStorage();
 
-    const folders = ["airbrush", "photoshop"];
+    const folders = ["airbrush"];
 
     const priceMap = {
         "16x20": 100,
@@ -127,7 +127,7 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                         </select>
 
                         <button
-                            className="w-full bg-gradient-to-r from-black to-[#222] hover:from-[#111] hover:to-[#333] text-white py-2 rounded mt-auto"
+                            className="w-full bg-gradient-to-r from-[#111] to-[#333] hover:from-[#222] hover:to-[#444] text-white border border-[#444] py-2 rounded mt-auto transition-colors duration-300"
                             onClick={() => {
                                 const selectedSize = selectedOptions[i]?.size;
                                 const selectedQty = parseInt(selectedOptions[i]?.quantity || 1);

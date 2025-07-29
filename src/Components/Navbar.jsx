@@ -96,7 +96,7 @@ export default function Navbar() {
         <div className="md:ml-4 ml-auto pr-2 md:pr-0">
           <button
             onClick={() => setIsCartOpen(true)}
-            className="relative bg-gradient-to-r from-[#333] to-[#222] hover:from-[#111] hover:to-[#333] p-2 rounded-full"
+            className="relative bg-gradient-to-r from-[#333] to-[#222] hover:from-[#111] hover:to-[#333] border border-[#444] p-2 rounded-full"
             aria-label="Cart"
           >
             <ShoppingCart size={20} />
