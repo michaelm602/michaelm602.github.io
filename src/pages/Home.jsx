@@ -7,6 +7,7 @@ import airbrushingImg from "../assets/services/airbrushing.jpg";
 import psLogoImg from "../assets/services/ps-logo.jpg";
 import img1 from "../assets/images/hero-images/iwata.jpg";
 import img2 from "../assets/images/hero-images/photoshop.jpg";
+import CTA from "../Components/CTA";
 
 export default function Home() {
   const heroImages = [img1, img2];
@@ -110,11 +111,12 @@ export default function Home() {
   pb-[2vh] sm:pb-[3vh] md:pb-[2vh] lg:pb-[1vh]"
         ref={inkRef}
       >
-        {/* 👇 This wrapper clips horizontal overflow but allows vertical overflow */}
         <div className="w-full overflow-x-hidden">
           <SectionLabel text="& INK" show={showInk} />
         </div>
 
+        {/* 👇 Bring this back */}
+        <CTA />
       </section>
 
 
