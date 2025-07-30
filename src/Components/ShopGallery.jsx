@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useCart } from "../Components/CartContext";
 import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
+import { sizePriceMap } from "../utils/sizePricing";
 
 export default function ShopGallery({ initialFolder = "airbrush", onAddToCart }) {
     const [folder, setFolder] = useState(initialFolder);
@@ -8,20 +9,14 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
     const [selectedOptions, setSelectedOptions] = useState({});
     const [loading, setLoading] = useState(true);
 
+
     const { addToCart } = useCart();
 
     const storage = getStorage();
 
     const folders = ["airbrush"];
 
-    const priceMap = {
-        "16x20": 100,
-        "18x24": 200,
-        "24x36": 300,
-        "30x40": 400,
-    };
-
-    const defaultSizes = Object.keys(priceMap);
+    const defaultSizes = Object.keys(sizePriceMap);
     const defaultQuantity = 5;
 
     useEffect(() => {
@@ -111,7 +106,7 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                             <option value="">Select size</option>
                             {item.sizes?.map((s, idx) => (
                                 <option key={idx} value={s}>
-                                    {s} — ${priceMap[s] || "?"}
+                                    {s} — ${sizePriceMap[s] || "?"}
                                 </option>
                             ))}
                         </select>
@@ -134,7 +129,7 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                             onClick={() => {
                                 const selectedSize = selectedOptions[i]?.size;
                                 const selectedQty = parseInt(selectedOptions[i]?.quantity || 1);
-                                const price = priceMap[selectedSize] || 0;
+                                const price = sizePriceMap[selectedSize] || 0;
 
                                 addToCart({
                                     title: item.title,

@@ -1,5 +1,6 @@
 // src/context/CartContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
+import { sizePriceMap } from "../utils/sizePricing";
 
 export const CartContext = createContext();
 
@@ -12,6 +13,22 @@ export default function CartProvider({ children }) {
         const stored = localStorage.getItem("cart");
         return stored ? JSON.parse(stored) : [];
     });
+
+    function updateCartItem(index, updatedFields) {
+        setCart((prev) =>
+            prev.map((item, i) => {
+                if (i !== index) return item;
+
+                let updatedItem = { ...item, ...updatedFields };
+
+                if (updatedFields.size) {
+                    updatedItem.price = sizePriceMap[updatedFields.size] || item.price;
+                }
+
+                return updatedItem;
+            })
+        );
+    }
 
     const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -52,8 +69,9 @@ export default function CartProvider({ children }) {
                 addToCart,
                 removeFromCart,
                 clearCart,
+                updateCartItem,
                 isCartOpen,       // 🆕
-                setIsCartOpen,    // 🆕
+                setIsCartOpen,   // 🆕
             }}
         >
             {children}
