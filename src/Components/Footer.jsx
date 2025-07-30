@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 export default function Footer() {
   return (
-    <footer className="bg-black text-gray-400 text-sm py-7 sm:py-5 md:py-9 mt-[5vh] sm:mt-[-2vh] md:mt-[-8vh] lg:mt-[-3vh] border-t border-neutral-800">
+    <footer className="bg-black text-gray-400 text-sm py-8 border-t border-neutral-800">
       <div className="max-w-screen-xl mx-auto px-4 text-center">
         <p>&copy; 2025 Airbrush & Ink — All rights reserved.</p>
 

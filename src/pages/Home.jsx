@@ -84,7 +84,7 @@ export default function Home() {
       </section>
 
       {/* SERVICE CARDS */}
-      <section id="services" className="relative z-10 mt-[2vh] px-8 pt-5 pb-12">
+      <section id="services" className="relative z-10 mt-[2vh] px-8 pt-5">
         <div className="flex flex-wrap justify-center gap-x-20 gap-y-12">
           <ServiceCard
             tag="AIRBRUSH"
@@ -105,18 +105,18 @@ export default function Home() {
 
       {/* & INK LABEL BEHIND CTA */}
       <section
-        className="relative min-h-[5vh] sm:min-h-[14vh] md:min-h-[22vh] lg:min-h-[18vh]
-  flex flex-col justify-center items-center
-  pt-[2vh] sm:pt-[3vh] md:pt-[2vh] lg:pt-[1vh]
-  pb-[2vh] sm:pb-[3vh] md:pb-[2vh] lg:pb-[1vh]"
         ref={inkRef}
+        className="relative flex flex-col items-center justify-center min-h-[20vh] overflow-hidden"
       >
-        <div className="w-full overflow-x-hidden">
+        {/* Background label */}
+        <div className="absolute top-1/2 -translate-y-1/2 z-0 w-full text-center">
           <SectionLabel text="& INK" show={showInk} />
         </div>
 
-        {/* 👇 Bring this back */}
-        <CTA />
+        {/* CTA Button */}
+        <div className="relative z-10 mt-4">
+          <CTA />
+        </div>
       </section>
 
 
