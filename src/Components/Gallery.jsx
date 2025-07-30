@@ -35,51 +35,51 @@ export default function Gallery({ folder, label }) {
   return (
     <>
       <div className="gallery-grid">
-  {pieces.map((piece, idx) => (
-    <div
-      key={idx}
-      className="gallery-piece"
-      onClick={() => {
-        setPhotoIndex(idx);
-        setOpen(true);
-      }}
-    >
-      <img src={piece.src} alt={`Gallery Piece ${idx + 1}`} />
-    </div>
-  ))}
-</div>
+        {pieces.map((piece, idx) => (
+          <div
+            key={idx}
+            className="gallery-piece"
+            onClick={() => {
+              setPhotoIndex(idx);
+              setOpen(true);
+            }}
+          >
+            <img src={piece.src} alt={`Gallery Piece ${idx + 1}`} />
+          </div>
+        ))}
+      </div>
 
-<Lightbox
-  open={open}
-  close={() => setOpen(false)}
-  index={photoIndex}
-  slides={pieces}
-  styles={{
-    container: {
-      backdropFilter: 'blur(10px)',
-      backgroundColor: 'rgba(0, 0, 0, 0.3)',
-      WebkitBackdropFilter: 'blur(10px)',
-    },
-    slide: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-  }}
-  render={{
-    slide: ({ slide }) => (
-      <img
-        src={slide.src}
-        alt={slide.caption}
-        style={{
-          maxWidth: '90vw',
-          maxHeight: '90vh',
-          objectFit: 'contain',
+      <Lightbox
+        open={open}
+        close={() => setOpen(false)}
+        index={photoIndex}
+        slides={pieces}
+        styles={{
+          container: {
+            backdropFilter: 'blur(10px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            WebkitBackdropFilter: 'blur(10px)',
+          },
+          slide: {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+        }}
+        render={{
+          slide: ({ slide }) => (
+            <img
+              src={slide.src}
+              alt={slide.caption}
+              style={{
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                objectFit: 'contain',
+              }}
+            />
+          ),
         }}
       />
-    ),
-  }}
-/>
 
 
     </>
