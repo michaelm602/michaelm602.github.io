@@ -35,18 +35,25 @@ export default function CartDrawer({ isOpen, onClose }) {
                                 {isEditing ? (
                                     <>
                                         <div className="flex items-center gap-2 mt-2">
-                                            <label className="text-sm">Qty:</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={item.quantity}
-                                                onChange={(e) =>
-                                                    updateCartItem(index, {
-                                                        quantity: parseInt(e.target.value) || 1,
-                                                    })
+                                            <label className="text-sm mr-1">Qty:</label>
+                                            <button
+                                                onClick={() =>
+                                                    item.quantity > 1 &&
+                                                    updateCartItem(index, { quantity: item.quantity - 1 })
                                                 }
-                                                className="w-16 px-2 py-1 rounded text-black"
-                                            />
+                                                className="w-7 h-7 bg-zinc-700 text-white rounded hover:bg-zinc-600"
+                                            >
+                                                –
+                                            </button>
+                                            <span className="px-2 w-6 text-center">{item.quantity}</span>
+                                            <button
+                                                onClick={() =>
+                                                    updateCartItem(index, { quantity: item.quantity + 1 })
+                                                }
+                                                className="w-7 h-7 bg-zinc-700 text-white rounded hover:bg-zinc-600"
+                                            >
+                                                +
+                                            </button>
                                         </div>
                                         <div className="flex items-center gap-2 mt-2">
                                             <label className="text-sm">Size:</label>
