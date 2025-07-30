@@ -2,12 +2,19 @@ import { useEffect, useState } from "react";
 import { useCart } from "../Components/CartContext";
 import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
 import { sizePriceMap } from "../utils/sizePricing";
+import Lightbox from "yet-another-react-lightbox";
+import "yet-another-react-lightbox/styles.css";
+
 
 export default function ShopGallery({ initialFolder = "airbrush", onAddToCart }) {
     const [folder, setFolder] = useState(initialFolder);
     const [items, setItems] = useState([]);
     const [selectedOptions, setSelectedOptions] = useState({});
     const [loading, setLoading] = useState(true);
+
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [currentIndex, setCurrentIndex] = useState(0);
+
 
 
     const { addToCart } = useCart();
@@ -92,7 +99,11 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                         <img
                             src={item.url}
                             alt={item.title}
-                            className="w-full max-h-64 object-contain mb-4 rounded"
+                            className="w-full max-h-64 object-contain mb-4 rounded cursor-pointer"
+                            onClick={() => {
+                                setCurrentIndex(i);
+                                setLightboxOpen(true);
+                            }}
                         />
 
                         <h2 className="text-xl font-semibold mb-1">{item.title}</h2>
@@ -154,7 +165,7 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
             </div>
 
             {/* 📭 No Items Fallback */}
-            {loading ? (
+            {loading && (
                 <div className="col-span-full text-center mt-12">
                     <svg
                         className="animate-spin h-8 w-8 text-white mx-auto"
@@ -178,11 +189,48 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                     </svg>
                     <p className="mt-4 text-sm text-gray-400">Loading products...</p>
                 </div>
-            ) : items.length === 0 ? (
+            )}
+
+            {!loading && items.length === 0 && (
                 <p className="text-white col-span-full text-center mt-12">
                     No products found in <span className="font-semibold">{folder}</span>.
                 </p>
-            ) : null}
+            )}
+
+
+            <Lightbox
+                open={lightboxOpen}
+                close={() => setLightboxOpen(false)}
+                index={currentIndex}
+                slides={items.map((item) => ({ src: item.url }))}
+                animation={{ fade: 250 }}
+                styles={{
+                    container: {
+                        backdropFilter: 'blur(10px)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                        WebkitBackdropFilter: 'blur(10px)',
+                    },
+                    slide: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    },
+                }}
+                render={{
+                    slide: ({ slide }) => (
+                        <img
+                            src={slide.src}
+                            alt={slide.caption}
+                            style={{
+                                maxWidth: '90vw',
+                                maxHeight: '90vh',
+                                objectFit: 'contain',
+                            }}
+                        />
+                    ),
+                }}
+            />
+
         </div>
     );
 }

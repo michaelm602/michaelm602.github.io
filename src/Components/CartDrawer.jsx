@@ -1,13 +1,17 @@
 import React, { useState } from "react";
 import { useCart } from "./CartContext";
 import { X } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function CartDrawer({ isOpen, onClose }) {
     const { cartItems, removeFromCart, clearCart, updateCartItem } = useCart();
     const [isEditing, setIsEditing] = useState(false);
     const navigate = useNavigate();
-    const location = useLocation();
+    const total = cartItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+    );
+
 
     return (
         <div
@@ -21,7 +25,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                 </button>
             </div>
 
-            <div className="p-4 overflow-y-auto h-[calc(100%-190px)]">
+            <div className="p-4 overflow-y-auto h-[calc(100%-215px)]">
                 {cartItems.map((item, index) => (
                     <div key={index} className="flex flex-col gap-2 mb-4 border-b pb-3">
                         <div className="flex items-center gap-4">
@@ -96,6 +100,11 @@ export default function CartDrawer({ isOpen, onClose }) {
             </div>
 
             <div className="p-4 border-t border-gray-300 flex flex-col gap-2">
+                <div className="flex justify-between text-sm text-white mb-3">
+                    <span className="font-semibold">Total:</span>
+                    <span className="font-semibold">${total.toLocaleString()}</span>
+                </div>
+
                 <div className="flex justify-between gap-2">
                     <button
                         className="w-1/2 bg-gradient-to-r from-black to-[#222] text-white py-2 rounded hover:bg-green-700"
@@ -125,6 +134,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                     Clear Cart
                 </button>
             </div>
+
         </div>
     );
 }
