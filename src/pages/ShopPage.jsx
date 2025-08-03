@@ -2,18 +2,28 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useCart } from "../Components/CartContext";
 import ShopGallery from "../Components/ShopGallery";
+import { toast } from "react-hot-toast";
 
 export default function ShopPage() {
     const location = useLocation();
     const { setIsCartOpen } = useCart();
 
     useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const status = params.get("status");
+
+        if (status === "success") {
+            toast.success("Payment successful!");
+        } else if (status === "cancel") {
+            toast.error("Checkout canceled.");
+        }
+
+        // If coming from checkout and should open cart
         if (location.state?.openCart) {
             setIsCartOpen(true);
-            // clear the state so it doesn't reopen every time
             window.history.replaceState({}, document.title);
         }
-    }, [location.state, setIsCartOpen]);
+    }, [location, setIsCartOpen]);
 
     return (
         <div className="min-h-screen pt-24 px-4 text-white">

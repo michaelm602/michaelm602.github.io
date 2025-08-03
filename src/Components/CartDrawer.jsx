@@ -1,22 +1,59 @@
 import React, { useState } from "react";
 import { useCart } from "./CartContext";
 import { X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { stripeLinks } from "../utils/stripeLinks";
 
 export default function CartDrawer({ isOpen, onClose }) {
     const { cartItems, removeFromCart, clearCart, updateCartItem } = useCart();
     const [isEditing, setIsEditing] = useState(false);
-    const navigate = useNavigate();
     const total = cartItems.reduce(
         (sum, item) => sum + item.price * item.quantity,
         0
     );
 
+    const testCheckout = async () => {
+        try {
+            const response = await fetch(
+                "https://us-central1-airbrushink-9f735.cloudfunctions.net/createStripeCheckoutSessionLive",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        items: cartItems.map((item) => {
+                            const priceId = stripeLinks[item.title]?.[item.size];
+                            if (!priceId) {
+                                throw new Error(`Missing Stripe Price ID for: ${item.title} (${item.size})`);
+                            }
+                            return {
+                                price: priceId,
+                                quantity: item.quantity,
+                            };
+                        }),
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Server responded with error: ${errorText}`);
+            }
+
+            const session = await response.json();
+            window.location.href = session.url;
+        } catch (error) {
+            console.error("Error creating Stripe Checkout session:", error);
+        }
+    };
+
+
+
+
 
     return (
         <div
-            className={`fixed top-0 right-0 h-full w-80 bg-gradient-to-r from-black to-[#222] text-white shadow-lg transform transition-transform z-[1200] ${isOpen ? "translate-x-0" : "translate-x-full"
-                }`}
+            className={`fixed top-0 right-0 h-full w-80 bg-gradient-to-r from-black to-[#222] text-white shadow-lg transform transition-transform z-[1200] ${isOpen ? "translate-x-0" : "translate-x-full"}`}
         >
             <div className="flex items-center justify-between px-4 py-5 border-b border-gray-300">
                 <h2 className="text-lg font-bold">Your Cart</h2>
@@ -116,14 +153,12 @@ export default function CartDrawer({ isOpen, onClose }) {
 
                     <button
                         className="w-1/2 bg-gradient-to-r from-black to-[#222] text-white py-2 rounded hover:bg-blue-700"
-                        onClick={() => {
-                            onClose();
-                            navigate("/checkout");
-                        }}
+                        onClick={testCheckout}
                         disabled={cartItems.length === 0}
                     >
                         Checkout
                     </button>
+
                 </div>
 
                 <button

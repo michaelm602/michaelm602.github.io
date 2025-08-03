@@ -1,4 +1,4 @@
-import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import { HashRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./Components/ProtectedRoute"
 import Home from './pages/Home';
 import Airbrush from "./pages/Airbrush";
@@ -11,6 +11,8 @@ import Footer from "./Components/Footer";
 import Contact from "./pages/Contact";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Success from "./pages/Success";
+import Cancel from "./pages/Cancel";
 
 // auth & protected route
 import { auth } from "./firebase"
@@ -42,6 +44,8 @@ function App() {
             <Route path="/portfolio/photoshop" element={<Photoshop />} />
             <Route path="/shop" element={<ShopPage />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/success" element={<Navigate to="/shop" />} />
+            <Route path="/cancel" element={<Navigate to="/shop" />} />
             <Route path="/upload" element={
               <ProtectedRoute>
                 <UploadImage />
