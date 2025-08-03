@@ -6,7 +6,7 @@ import Photoshop from "./pages/Photoshop";
 import Navbar from "./Components/Navbar";
 import GalleryPage from './pages/GalleryPage';
 import UploadImage from "./Components/UploadImage";
-import LoginForm from "./components/LogInForm";
+import LoginForm from "./Components/LogInForm";
 import Footer from "./Components/Footer";
 import Contact from "./pages/Contact";
 import { ToastContainer } from "react-toastify";
