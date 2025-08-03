@@ -19,6 +19,7 @@ import { auth } from "./firebase"
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 import ShopPage from "./pages/ShopPage";
+// Trigger DigitalOcean redeploy
 
 
 function App() {
