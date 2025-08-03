@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Hero from "../Components/Hero";
 import Intro from "../Components/Intro";
 import SectionLabel from "../Components/SectionLabel";
-import ServiceCard from "../components/ServiceCard";
+import ServiceCard from "../Components/ServiceCard";
 import airbrushingImg from "../assets/services/airbrushing.jpg";
 import psLogoImg from "../assets/services/ps-logo.jpg";
 import img1 from "../assets/images/hero-images/iwata.jpg";
