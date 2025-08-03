@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useCart } from "../Components/CartContext";
-import ShopGallery from "../components/ShopGallery";
+import ShopGallery from "../Components/ShopGallery";
 
 export default function ShopPage() {
     const location = useLocation();
