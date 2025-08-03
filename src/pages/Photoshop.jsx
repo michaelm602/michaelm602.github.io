@@ -1,5 +1,5 @@
 // src/pages/Photoshop.jsx
-import Gallery from '../components/Gallery';
+import Gallery from '../Components/Gallery';
 
 export default function Photoshop() {
   return <Gallery folder="photoshop" label="Photoshop" />;
