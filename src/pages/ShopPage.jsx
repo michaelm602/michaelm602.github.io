@@ -18,7 +18,6 @@ export default function ShopPage() {
             toast.error("Checkout canceled.");
         }
 
-        // If coming from checkout and should open cart
         if (location.state?.openCart) {
             setIsCartOpen(true);
             window.history.replaceState({}, document.title);
@@ -26,9 +25,23 @@ export default function ShopPage() {
     }, [location, setIsCartOpen]);
 
     return (
-        <div className="min-h-screen pt-24 px-4 text-white">
-            <h1 className="text-4xl font-bold text-center mb-12">Shop</h1>
-            <ShopGallery onAddToCart={() => setIsCartOpen(true)} />
+        <div className="relative min-h-screen pt-24 px-4 text-white">
+            {/* Background AIRBRUSH text */}
+            <h1 className="absolute 
+    top-[-1rem] sm:top-[0rem] md:top-[-3rem] lg:top-[-5rem] 
+    left-1/2 transform -translate-x-1/2 
+    text-[15vw] sm:text-[15vw] md:text-[15vw] lg:text-[15vw] 
+    max-w-[100vw] overflow-hidden whitespace-nowrap
+    font-extrabold text-white opacity-5 tracking-widest 
+    pointer-events-none select-none z-0">
+                AIRBRUSH
+            </h1>
+
+            {/* Foreground content */}
+            <div className="relative z-10 text-center">
+                <h1 className="text-4xl font-bold mb-4">Shop</h1>
+                <ShopGallery onAddToCart={() => setIsCartOpen(true)} />
+            </div>
         </div>
     );
 }

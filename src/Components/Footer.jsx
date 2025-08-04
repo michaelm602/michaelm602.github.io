@@ -5,7 +5,7 @@ export default function Footer() {
   return (
     <footer className="bg-black text-gray-400 text-sm py-8 border-t border-neutral-800">
       <div className="max-w-screen-xl mx-auto px-4 text-center">
-        <p>&copy; 2025 Airbrush & Ink — All rights reserved.</p>
+        <p>&copy; 2025 Likwit Blvd — All rights reserved.</p>
 
         {/* Social Icons */}
         <div className="mt-4 flex justify-center gap-6 text-lg">

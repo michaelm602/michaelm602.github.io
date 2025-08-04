@@ -7,9 +7,32 @@
   font-style: normal;
 }
 
-.test-fatwandals {
-  font-family: 'Decipher', sans-serif;
-  font-size: 2rem;
+@font-face {
+  font-family: 'Wildside';
+  src: url('/fonts/Wildside.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'FatWandals';
+  src: url('/fonts/FatWandals_PERSONAL.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Decipher';
+  src: url('/fonts/Decipher_PERSONAL_USE_ONLY.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SlimWandals';
+  src: url('/fonts/SlimWandals_PERSONAL.ttf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
 }
 
 @tailwind base;

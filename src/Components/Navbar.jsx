@@ -50,8 +50,8 @@ export default function Navbar() {
     <nav className="sticky top-0 z-[1000] bg-gradient-to-r from-black to-[#222] text-white shadow-md mb-10">
       <div className="flex justify-between items-center px-6 py-2">
         {/* Logo */}
-        <h1 className="font-semibold text-[1.4rem] tracking-[0.03em]">
-          Airbrush & Ink
+        <h1 className="font-semibold text-[1.5rem] tracking-[0.03em]">
+          Likwit Blvd
         </h1>
 
         {/* Desktop Nav */}

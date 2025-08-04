@@ -7,7 +7,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        wildside: ['Wildside', 'sans-serif'],
+        fatwandals: ['FatWandals', 'sans-serif'],
         decipher: ['Decipher', 'sans-serif'],
+        slimwandals: ['SlimWandals', 'san-serif'],
       },
       animation: {
         fadeUp: "fadeUp 1s ease-out forwards",
