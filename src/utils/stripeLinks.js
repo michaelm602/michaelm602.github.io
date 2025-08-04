@@ -1,5 +1,5 @@
 export const stripeLinks = {
-    "Adoration of the lights darkness": {
+    "Adoration in the lights darkness": {
         "16x20": "price_1Rr1y0JEVsglohuhBAH3v1Hm",
         "18x24": "price_1Rr2RvJEVsglohuhe4npKcRX",
         "24x36": "price_1Rr2V9JEVsglohuhkHqjWPzP",
