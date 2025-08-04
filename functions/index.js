@@ -1,8 +1,6 @@
 const functions = require("firebase-functions");
-const stripe = require("stripe")(functions.config().stripe.secret); // or process.env.STRIPE_SECRET_KEY
-const cors = require("cors")({ origin: true });
-
-// force load
+const stripe = require("stripe")(functions.config().stripe.secret);
+const cors = require("cors")({ origin: "https://www.likwitblvd.com" });
 
 const { initializeApp } = require("firebase-admin/app");
 initializeApp();
