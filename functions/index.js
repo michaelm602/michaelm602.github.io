@@ -4,6 +4,9 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
+// force redeploy
+
+
 exports.createStripeCheckoutSessionLive = functions.https.onRequest(async (req, res) => {
     // ✅ Set CORS headers manually
     res.set("Access-Control-Allow-Origin", "https://www.likwitblvd.com");
