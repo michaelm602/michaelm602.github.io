@@ -15,7 +15,7 @@ export default function CartDrawer({ isOpen, onClose }) {
     );
 
     // ✅ Load PayPal SDK
-    const PAYPAL_CLIENT_ID = "ARJ5eXtt-ZPsUI0k6QH4WSQsvVAZ_fjSDKum5GL-dF-vURQFwBUprQ8COpfki0HFv4Yhgx1IZfJ1Pa6e";
+    const PAYPAL_CLIENT_ID = "AU5aAM3bPf_1lmA--7fuKSvlkyW5imXLRM4a2be_xgyiv4mYJU14v_KJviRqwy67-p5uNjchLtHurRg4";
     usePayPalScript(PAYPAL_CLIENT_ID);
 
     // Wait for PayPal to be ready
