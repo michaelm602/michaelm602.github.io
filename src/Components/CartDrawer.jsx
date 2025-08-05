@@ -1,16 +1,65 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useCart } from "./CartContext";
 import { X } from "lucide-react";
 import { stripeLinks } from "../utils/stripeLinks";
-
+import usePayPalScript from "../utils/usePayPalScript"; // ✅ Add this line
 
 export default function CartDrawer({ isOpen, onClose }) {
     const { cartItems, removeFromCart, clearCart, updateCartItem } = useCart();
     const [isEditing, setIsEditing] = useState(false);
+    const [isPayPalReady, setIsPayPalReady] = useState(false);
+
     const total = cartItems.reduce(
         (sum, item) => sum + item.price * item.quantity,
         0
     );
+
+    // ✅ Load PayPal SDK
+    const PAYPAL_CLIENT_ID = "ARJ5eXtt-ZPsUI0k6QH4WSQsvVAZ_fjSDKum5GL-dF-vURQFwBUprQ8COpfki0HFv4Yhgx1IZfJ1Pa6e";
+    usePayPalScript(PAYPAL_CLIENT_ID);
+
+    // Wait for PayPal to be ready
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (window.paypal) {
+                setIsPayPalReady(true);
+                clearInterval(interval);
+            }
+        }, 300);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (!isPayPalReady || cartItems.length === 0) return;
+
+        // Clean up any previous render
+        const container = document.getElementById("paypal-button-container");
+        if (container) container.innerHTML = "";
+
+        window.paypal.Buttons({
+            createOrder: (data, actions) => {
+                return actions.order.create({
+                    purchase_units: [
+                        {
+                            amount: {
+                                value: total.toFixed(2),
+                            },
+                        },
+                    ],
+                });
+            },
+            onApprove: async (data, actions) => {
+                await actions.order.capture();
+                alert("Payment successful via PayPal!");
+                clearCart();
+                onClose();
+            },
+            onError: (err) => {
+                console.error("PayPal error:", err);
+                alert("Something went wrong with PayPal.");
+            },
+        }).render("#paypal-button-container");
+    }, [isPayPalReady, cartItems, total]);
 
     const testCheckout = async () => {
         try {
@@ -44,7 +93,6 @@ export default function CartDrawer({ isOpen, onClose }) {
         }
     };
 
-
     return (
         <div className={`fixed top-0 right-0 h-full w-80 bg-gradient-to-r from-black to-[#222] text-white shadow-lg transform transition-transform z-[1200] ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
             <div className="flex items-center justify-between px-4 py-5 border-b border-gray-300">
@@ -52,7 +100,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                 <button onClick={onClose}><X size={24} /></button>
             </div>
 
-            <div className="p-4 overflow-y-auto h-[calc(100%-215px)]">
+            <div className="p-4 overflow-y-auto h-[calc(100%-435px)]">
                 {cartItems.map((item, index) => (
                     <div key={index} className="flex flex-col gap-2 mb-4 border-b pb-3">
                         <div className="flex items-center gap-4">
@@ -127,6 +175,11 @@ export default function CartDrawer({ isOpen, onClose }) {
                         Checkout
                     </button>
                 </div>
+
+                {/* ✅ PayPal Button goes here */}
+                {cartItems.length > 0 && (
+                    <div className="mt-4" id="paypal-button-container"></div>
+                )}
 
                 <button
                     className="w-full text-sm text-red-500 underline"
