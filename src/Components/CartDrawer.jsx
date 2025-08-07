@@ -86,10 +86,13 @@ export default function CartDrawer({ isOpen, onClose }) {
                                 name: name.given_name + " " + name.surname,
                                 message: "New PayPal order received!",
                                 order_id: data.orderID,
-                                orders: orderedItems,
+                                orders: orderedItems, // includes title + size + qty
+                                total_price: `$${total.toFixed(2)}`, // ✅ add this
+                                first_item_title: cartItems[0]?.title || "", // ✅ optional
+                                first_item_price: `$${cartItems[0]?.price}` || "", // ✅ optional
                                 image_url: imageUrl,
                                 units: cartItems.length,
-                                email: email_address,
+                                email: email_address
                             },
                             "OLAEWsvf8PTH1I8A-"
                         );
