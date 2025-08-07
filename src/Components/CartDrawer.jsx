@@ -42,12 +42,32 @@ export default function CartDrawer({ isOpen, onClose }) {
                         purchase_units: [
                             {
                                 amount: {
+                                    currency_code: "USD",
                                     value: total.toFixed(2),
+                                    breakdown: {
+                                        item_total: {
+                                            currency_code: "USD",
+                                            value: total.toFixed(2),
+                                        },
+                                    },
                                 },
+                                description: "Likwit Blvd Art Order",
+                                custom_id: "AIRBRUSH_ORDER_" + Date.now(),
+                                items: cartItems.map(item => ({
+                                    name: item.title,
+                                    description: `Size: ${item.size}`,
+                                    unit_amount: {
+                                        currency_code: "USD",
+                                        value: item.price.toFixed(2),
+                                    },
+                                    quantity: item.quantity.toString(),
+                                    category: "PHYSICAL_GOODS",
+                                })),
                             },
                         ],
                     });
                 },
+
                 onApprove: async (data, actions) => {
                     try {
                         const details = await actions.order.capture();
