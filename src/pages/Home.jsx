@@ -96,7 +96,12 @@ export default function Home() {
           <ServiceCard
             tag="DIGITAL"
             title="Photoshop/Digital Art"
-            description="This is where creativity gets surgical. I use Photoshop to craft visuals that feel real — layered, emotional, and built to connect. Every pixel tells a story."
+            description={
+              <>
+                This is where creativity gets surgical. I use Photoshop to craft visuals that feel real — layered, emotional, and built to connect. Every pixel tells a story.<br />
+                Have a special request or an image you’d like transformed? Reach out through my contact page and let’s bring your vision to life.
+              </>
+            }
             image={psLogoImg}
             link="/portfolio/photoshop"
           />

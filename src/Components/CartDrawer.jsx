@@ -73,29 +73,41 @@ export default function CartDrawer({ isOpen, onClose }) {
                         const details = await actions.order.capture();
                         const { name, email_address } = details.payer;
 
-                        const orderedItems = cartItems
-                            .map((item) => `${item.title} (${item.size}) x${item.quantity}`)
-                            .join(", ");
+                        // Build array of order items for {{#orders}}...{{/orders}} in template
+                        const itemsForEmail = cartItems.map((item) => ({
+                            name: `${item.title} — ${item.size}`, // matches {{name}}
+                            units: item.quantity,                 // matches {{units}}
+                            price: (item.price * item.quantity).toFixed(2), // matches {{price}}
+                            image_url: item.image                  // matches {{image_url}}
+                        }));
 
-                        const imageUrl = cartItems[0]?.image || "";
+                        // Cost summary for {{cost.shipping}}, {{cost.tax}}, {{cost.total}}
+                        const cost = {
+                            shipping: (0).toFixed(2), // change if you charge shipping
+                            tax: (0).toFixed(2),      // change if you calculate tax
+                            total: total.toFixed(2)
+                        };
 
+                        // Send the email
                         await emailjs.send(
                             "service_6j3le5o",
                             "template_dxmzwa3",
                             {
-                                name: name.given_name + " " + name.surname,
+                                name: `${name.given_name} ${name.surname}`,
                                 message: "New PayPal order received!",
                                 order_id: data.orderID,
-                                orders: orderedItems, // includes title + size + qty
-                                total_price: `$${total.toFixed(2)}`, // ✅ add this
-                                first_item_title: cartItems[0]?.title || "", // ✅ optional
-                                first_item_price: `$${cartItems[0]?.price}` || "", // ✅ optional
-                                image_url: imageUrl,
-                                units: cartItems.length,
-                                email: email_address
+                                email: email_address,
+                                orders: itemsForEmail, // array for template loop
+                                cost                    // object for totals in template
                             },
                             "OLAEWsvf8PTH1I8A-"
                         );
+
+                        console.log("✅ Order email sent!");
+                        alert("Payment successful via PayPal!");
+                        clearCart();
+                        onClose();
+
 
                         console.log("✅ Order email sent!");
                         alert("Payment successful via PayPal!");
