@@ -28,7 +28,7 @@ export default function Footer() {
             <FaInstagram />
           </a>
           <a
-            href="https://tiktok.com/@yourhandle"
+            href="https://www.tiktok.com/@thatonehomieguy"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-white transition-colors"

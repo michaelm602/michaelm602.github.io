@@ -153,7 +153,7 @@ export default function Navbar() {
             <a href="https://instagram.com/yourhandle" target="_blank" rel="noopener noreferrer" className={`hover:text-[#ccc] transition-colors ${menuOpen ? 'animate-slideInLeft delay-[500ms]' : ''}`} aria-label="Instagram">
               <FaInstagram />
             </a>
-            <a href="https://tiktok.com/@yourhandle" target="_blank" rel="noopener noreferrer" className={`hover:text-[#ccc] transition-colors ${menuOpen ? 'animate-slideInLeft delay-[600ms]' : ''}`} aria-label="TikTok">
+            <a href="https://www.tiktok.com/@thatonehomieguy" target="_blank" rel="noopener noreferrer" className={`hover:text-[#ccc] transition-colors ${menuOpen ? 'animate-slideInLeft delay-[600ms]' : ''}`} aria-label="TikTok">
               <FaTiktok />
             </a>
             <Link to="/contact" onClick={closeMenu} className={`hover:text-[#ccc] transition-colors ${menuOpen ? 'animate-slideInLeft delay-[700ms]' : ''}`} aria-label="Contact Page">
