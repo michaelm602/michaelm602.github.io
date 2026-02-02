@@ -27,17 +27,64 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
     const defaultQuantity = 5;
 
     useEffect(() => {
-        const fetchImages = async () => {
-            setLoading(true); // Start loading
-            const folderRef = ref(storage, `${folder}`);
-            try {
-                const result = await listAll(folderRef);
-                const itemsWithMeta = await Promise.all(
-                    result.items.map(async (itemRef) => {
-                        const url = await getDownloadURL(itemRef);
-                        const name = itemRef.name.replace(".jpg", "");
+        let alive = true;
 
-                        const [titleRaw, quantityRaw] = name.split("__");
+        const stripExt = (name = "") => name.replace(/\.[^.]+$/, "");
+        const getExt = (name = "") => {
+            const m = name.match(/\.([^.]+)$/);
+            return m ? m[1].toLowerCase() : "";
+        };
+
+        const isImage = (name = "") => {
+            const ext = getExt(name);
+            return ["jpg", "jpeg", "png", "webp"].includes(ext);
+        };
+
+        const fetchImages = async () => {
+            setLoading(true);
+
+            try {
+                const folderRef = ref(storage, `${folder}`);
+                const result = await listAll(folderRef);
+
+                // 1) only image files
+                const imageRefs = result.items.filter((r) => isImage(r.name));
+
+                // 2) group by base name, ignore thumbs
+                // base -> { webpRef, jpgRef, pngRef }
+                const byBase = new Map();
+
+                for (const itemRef of imageRefs) {
+                    const name = itemRef.name;
+
+                    // ignore thumbs completely
+                    if (name.toLowerCase().endsWith("__thumb.webp")) continue;
+
+                    const base = stripExt(name);       // e.g. "20260131_173401" or "Title__5"
+                    const ext = getExt(name);
+
+                    if (!byBase.has(base)) byBase.set(base, {});
+                    const entry = byBase.get(base);
+
+                    if (ext === "webp") entry.webpRef = itemRef;
+                    if (ext === "jpg" || ext === "jpeg") entry.jpgRef = itemRef;
+                    if (ext === "png") entry.pngRef = itemRef;
+                }
+
+                // 3) pick best display ref per base (webp > jpg > png)
+                const bases = Array.from(byBase.keys()).sort((a, b) => a.localeCompare(b));
+
+                const itemsWithMeta = await Promise.all(
+                    bases.map(async (base) => {
+                        const entry = byBase.get(base) || {};
+                        const bestRef = entry.webpRef || entry.jpgRef || entry.pngRef;
+
+                        if (!bestRef) return null;
+
+                        const url = await getDownloadURL(bestRef);
+
+                        // Your existing title/quantity logic uses "__"
+                        const [titleRaw, quantityRaw] = base.split("__");
                         const title = titleRaw || "Untitled";
                         const quantity = quantityRaw || defaultQuantity;
 
@@ -46,19 +93,31 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                             quantity,
                             sizes: defaultSizes,
                             url,
+                            // optional: keep base/ref name for debugging
+                            // base,
+                            // file: bestRef.name,
                         };
                     })
                 );
-                setItems(itemsWithMeta);
+
+                const clean = itemsWithMeta.filter(Boolean);
+
+                if (alive) setItems(clean);
             } catch (err) {
-                console.error("🔥 Storage error:", err.message);
+                console.error("🔥 Storage error:", err?.message || err);
+                if (alive) setItems([]);
             } finally {
-                setLoading(false); // Done loading
+                if (alive) setLoading(false);
             }
         };
 
         fetchImages();
+
+        return () => {
+            alive = false;
+        };
     }, [folder]);
+
 
 
     const handleSizeChange = (index, value) => {

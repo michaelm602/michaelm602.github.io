@@ -47,11 +47,12 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/success" element={<Navigate to="/shop" />} />
             <Route path="/cancel" element={<Navigate to="/shop" />} />
-            <Route path="/upload" element={
+            <Route path="/admin" element={
               <ProtectedRoute>
                 <UploadImage />
               </ProtectedRoute>
             } />
+            <Route path="/upload" element={<Navigate to="/admin" replace />} />
             <Route path="/login" element={<LoginForm />} />
           </Routes>
         </main>

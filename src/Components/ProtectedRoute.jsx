@@ -1,28 +1,25 @@
-// src/components/ProtectedRoute.jsx
-import { useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
-import { Navigate } from 'react-router-dom';
-import PropTypes from 'prop-types';
+// src/Components/ProtectedRoute.jsx
+import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { Navigate } from "react-router-dom";
+import { auth } from "../firebase";
+
+const ADMIN_EMAIL = "airbrushnink@gmail.com";
 
 export default function ProtectedRoute({ children }) {
-  const [user, setUser] = useState(undefined);
   const [loading, setLoading] = useState(true);
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+      const email = (user?.email || "").toLowerCase().trim();
+      setAllowed(email === ADMIN_EMAIL.toLowerCase());
       setLoading(false);
     });
     return unsub;
   }, []);
 
-  if (loading) return <p className="text-center mt-10">Checking auth...</p>;
+  if (loading) return <p className="text-center mt-10 text-white">Checking auth…</p>;
 
-  return user ? children : <Navigate to="/" />;
+  return allowed ? children : <Navigate to="/" replace />;
 }
-
-
-ProtectedRoute.propTypes = {
-  children: PropTypes.node.isRequired,
-};

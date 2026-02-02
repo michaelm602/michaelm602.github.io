@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import img1 from "../assets/images/hero-images/iwata.jpg";
-import img2 from "../assets/images/hero-images/photoshop.jpg";
+import img1 from "../assets/images-webp/hero-images/iwata.webp";
+import img2 from "../assets/images-webp/hero-images/photoshop.webp";
 
 const images = [img1, img2];
 
@@ -12,7 +12,7 @@ export default function Hero() {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [images.length]);
 
   return (
     <section className="relative w-full h-[90vh] md:h-screen bg-black overflow-hidden">
@@ -22,6 +22,11 @@ export default function Hero() {
           key={idx}
           src={img}
           alt={`Hero Background ${idx + 1}`}
+          width="1920"
+          height="1080"
+          loading="eager"
+          decoding="async"
+          fetchpriority={idx === currentIndex ? "high" : "auto"}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === currentIndex ? "opacity-40" : "opacity-0"
             }`}
         />
