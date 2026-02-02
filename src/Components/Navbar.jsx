@@ -21,10 +21,12 @@ export default function Navbar() {
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((firebaseUser) => {
+      console.log("AUTH USER:", firebaseUser?.email, firebaseUser?.uid);
       setUser(firebaseUser);
     });
     return () => unsub();
   }, []);
+
 
   const goToServices = () => {
     const currentPath = window.location.hash;
