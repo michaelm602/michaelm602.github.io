@@ -16,10 +16,8 @@ export default function Navbar() {
   const { cartItems } = useCart();
   const navigate = useNavigate();
 
-  const ADMIN_EMAIL = "airbrushnink@gmail.com";
-  const isAdmin =
-    !!user?.email &&
-    user.email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
+  const ADMIN_UID = "1AWLkfAMgjgDSNiK9bRsIWRoGW73";
+  const isAdmin = !!user && user.uid === ADMIN_UID;
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((firebaseUser) => {

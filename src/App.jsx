@@ -11,6 +11,7 @@ import Footer from "./Components/Footer";
 import Contact from "./pages/Contact";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import AdminRoute from "./Components/AdminRoute";
 import Success from "./pages/Success";
 import Cancel from "./pages/Cancel";
 
@@ -47,11 +48,14 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/success" element={<Navigate to="/shop" />} />
             <Route path="/cancel" element={<Navigate to="/shop" />} />
-            <Route path="/admin" element={
-              <ProtectedRoute>
-                <UploadImage />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <UploadImage />
+                </AdminRoute>
+              }
+            />
             <Route path="/upload" element={<Navigate to="/admin" replace />} />
             <Route path="/login" element={<LoginForm />} />
           </Routes>
