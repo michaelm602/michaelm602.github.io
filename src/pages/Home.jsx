@@ -5,8 +5,8 @@ import SectionLabel from "../Components/SectionLabel";
 import ServiceCard from "../Components/ServiceCard";
 import airbrushingImg from "../assets/services/airbrushing.jpg";
 import psLogoImg from "../assets/services/ps-logo.jpg";
-import img1 from "../assets/images/hero-images/iwata.jpg";
-import img2 from "../assets/images/hero-images/photoshop.jpg";
+import img1 from "../assets/images-webp/hero-images/iwata.webp";
+import img2 from "../assets/images-webp/hero-images/photoshop.webp";
 import CTA from "../Components/CTA";
 
 export default function Home() {
