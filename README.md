@@ -1,12 +1,67 @@
-# React + Vite
+# Likwit Blvd Website
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A custom portfolio and e-commerce site for airbrush and digital artwork.  
+Built to showcase original work, sell prints, and manage content securely through an admin interface.
 
-Currently, two official plugins are available:
+Live site: https://www.likwitblvd.com
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## Expanding the ESLint configuration
+## Overview
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Likwit Blvd is a modern React-based website combining a public art portfolio with a functional online shop.  
+It supports secure admin-only uploads, dynamic galleries, and multiple payment options, while remaining lightweight and SEO-friendly.
+
+The project is designed for real-world deployment, not demos — with production hosting, search indexing, and scalable backend services.
+
+---
+
+## Features
+
+### Public
+- Art gallery (airbrush + digital work)
+- Shop with size-based pricing
+- Cart drawer with persistent state
+- Stripe Checkout integration
+- PayPal Checkout integration
+- SEO-ready (Open Graph tags, sitemap, robots.txt)
+
+### Admin
+- Firebase Auth–protected admin access
+- Upload and manage images via Firebase Storage
+- Firestore-backed metadata
+- Restricted access (admin-only uploads)
+
+---
+
+## Tech Stack
+
+### Frontend
+- **React**
+- **Vite**
+- **Tailwind CSS**
+
+### Backend / Services
+- **Firebase**
+  - Authentication
+  - Firestore
+  - Storage
+- **Stripe** (payments)
+- **PayPal** (payments)
+
+### Hosting & Deployment
+- **DigitalOcean App Platform**
+- **GitHub** (manual deploy workflow)
+
+---
+
+## Local Development
+
+### Prerequisites
+- Node.js (v18+ recommended)
+- npm
+
+### Setup
+```bash
+npm install
+npm run dev
