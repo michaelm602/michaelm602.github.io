@@ -3,14 +3,13 @@ import Hero from "../Components/Hero";
 import Intro from "../Components/Intro";
 import SectionLabel from "../Components/SectionLabel";
 import ServiceCard from "../Components/ServiceCard";
-import airbrushingImg from "../assets/services/airbrushing.jpg";
-import psLogoImg from "../assets/services/ps-logo.jpg";
-import img1 from "../assets/images-webp/hero-images/iwata.webp";
-import img2 from "../assets/images-webp/hero-images/photoshop.webp";
 import CTA from "../Components/CTA";
 
+import { homeContent } from "../content/homeContent";
+
 export default function Home() {
-  const heroImages = [img1, img2];
+  const heroImages = homeContent.heroImages;
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const airbrushRef = useRef(null);
   const inkRef = useRef(null);
@@ -23,7 +22,7 @@ export default function Home() {
       setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [heroImages.length]);
 
   // Airbrush observer
   useEffect(() => {
@@ -48,23 +47,23 @@ export default function Home() {
   }, []);
 
   // Scroll to services
-
   useEffect(() => {
     const shouldScroll = sessionStorage.getItem("scrollToServices");
-
     if (shouldScroll) {
       sessionStorage.removeItem("scrollToServices");
 
       const scrollToServices = () => {
         const section = document.getElementById("services");
         if (section) {
-          const yOffset = -100; // adjust for navbar
-          const y = section.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          const yOffset = -100;
+          const y =
+            section.getBoundingClientRect().top +
+            window.pageYOffset +
+            yOffset;
           window.scrollTo({ top: y, behavior: "smooth" });
         }
       };
 
-      // Wait for DOM to settle
       setTimeout(scrollToServices, 500);
     }
   }, []);
@@ -75,10 +74,7 @@ export default function Home() {
       <Hero currentImage={heroImages[currentImageIndex]} />
 
       {/* AIRBRUSH LABEL BEHIND INTRO */}
-      <section
-        className="relative min-h-[30vh]" // 👈 removed overflow-hidden
-        ref={airbrushRef}
-      >
+      <section className="relative min-h-[30vh]" ref={airbrushRef}>
         <SectionLabel text="AIRBRUSH" show={showAirbrush} />
         <Intro />
       </section>
@@ -86,25 +82,16 @@ export default function Home() {
       {/* SERVICE CARDS */}
       <section id="services" className="relative z-10 mt-[2vh] px-8 pt-5">
         <div className="flex flex-wrap justify-center gap-x-20 gap-y-12">
-          <ServiceCard
-            tag="AIRBRUSH"
-            title="Custom Airbrush"
-            description="Every airbrush project is a story told in paint. Whether it’s a wild concept or something close to home, I create custom visuals that speak louder than words."
-            image={airbrushingImg}
-            link="/portfolio/airbrush"
-          />
-          <ServiceCard
-            tag="DIGITAL"
-            title="Photoshop/Digital Art"
-            description={
-              <>
-                This is where creativity gets surgical. I use Photoshop to craft visuals that feel real — layered, emotional, and built to connect. Every pixel tells a story.<br />
-                Have a special request or an image you’d like transformed? Reach out through my contact page and let’s bring your vision to life.
-              </>
-            }
-            image={psLogoImg}
-            link="/portfolio/photoshop"
-          />
+          {homeContent.services.map((s) => (
+            <ServiceCard
+              key={`${s.tag}-${s.title}`}
+              tag={s.tag}
+              title={s.title}
+              description={s.description}
+              image={s.image}
+              link={s.link}
+            />
+          ))}
         </div>
       </section>
 
@@ -113,18 +100,14 @@ export default function Home() {
         ref={inkRef}
         className="relative flex flex-col items-center justify-center min-h-[20vh] overflow-hidden"
       >
-        {/* Background label */}
         <div className="absolute top-1/2 -translate-y-1/2 z-0 w-full text-center">
           <SectionLabel text="& INK" show={showInk} />
         </div>
 
-        {/* CTA Button */}
         <div className="relative z-10 mt-4">
           <CTA />
         </div>
       </section>
-
-
     </div>
   );
 }
