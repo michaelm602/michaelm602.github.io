@@ -9,8 +9,16 @@ export default function ServiceCard({ title, description, image, link, tag }) {
     >
       <div className="relative">
         {tag && (
-          <span className="absolute top-2 left-2 bg-black text-white/10 text-xs px-2 py-1 rounded">
-            {tag.toUpperCase()}
+          <span
+            className="
+      absolute top-2 left-2 z-10
+      bg-black/70 backdrop-blur-sm
+      text-white text-xs font-semibold
+      px-2 py-1 rounded
+      ring-1 ring-white/20
+    "
+          >
+            {tag}
           </span>
         )}
         <img
