@@ -41,6 +41,7 @@ export default function Home() {
                 ? data.services
                 : FALLBACK.services,
           });
+
         }
       } catch {
         // fail silently → fallback content stays
