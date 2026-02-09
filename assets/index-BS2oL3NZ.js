@@ -64,13 +64,19 @@ Please change the parent <Route path="${V}"> to <Route path="${V==="/"?"*":`${V}
     text-white/5 whitespace-nowrap 
     select-none pointer-events-none 
     z-[-1] transition-all duration-700 ease-in-out
-  `,s=i==="& INK"?"top-[0%] sm:top-[1%] md:top-[8%] lg:top-[13%] -translate-y-1/2":i==="AIRBRUSH"?"top-1/2 -translate-y-1/2":"top-[5%]",o=i==="& INK"?"text-[33vw] sm:text-[25vw] md:text-[25vw] lg:text-[18vw]":i==="AIRBRUSH"?"text-[25vw] sm:text-[19vw] md:text-[18vw] lg:text-[17vw]":"text-[14vw] sm:text-[16vw] md:text-[18vw]",l=e?"opacity-100":"opacity-0";return C.jsx("div",{className:"absolute inset-0 w-full pointer-events-none z-[-1]",children:C.jsx("div",{className:`${t} ${s} ${o} ${l} max-w-full overflow-hidden text-center`,children:i})})}function eC({title:i,description:e,image:t,link:s,tag:o}){return C.jsxs(Cr,{to:s,className:"rounded-xl shadow-lg overflow-hidden transition-transform duration-300 transform hover:scale-[1.03] w-full max-w-[500px] flex flex-col bg-gradient-to-r from-black to-[#222]",children:[C.jsxs("div",{className:"relative",children:[o&&C.jsx("span",{className:`\r
-      absolute top-2 left-2 z-10\r
-      bg-black/70 backdrop-blur-sm\r
-      text-white text-xs font-semibold\r
-      px-2 py-1 rounded\r
-      ring-1 ring-white/20\r
-    `,children:o}),C.jsx("img",{src:t||"https://via.placeholder.com/600x400?text=Service+Image",alt:i})]}),C.jsxs("div",{className:"p-4 flex flex-col flex-grow",children:[C.jsx("h3",{className:"text-white text-xl font-bold",children:i}),C.jsx("p",{className:"text-base text-gray-200 mt-2 mb-4 flex-grow leading-relaxed whitespace-pre-line",children:e}),"        ",C.jsx("div",{className:"pt-4 border-t border-gray-700 flex justify-center",children:C.jsx("span",{className:"text-md text-white font-semibold",children:"Portfolio"})})]})]})}function tC(){return C.jsx(Cr,{to:"/shop",className:"inline-block bg-gradient-to-r from-black to-zinc-800 text-white text-sm sm:text-base uppercase font-semibold tracking-wide sm:tracking-wider py-2.5 px-6 sm:py-3 sm:px-8 rounded-md transition duration-300 hover:from-zinc-900 hover:to-zinc-700 shadow-lg",children:"SHOP NOW"})}const nC=()=>{};var DE={};/**
+  `,s=i==="& INK"?"top-[0%] sm:top-[1%] md:top-[8%] lg:top-[13%] -translate-y-1/2":i==="AIRBRUSH"?"top-1/2 -translate-y-1/2":"top-[5%]",o=i==="& INK"?"text-[33vw] sm:text-[25vw] md:text-[25vw] lg:text-[18vw]":i==="AIRBRUSH"?"text-[25vw] sm:text-[19vw] md:text-[18vw] lg:text-[17vw]":"text-[14vw] sm:text-[16vw] md:text-[18vw]",l=e?"opacity-100":"opacity-0";return C.jsx("div",{className:"absolute inset-0 w-full pointer-events-none z-[-1]",children:C.jsx("div",{className:`${t} ${s} ${o} ${l} max-w-full overflow-hidden text-center`,children:i})})}function eC({title:i,description:e,image:t,link:s,tag:o}){return C.jsxs(Cr,{to:s,className:`\r
+        rounded-xl shadow-lg overflow-hidden\r
+        transition-transform duration-300 transform hover:scale-[1.03]\r
+        w-full max-w-[500px]\r
+        flex flex-col\r
+        bg-gradient-to-b from-black to-[#222]\r
+      `,children:[C.jsxs("div",{className:"relative w-full h-[220px] overflow-hidden",children:[o&&C.jsx("span",{className:`\r
+              absolute top-2 left-2 z-10\r
+              bg-black/70 backdrop-blur-sm\r
+              text-white text-xs font-semibold\r
+              px-2 py-1 rounded\r
+              ring-1 ring-white/20\r
+            `,children:o}),C.jsx("img",{src:t||"https://via.placeholder.com/600x400?text=Service+Image",alt:i,className:"w-full h-full object-cover object-center block brightness-90",loading:"lazy"}),C.jsx("div",{className:"absolute inset-0 bg-black/25"})]}),C.jsxs("div",{className:"p-4 flex flex-col flex-grow",children:[C.jsx("h3",{className:"text-white text-xl font-bold",children:i}),C.jsx("p",{className:"line-clamp-5 text-base text-gray-200 mt-2 mb-4 flex-grow leading-relaxed whitespace-pre-line",children:e}),C.jsx("div",{className:"mt-auto pt-4 border-t border-white/10 text-center",children:C.jsx("span",{className:"text-sm text-white/80",children:"Portfolio"})})]})]})}function tC(){return C.jsx(Cr,{to:"/shop",className:"inline-block bg-gradient-to-r from-black to-zinc-800 text-white text-sm sm:text-base uppercase font-semibold tracking-wide sm:tracking-wider py-2.5 px-6 sm:py-3 sm:px-8 rounded-md transition duration-300 hover:from-zinc-900 hover:to-zinc-700 shadow-lg",children:"SHOP NOW"})}const nC=()=>{};var DE={};/**
  * @license
  * Copyright 2017 Google LLC
  *
