@@ -1,11 +1,9 @@
 import { HashRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import ProtectedRoute from "./Components/ProtectedRoute"
 import Home from './pages/Home';
 import Airbrush from "./pages/Airbrush";
 import Photoshop from "./pages/Photoshop";
 import Navbar from "./Components/Navbar";
 import GalleryPage from './pages/GalleryPage';
-import UploadImage from "./Components/UploadImage";
 import LoginForm from "./Components/LoginForm";
 import Footer from "./Components/Footer";
 import Contact from "./pages/Contact";
@@ -25,7 +23,7 @@ import ShopPage from "./pages/ShopPage";
 
 
 function App() {
-  const [user, setUser] = useState(null);
+  const [setUser] = useState(null);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -47,16 +45,15 @@ function App() {
             <Route path="/portfolio/photoshop" element={<Photoshop />} />
             <Route path="/shop" element={<ShopPage />} />
             <Route path="/contact" element={<Contact />} />
-            <Route path="/success" element={<Navigate to="/shop" />} />
-            <Route path="/cancel" element={<Navigate to="/shop" />} />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <UploadImage />
-                </AdminRoute>
-              }
-            />
+
+            {/* If Stripe returns to these, send them back to shop */}
+            <Route path="/success" element={<Navigate to="/shop" replace />} />
+            <Route path="/cancel" element={<Navigate to="/shop" replace />} />
+
+            {/* Login */}
+            <Route path="/login" element={<LoginForm />} />
+
+            {/* Admin Home Editor */}
             <Route
               path="/admin/home"
               element={
@@ -66,9 +63,16 @@ function App() {
               }
             />
 
-            <Route path="/upload" element={<Navigate to="/admin" replace />} />
-            <Route path="/login" element={<LoginForm />} />
+            {/* OPTIONAL: give /admin a real route so redirects don’t break */}
+            <Route path="/admin" element={<Navigate to="/admin/home" replace />} />
+
+            {/* OPTIONAL: if you still want /upload to exist */}
+            <Route path="/upload" element={<Navigate to="/admin/home" replace />} />
+
+            {/* Catch-all (optional but recommended) */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+
         </main>
         <Footer />
       </div>
