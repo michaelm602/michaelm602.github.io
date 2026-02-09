@@ -13,7 +13,10 @@ export default function ServiceCard({ title, description, image, link, tag }) {
             {tag.toUpperCase()}
           </span>
         )}
-        <img src={image} alt={title} className="w-full h-64 object-cover opacity-80" />
+        <img
+          src={image || "https://via.placeholder.com/600x400?text=Service+Image"}
+          alt={title}
+        />
       </div>
       <div className="p-4 flex flex-col flex-grow">
         <h3 className="text-white text-xl font-bold">{title}</h3>
