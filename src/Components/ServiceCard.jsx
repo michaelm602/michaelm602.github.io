@@ -41,7 +41,7 @@ export default function ServiceCard({ title, description, image, link, tag }) {
       <div className="p-4 flex flex-col flex-grow">
         <h3 className="text-white text-xl font-bold">{title}</h3>
 
-        <p className="line-clamp-5 text-base text-gray-200 mt-2 mb-4 flex-grow leading-relaxed whitespace-pre-line">
+        <p className="text-base text-gray-200 mt-2 mb-4 flex-grow leading-relaxed whitespace-pre-line">
           {description}
         </p>
 
