@@ -1,25 +1,37 @@
-import { useEffect, useState } from "react";
-import img1 from "../assets/images-webp/hero-images/iwata.webp";
-import img2 from "../assets/images-webp/hero-images/photoshop.webp";
+import { useEffect, useMemo, useState } from "react";
 
-const images = [img1, img2];
+export default function Hero({ images = [], intervalMs = 3000 }) {
+  // sanitize input
+  const safeImages = useMemo(
+    () => (Array.isArray(images) ? images.filter(Boolean) : []),
+    [images]
+  );
 
-export default function Hero() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // reset index if images list changes size
   useEffect(() => {
+    setCurrentIndex(0);
+  }, [safeImages.length]);
+
+  useEffect(() => {
+    if (safeImages.length <= 1) return;
+
     const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
-    }, 3000);
+      setCurrentIndex((prev) => (prev + 1) % safeImages.length);
+    }, intervalMs);
+
     return () => clearInterval(interval);
-  }, [images.length]);
+  }, [safeImages.length, intervalMs]);
+
+  if (!safeImages.length) return null;
 
   return (
     <section className="relative w-full h-[90vh] md:h-screen bg-black overflow-hidden">
       {/* Background images */}
-      {images.map((img, idx) => (
+      {safeImages.map((img, idx) => (
         <img
-          key={idx}
+          key={`${img}-${idx}`}
           src={img}
           alt={`Hero Background ${idx + 1}`}
           width="1920"

@@ -5,22 +5,60 @@ import SectionLabel from "../Components/SectionLabel";
 import ServiceCard from "../Components/ServiceCard";
 import CTA from "../Components/CTA";
 
-import { homeContent } from "../content/homeContent";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import { homeContent as FALLBACK } from "../content/homeContent";
 
 export default function Home() {
-  const heroImages = homeContent.heroImages;
+  // 🔥 Firestore-backed content with safe fallback
+  const [content, setContent] = useState(FALLBACK);
 
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const heroImages = content.heroImages || [];
+
   const airbrushRef = useRef(null);
   const inkRef = useRef(null);
   const [showAirbrush, setShowAirbrush] = useState(false);
   const [showInk, setShowInk] = useState(false);
 
-  // Hero image rotator
+  // 🔥 Load Home content from Firestore (fallback silently)
   useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "siteContent", "home"));
+        if (!alive) return;
+
+        if (snap.exists()) {
+          const data = snap.data();
+          setContent({
+            heroImages:
+              Array.isArray(data.heroImages) && data.heroImages.length
+                ? data.heroImages
+                : FALLBACK.heroImages,
+            services:
+              Array.isArray(data.services) && data.services.length
+                ? data.services
+                : FALLBACK.services,
+          });
+        }
+      } catch {
+        // fail silently → fallback content stays
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 🔁 Hero image rotator (safe)
+  useEffect(() => {
+    if (!heroImages.length) return;
+
     const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
     }, 5000);
+
     return () => clearInterval(interval);
   }, [heroImages.length]);
 
@@ -71,7 +109,9 @@ export default function Home() {
   return (
     <div className="relative z-0">
       {/* HERO SECTION */}
-      <Hero currentImage={heroImages[currentImageIndex]} />
+      {heroImages.length > 0 && (
+        <Hero images={heroImages} intervalMs={5000} />
+      )}
 
       {/* AIRBRUSH LABEL BEHIND INTRO */}
       <section className="relative min-h-[30vh]" ref={airbrushRef}>
@@ -82,9 +122,9 @@ export default function Home() {
       {/* SERVICE CARDS */}
       <section id="services" className="relative z-10 mt-[2vh] px-8 pt-5">
         <div className="flex flex-wrap justify-center gap-x-20 gap-y-12">
-          {homeContent.services.map((s) => (
+          {content.services.map((s, i) => (
             <ServiceCard
-              key={`${s.tag}-${s.title}`}
+              key={`${s.title}-${i}`}
               tag={s.tag}
               title={s.title}
               description={s.description}

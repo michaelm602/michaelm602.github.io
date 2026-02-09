@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "./CartContext";
 import { X } from "lucide-react";
 import { stripeLinks } from "../utils/stripeLinks";
@@ -10,121 +10,158 @@ export default function CartDrawer({ isOpen, onClose }) {
     const [isEditing, setIsEditing] = useState(false);
     const [isPayPalReady, setIsPayPalReady] = useState(false);
 
-    const total = cartItems.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-    );
-
     const PAYPAL_CLIENT_ID =
         "AU5aAM3bPf_1lmA--7fuKSvlkyW5imXLRM4a2be_xgyiv4mYJU14v_KJviRqwy67-p5uNjchLtHurRg4";
-    usePayPalScript(PAYPAL_CLIENT_ID);
+
+    usePayPalScript(PAYPAL_CLIENT_ID, () => setIsPayPalReady(true));
+
+    const paypalRenderedRef = useRef(false);
+
+    const total = useMemo(
+        () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+        [cartItems]
+    );
+
+    const cartSignature = useMemo(() => {
+        return JSON.stringify(
+            cartItems.map((i) => ({
+                title: i.title,
+                size: i.size,
+                price: i.price,
+                quantity: i.quantity,
+                image: i.image,
+            }))
+        );
+    }, [cartItems]);
+
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            if (window.paypal) {
-                setIsPayPalReady(true);
-                clearInterval(interval);
-            }
-        }, 300);
-        return () => clearInterval(interval);
-    }, []);
+        if (!isOpen) return; // only render when drawer is open
+        if (!isPayPalReady) return;
 
-    useEffect(() => {
-        if (!isPayPalReady || cartItems.length === 0) return;
+        const containerId = "paypal-button-container";
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-        const container = document.getElementById("paypal-button-container");
-        if (container) container.innerHTML = "";
+        if (paypalRenderedRef.current && container.children.length) return;
 
-        window.paypal
-            .Buttons({
-                createOrder: (data, actions) => {
-                    return actions.order.create({
-                        purchase_units: [
-                            {
-                                amount: {
-                                    currency_code: "USD",
-                                    value: total.toFixed(2),
-                                    breakdown: {
-                                        item_total: {
-                                            currency_code: "USD",
-                                            value: total.toFixed(2),
+
+        // If cart empty, clear and bail
+        if (cartItems.length === 0) {
+            container.innerHTML = "";
+            paypalRenderedRef.current = false;
+            return;
+        }
+
+        // Always re-render buttons when cartSignature changes
+        container.innerHTML = "";
+        paypalRenderedRef.current = false;
+
+        try {
+            window.paypal
+                .Buttons({
+                    createOrder: (data, actions) => {
+                        return actions.order.create({
+                            purchase_units: [
+                                {
+                                    amount: {
+                                        currency_code: "USD",
+                                        value: total.toFixed(2),
+                                        breakdown: {
+                                            item_total: {
+                                                currency_code: "USD",
+                                                value: total.toFixed(2),
+                                            },
                                         },
                                     },
+                                    description: "Likwit Blvd Art Order",
+                                    custom_id: "AIRBRUSH_ORDER_" + Date.now(),
+                                    items: cartItems.map((item) => ({
+                                        name: item.title,
+                                        description: `Size: ${item.size}`,
+                                        unit_amount: {
+                                            currency_code: "USD",
+                                            value: Number(item.price).toFixed(2),
+                                        },
+                                        quantity: String(item.quantity),
+                                        category: "PHYSICAL_GOODS",
+                                    })),
                                 },
-                                description: "Likwit Blvd Art Order",
-                                custom_id: "AIRBRUSH_ORDER_" + Date.now(),
-                                items: cartItems.map(item => ({
-                                    name: item.title,
-                                    description: `Size: ${item.size}`,
-                                    unit_amount: {
-                                        currency_code: "USD",
-                                        value: item.price.toFixed(2),
-                                    },
-                                    quantity: item.quantity.toString(),
-                                    category: "PHYSICAL_GOODS",
-                                })),
-                            },
-                        ],
-                    });
-                },
+                            ],
+                        });
+                    },
 
-                onApprove: async (data, actions) => {
-                    try {
-                        const details = await actions.order.capture();
-                        const { name, email_address } = details.payer;
+                    onApprove: async (data, actions) => {
+                        try {
+                            const details = await actions.order.capture();
+                            const { name, email_address } = details.payer;
 
-                        // Build array of order items for {{#orders}}...{{/orders}} in template
-                        const itemsForEmail = cartItems.map((item) => ({
-                            name: `${item.title} — ${item.size}`, // matches {{name}}
-                            units: item.quantity,                 // matches {{units}}
-                            price: (item.price * item.quantity).toFixed(2), // matches {{price}}
-                            image_url: item.image                  // matches {{image_url}}
-                        }));
+                            const itemsForEmail = cartItems.map((item) => ({
+                                name: `${item.title} — ${item.size}`,
+                                units: item.quantity,
+                                price: (item.price * item.quantity).toFixed(2),
+                                image_url: item.image,
+                            }));
 
-                        // Cost summary for {{cost.shipping}}, {{cost.tax}}, {{cost.total}}
-                        const cost = {
-                            shipping: (0).toFixed(2), // change if you charge shipping
-                            tax: (0).toFixed(2),      // change if you calculate tax
-                            total: total.toFixed(2)
-                        };
+                            const cost = {
+                                shipping: (0).toFixed(2),
+                                tax: (0).toFixed(2),
+                                total: total.toFixed(2),
+                            };
 
-                        // Send the email
-                        await emailjs.send(
-                            "service_6j3le5o",
-                            "template_dxmzwa3",
-                            {
-                                name: `${name.given_name} ${name.surname}`,
-                                message: "New PayPal order received!",
-                                order_id: data.orderID,
-                                email: email_address,
-                                orders: itemsForEmail, // array for template loop
-                                cost                    // object for totals in template
-                            },
-                            "OLAEWsvf8PTH1I8A-"
-                        );
+                            await emailjs.send(
+                                "service_6j3le5o",
+                                "template_dxmzwa3",
+                                {
+                                    name: `${name.given_name} ${name.surname}`,
+                                    message: "New PayPal order received!",
+                                    order_id: data.orderID,
+                                    email: email_address,
+                                    orders: itemsForEmail,
+                                    cost,
+                                },
+                                "OLAEWsvf8PTH1I8A-"
+                            );
 
-                        console.log("✅ Order email sent!");
-                        alert("Payment successful via PayPal!");
-                        clearCart();
-                        onClose();
+                            console.log("✅ Order email sent!");
+                            alert("Payment successful via PayPal!");
+                            clearCart();
+                            onClose();
 
+                            // reset so next open re-renders clean
+                            paypalRenderedRef.current = false;
+                        } catch (err) {
+                            console.error("PayPal error:", err);
+                            alert("Something went wrong with PayPal.");
+                        }
+                    },
 
-                        console.log("✅ Order email sent!");
-                        alert("Payment successful via PayPal!");
-                        clearCart();
-                        onClose();
-                    } catch (err) {
+                    onError: (err) => {
                         console.error("PayPal error:", err);
                         alert("Something went wrong with PayPal.");
-                    }
-                },
-                onError: (err) => {
-                    console.error("PayPal error:", err);
-                    alert("Something went wrong with PayPal.");
-                },
-            })
-            .render("#paypal-button-container");
-    }, [isPayPalReady, cartItems, total]);
+                    },
+                })
+                .render(`#${containerId}`);
+
+            paypalRenderedRef.current = true;
+        } catch (e) {
+            console.error("PayPal render failed:", e);
+        }
+
+        // cleanup when drawer closes/unmounts
+        return () => {
+            const c = document.getElementById(containerId);
+            if (c) c.innerHTML = "";
+            paypalRenderedRef.current = false;
+        };
+    }, [
+        isOpen,
+        isPayPalReady,
+        cartSignature, // 🔥 key: only changes when cart content changes
+        total,
+        clearCart,
+        onClose,
+    ]);
 
     const testCheckout = async () => {
         try {
