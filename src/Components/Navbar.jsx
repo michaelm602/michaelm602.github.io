@@ -251,16 +251,17 @@ export default function Navbar() {
       </div>
 
       {/* Cart Slide-out Overlay */}
-{isCartOpen && (
-  <div
-    className="fixed inset-0 bg-black/40 z-[4400]"
-    onClick={() => setIsCartOpen(false)}
-  />
-)}
+      {isCartOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-[4400]"
+          onClick={() => setIsCartOpen(false)}
+        />
+      )}
 
-<CartDrawer
-  isOpen={isCartOpen}
-  onClose={() => setIsCartOpen(false)}
-/>
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+      />
+    </>
   );
 }
