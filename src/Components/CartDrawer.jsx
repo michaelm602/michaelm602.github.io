@@ -202,8 +202,12 @@ export default function CartDrawer({ isOpen, onClose }) {
 
     return (
         <div
-            className={`fixed top-0 right-0 h-full w-80 bg-gradient-to-r from-black to-[#222] text-white shadow-lg transform transition-transform z-[1200] ${isOpen ? "translate-x-0" : "translate-x-full"
-                }`}
+            className={`fixed top-0 right-0 h-full w-80 
+  bg-gradient-to-r from-black to-[#222] 
+  text-white shadow-lg transform transition-transform
+  z-[4500] pointer-events-auto
+  ${isOpen ? "translate-x-0" : "translate-x-full"}
+`}
         >
             <div className="flex items-center justify-between px-4 py-5 border-b border-gray-300">
                 <h2 className="text-lg font-bold">Your Cart</h2>
