@@ -45,8 +45,20 @@ export default function ServiceCard({ title, description, image, link, tag }) {
           {description}
         </p>
 
-        <div className="mt-auto pt-4 border-t border-white/10 text-center">
-          <span className="text-sm text-white/80">Portfolio</span>
+        <div className="mt-auto pt-6 border-t border-white/10 flex justify-center">
+          <span
+            className="
+    text-sm tracking-wide
+    text-white/80
+    cursor-pointer
+    relative
+    animate-attention
+    hover:text-white
+    hover:animate-none
+  "
+          >
+            Portfolio →
+          </span>
         </div>
       </div>
     </Link>
