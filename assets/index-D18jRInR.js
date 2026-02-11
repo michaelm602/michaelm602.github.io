@@ -76,7 +76,15 @@ Please change the parent <Route path="${V}"> to <Route path="${V==="/"?"*":`${V}
               text-white text-xs font-semibold\r
               px-2 py-1 rounded\r
               ring-1 ring-white/20\r
-            `,children:o}),C.jsx("img",{src:t||"https://via.placeholder.com/600x400?text=Service+Image",alt:i,className:"w-full h-full object-cover object-center block brightness-90",loading:"lazy"}),C.jsx("div",{className:"absolute inset-0 bg-black/25"})]}),C.jsxs("div",{className:"p-4 flex flex-col flex-grow",children:[C.jsx("h3",{className:"text-white text-xl font-bold",children:i}),C.jsx("p",{className:"text-base text-gray-200 mt-2 mb-4 flex-grow leading-relaxed whitespace-pre-line",children:e}),C.jsx("div",{className:"mt-auto pt-4 border-t border-white/10 text-center",children:C.jsx("span",{className:"text-sm text-white/80",children:"Portfolio"})})]})]})}function tC(){return C.jsx(Cr,{to:"/shop",className:"inline-block bg-gradient-to-r from-black to-zinc-800 text-white text-sm sm:text-base uppercase font-semibold tracking-wide sm:tracking-wider py-2.5 px-6 sm:py-3 sm:px-8 rounded-md transition duration-300 hover:from-zinc-900 hover:to-zinc-700 shadow-lg",children:"SHOP NOW"})}const nC=()=>{};var DE={};/**
+            `,children:o}),C.jsx("img",{src:t||"https://via.placeholder.com/600x400?text=Service+Image",alt:i,className:"w-full h-full object-cover object-center block brightness-90",loading:"lazy"}),C.jsx("div",{className:"absolute inset-0 bg-black/25"})]}),C.jsxs("div",{className:"p-4 flex flex-col flex-grow",children:[C.jsx("h3",{className:"text-white text-xl font-bold",children:i}),C.jsx("p",{className:"text-base text-gray-200 mt-2 mb-4 flex-grow leading-relaxed whitespace-pre-line",children:e}),C.jsx("div",{className:"mt-auto pt-6 border-t border-white/10 flex justify-center",children:C.jsx("span",{className:`\r
+    text-sm tracking-wide\r
+    text-white/80\r
+    cursor-pointer\r
+    relative\r
+    animate-attention\r
+    hover:text-white\r
+    hover:animate-none\r
+  `,children:"Portfolio →"})})]})]})}function tC(){return C.jsx(Cr,{to:"/shop",className:"inline-block bg-gradient-to-r from-black to-zinc-800 text-white text-sm sm:text-base uppercase font-semibold tracking-wide sm:tracking-wider py-2.5 px-6 sm:py-3 sm:px-8 rounded-md transition duration-300 hover:from-zinc-900 hover:to-zinc-700 shadow-lg",children:"SHOP NOW"})}const nC=()=>{};var DE={};/**
  * @license
  * Copyright 2017 Google LLC
  *
