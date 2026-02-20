@@ -36,13 +36,16 @@ export default function Hero({ images = [], intervalMs = 3000 }) {
           alt={`Hero Background ${idx + 1}`}
           width="1920"
           height="1080"
-          loading="eager"
+          loading={idx === currentIndex ? "eager" : "lazy"}
           decoding="async"
-          fetchpriority={idx === currentIndex ? "high" : "auto"}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === currentIndex ? "opacity-40" : "opacity-0"
+          fetchPriority={idx === currentIndex ? "high" : "auto"}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === currentIndex ? "opacity-100" : "opacity-0"
             }`}
         />
       ))}
+
+      {/* Dark overlay — keeps text readable regardless of image brightness */}
+      <div className="absolute inset-0 z-[1] bg-black/60" />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full text-white text-center px-4">

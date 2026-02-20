@@ -4,6 +4,7 @@ import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
 import { sizePriceMap } from "../utils/sizePricing";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
+import { toast } from "react-toastify";
 
 
 export default function ShopGallery({ initialFolder = "airbrush", onAddToCart }) {
@@ -198,6 +199,10 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                             className="w-full bg-gradient-to-r from-[#111] to-[#333] hover:from-[#222] hover:to-[#444] text-white border border-[#444] py-2 rounded mt-auto transition-colors duration-300"
                             onClick={() => {
                                 const selectedSize = selectedOptions[i]?.size;
+                                if (!selectedSize) {
+                                    toast.warn("Please select a size first.");
+                                    return;
+                                }
                                 const selectedQty = parseInt(selectedOptions[i]?.quantity || 1);
                                 const price = sizePriceMap[selectedSize] || 0;
 
@@ -206,14 +211,13 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                                     size: selectedSize,
                                     quantity: selectedQty,
                                     price,
-                                    image: item.url, // ✅ This fixes the broken image
+                                    image: item.url,
                                 });
 
                                 if (onAddToCart) onAddToCart();
-                                sessionStorage.setItem("openCartOnReturn", "true")
+                                sessionStorage.setItem("openCartOnReturn", "true");
                                 toast.success(`${selectedQty} of "${item.title}" added to cart!`);
                             }}
-                            disabled={!selectedOptions[i]?.size}
                         >
                             Add to Cart
                         </button>

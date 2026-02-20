@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { stripeLinks } from "../utils/stripeLinks";
 import usePayPalScript from "../utils/usePayPalScript";
 import emailjs from "@emailjs/browser";
+import { toast } from "react-toastify";
 
 export default function CartDrawer({ isOpen, onClose }) {
     const { cartItems, removeFromCart, clearCart, updateCartItem } = useCart();
@@ -123,8 +124,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                                 "OLAEWsvf8PTH1I8A-"
                             );
 
-                            console.log("✅ Order email sent!");
-                            alert("Payment successful via PayPal!");
+                            toast.success("Payment successful! Order confirmation sent.");
                             clearCart();
                             onClose();
 
@@ -132,13 +132,13 @@ export default function CartDrawer({ isOpen, onClose }) {
                             paypalRenderedRef.current = false;
                         } catch (err) {
                             console.error("PayPal error:", err);
-                            alert("Something went wrong with PayPal.");
+                            toast.error("Something went wrong with PayPal. Please try again.");
                         }
                     },
 
                     onError: (err) => {
                         console.error("PayPal error:", err);
-                        alert("Something went wrong with PayPal.");
+                        toast.error("Something went wrong with PayPal. Please try again.");
                     },
                 })
                 .render(`#${containerId}`);
@@ -203,21 +203,21 @@ export default function CartDrawer({ isOpen, onClose }) {
 
     return (
         <div
-            className={`fixed top-0 right-0 h-full w-80 
-  bg-gradient-to-r from-black to-[#222] 
+            className={`fixed top-0 right-0 h-full w-80 flex flex-col
+  bg-gradient-to-r from-black to-[#222]
   text-white shadow-lg transform transition-transform
   z-[4500] pointer-events-auto
   ${isOpen ? "translate-x-0" : "translate-x-full"}
 `}
         >
-            <div className="flex items-center justify-between px-4 py-5 border-b border-gray-300">
+            <div className="flex items-center justify-between px-4 py-5 border-b border-gray-300 flex-shrink-0">
                 <h2 className="text-lg font-bold">Your Cart</h2>
                 <button onClick={onClose}>
                     <X size={24} />
                 </button>
             </div>
 
-            <div className="p-4 overflow-y-auto h-[calc(100%-435px)]">
+            <div className="p-4 overflow-y-auto flex-1">
                 {cartItems.map((item, index) => (
                     <div
                         key={index}
@@ -300,7 +300,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                 ))}
             </div>
 
-            <div className="p-4 border-t border-gray-300 flex flex-col gap-2">
+            <div className="p-4 border-t border-gray-300 flex flex-col gap-2 flex-shrink-0">
                 <div className="flex justify-between text-sm text-white mb-3">
                     <span className="font-semibold">Total:</span>
                     <span className="font-semibold">${total.toLocaleString()}</span>
@@ -308,14 +308,14 @@ export default function CartDrawer({ isOpen, onClose }) {
 
                 <div className="flex justify-between gap-2">
                     <button
-                        className="w-1/2 bg-gradient-to-r from-black to-[#222] text-white py-2 rounded hover:bg-green-700"
+                        className="w-1/2 border border-white/30 text-white py-2 rounded hover:bg-white/10 hover:border-white/60 transition-colors duration-200 disabled:opacity-40"
                         onClick={() => setIsEditing((prev) => !prev)}
                         disabled={cartItems.length === 0}
                     >
                         {isEditing ? "Done" : "Edit Cart"}
                     </button>
                     <button
-                        className="w-1/2 bg-gradient-to-r from-black to-[#222] text-white py-2 rounded hover:bg-blue-700"
+                        className="w-1/2 bg-white text-black font-semibold py-2 rounded hover:bg-gray-100 transition-colors duration-200 disabled:opacity-40"
                         onClick={testCheckout}
                         disabled={cartItems.length === 0}
                     >

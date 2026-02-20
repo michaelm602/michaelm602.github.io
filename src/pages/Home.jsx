@@ -53,16 +53,6 @@ export default function Home() {
     };
   }, []);
 
-  // 🔁 Hero image rotator (safe)
-  useEffect(() => {
-    if (!heroImages.length) return;
-
-    const interval = setInterval(() => {
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [heroImages.length]);
-
   // Airbrush observer
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -97,13 +87,13 @@ export default function Home() {
           const yOffset = -100;
           const y =
             section.getBoundingClientRect().top +
-            window.pageYOffset +
+            window.scrollY +
             yOffset;
           window.scrollTo({ top: y, behavior: "smooth" });
         }
       };
 
-      setTimeout(scrollToServices, 500);
+      requestAnimationFrame(() => requestAnimationFrame(scrollToServices));
     }
   }, []);
 

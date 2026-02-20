@@ -11,8 +11,6 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AdminRoute from "./Components/AdminRoute";
 import AdminHomeEditor from "./pages/AdminHomeEditor";
-import Success from "./pages/Success";
-import Cancel from "./pages/Cancel";
 
 // auth & protected route
 import { auth } from "./firebase"
@@ -76,7 +74,7 @@ function App() {
         </main>
         <Footer />
       </div>
-      <ToastContainer position="top-right" autoClose={2000} />
+      <ToastContainer position="top-right" autoClose={2000} theme="dark" />
 
     </Router>
   );

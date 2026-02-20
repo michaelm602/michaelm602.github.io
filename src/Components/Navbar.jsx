@@ -23,9 +23,6 @@ export default function Navbar() {
     return () => unsub();
   }, []);
 
-  // Don’t render navbar until auth is resolved
-  if (user === undefined) return null;
-
   const isAdmin = isAdminUser(user);
 
   const closeMenu = () => setMenuOpen(false);
@@ -142,7 +139,7 @@ export default function Navbar() {
             >
               <ShoppingCart size={20} />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-gray-600 text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                <span className="absolute -top-1 -right-1 bg-white text-black text-xs w-5 h-5 flex items-center justify-center rounded-full font-semibold">
                   {cartCount}
                 </span>
               )}

@@ -12,6 +12,7 @@ export default function Contact() {
 
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
+    const [error, setError] = useState(false);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -20,6 +21,7 @@ export default function Contact() {
     const sendEmail = (e) => {
         e.preventDefault();
         setLoading(true);
+        setError(false);
 
         emailjs
             .send(
@@ -40,8 +42,8 @@ export default function Contact() {
                     setSent(true);
                     setFormData({ name: "", email: "", message: "" });
                 },
-                (error) => {
-                    console.error("❌ Failed to send:", error.text);
+                () => {
+                    setError(true);
                 }
             )
             .finally(() => setLoading(false));
@@ -96,7 +98,13 @@ export default function Contact() {
 
                 {sent && (
                     <p className="text-green-400 text-center pt-2">
-                        ✅ Your message has been sent!
+                        Your message has been sent!
+                    </p>
+                )}
+
+                {error && (
+                    <p className="text-red-400 text-center pt-2">
+                        Failed to send your message. Please try again or email directly.
                     </p>
                 )}
             </form>
