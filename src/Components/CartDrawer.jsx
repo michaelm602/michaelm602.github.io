@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { stripeLinks } from "../utils/stripeLinks";
 import usePayPalScript from "../utils/usePayPalScript";
 import emailjs from "@emailjs/browser";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 
 export default function CartDrawer({ isOpen, onClose }) {
     const { cartItems, removeFromCart, clearCart, updateCartItem } = useCart();
@@ -163,7 +163,7 @@ export default function CartDrawer({ isOpen, onClose }) {
         onClose,
     ]);
 
-    const testCheckout = async () => {
+    const handleStripeCheckout = async () => {
         try {
             const line_items = cartItems.map((item) => {
                 const priceId = stripeLinks[item.title]?.[item.size];
@@ -193,9 +193,11 @@ export default function CartDrawer({ isOpen, onClose }) {
             if (data.url) {
                 window.location.href = data.url;
             } else {
+                toast.error("Checkout failed. Please try again.");
                 console.error("Stripe Checkout URL not returned:", data);
             }
         } catch (err) {
+            toast.error("Checkout failed. Please try again.");
             console.error("Checkout failed:", err.message);
         }
     };
@@ -316,7 +318,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                     </button>
                     <button
                         className="w-1/2 bg-white text-black font-semibold py-2 rounded hover:bg-gray-100 transition-colors duration-200 disabled:opacity-40"
-                        onClick={testCheckout}
+                        onClick={handleStripeCheckout}
                         disabled={cartItems.length === 0}
                     >
                         Checkout

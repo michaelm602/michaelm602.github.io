@@ -27,18 +27,16 @@ export default function Hero({ images = [], intervalMs = 3000 }) {
   if (!safeImages.length) return null;
 
   return (
-    <section className="relative w-full h-[90vh] md:h-screen bg-black overflow-hidden">
+    <section aria-label="Hero slideshow" className="relative w-full h-[90vh] md:h-screen bg-black overflow-hidden">
       {/* Background images */}
       {safeImages.map((img, idx) => (
         <img
           key={`${img}-${idx}`}
           src={img}
-          alt={`Hero Background ${idx + 1}`}
-          width="1920"
-          height="1080"
-          loading={idx === currentIndex ? "eager" : "lazy"}
+          alt=""
+          role="presentation"
+          loading="eager"
           decoding="async"
-          fetchPriority={idx === currentIndex ? "high" : "auto"}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === currentIndex ? "opacity-100" : "opacity-0"
             }`}
         />
@@ -52,9 +50,30 @@ export default function Hero({ images = [], intervalMs = 3000 }) {
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">
           AIRBRUSH & INK
         </h1>
+
         <p className="text-base sm:text-lg md:text-xl max-w-md sm:max-w-lg mb-6 sm:mb-8">
           Unique visuals and layered detail in every piece. Explore the work.
         </p>
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          <a
+            href="#/shop"
+            className="px-6 py-2 rounded bg-white text-black font-semibold hover:bg-zinc-200 transition"
+          >
+            Shop Prints
+          </a>
+
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById("services");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="px-6 py-2 rounded border border-white/40 text-white hover:bg-white/10 transition"
+          >
+            View Portfolio
+          </button>
+        </div>
       </div>
     </section>
   );

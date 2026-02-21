@@ -10,7 +10,7 @@ export default {
         wildside: ['Wildside', 'sans-serif'],
         fatwandals: ['FatWandals', 'sans-serif'],
         decipher: ['Decipher', 'sans-serif'],
-        slimwandals: ['SlimWandals', 'san-serif'],
+        slimwandals: ['SlimWandals', 'sans-serif'],
       },
       animation: {
         fadeUp: "fadeUp 1s ease-out forwards",

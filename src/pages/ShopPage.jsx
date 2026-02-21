@@ -27,15 +27,15 @@ export default function ShopPage() {
     return (
         <div className="relative min-h-screen pt-24 px-4 text-white">
             {/* Background AIRBRUSH text */}
-            <h1 className="absolute 
-    top-[-1rem] sm:top-[0rem] md:top-[-3rem] lg:top-[-5rem] 
-    left-1/2 transform -translate-x-1/2 
-    text-[15vw] sm:text-[15vw] md:text-[15vw] lg:text-[15vw] 
+            <div aria-hidden="true" className="absolute
+    top-[-1rem] sm:top-[0rem] md:top-[-3rem] lg:top-[-5rem]
+    left-1/2 transform -translate-x-1/2
+    text-[15vw] sm:text-[15vw] md:text-[15vw] lg:text-[15vw]
     max-w-[100vw] overflow-hidden whitespace-nowrap
-    font-extrabold text-white opacity-5 tracking-widest 
+    font-extrabold text-white opacity-5 tracking-widest
     pointer-events-none select-none z-0">
                 AIRBRUSH
-            </h1>
+            </div>
 
             {/* Foreground content */}
             <div className="relative z-10 text-center">

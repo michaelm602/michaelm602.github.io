@@ -9,6 +9,7 @@ import Footer from "./Components/Footer";
 import Contact from "./pages/Contact";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { Toaster } from "react-hot-toast";
 import AdminRoute from "./Components/AdminRoute";
 import AdminHomeEditor from "./pages/AdminHomeEditor";
 
@@ -75,6 +76,7 @@ function App() {
         <Footer />
       </div>
       <ToastContainer position="top-right" autoClose={2000} theme="dark" />
+      <Toaster position="top-right" toastOptions={{ duration: 2000 }} />
 
     </Router>
   );

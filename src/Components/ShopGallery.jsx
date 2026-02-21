@@ -7,7 +7,7 @@ import "yet-another-react-lightbox/styles.css";
 import { toast } from "react-toastify";
 
 
-export default function ShopGallery({ initialFolder = "airbrush", onAddToCart }) {
+export default function ShopGallery({ initialFolder = "airbrush" }) {
     const [folder, setFolder] = useState(initialFolder);
     const [items, setItems] = useState([]);
     const [selectedOptions, setSelectedOptions] = useState({});
@@ -154,118 +154,115 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
 
             {/* 🖼️ Product Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-20">
-                {items.map((item, i) => (
-                    <div key={i} className="bg-zinc-800 p-4 rounded-lg shadow-md flex flex-col">
-                        <img
-                            src={item.url}
-                            alt={item.title}
-                            className="w-full max-h-64 object-contain mb-4 rounded cursor-pointer"
-                            onClick={() => {
-                                setCurrentIndex(i);
-                                setLightboxOpen(true);
-                            }}
-                        />
-
-                        <h2 className="text-xl font-semibold mb-1">{item.title}</h2>
-
-                        <label className="block mb-1 text-sm">Size:</label>
-                        <select
-                            className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
-                            onChange={(e) => handleSizeChange(i, e.target.value)}
-                            value={selectedOptions[i]?.size || ""}
+                {loading ? (
+                    <div className="col-span-full text-center mt-12">
+                        <svg
+                            className="animate-spin h-8 w-8 text-white mx-auto"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
                         >
-                            <option value="">Select size</option>
-                            {item.sizes?.map((s, idx) => (
-                                <option key={idx} value={s}>
-                                    {s} — ${sizePriceMap[s] || "?"}
-                                </option>
-                            ))}
-                        </select>
-
-                        <label className="block mb-1 text-sm">Quantity:</label>
-                        <select
-                            className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
-                            onChange={(e) => handleQuantityChange(i, e.target.value)}
-                            value={selectedOptions[i]?.quantity || 1}
-                        >
-                            {Array.from({ length: Number(item.quantity) }, (_, k) => k + 1).map((q) => (
-                                <option key={q} value={q}>
-                                    {q}
-                                </option>
-                            ))}
-                        </select>
-
-                        <button
-                            className="w-full bg-gradient-to-r from-[#111] to-[#333] hover:from-[#222] hover:to-[#444] text-white border border-[#444] py-2 rounded mt-auto transition-colors duration-300"
-                            onClick={() => {
-                                const selectedSize = selectedOptions[i]?.size;
-                                if (!selectedSize) {
-                                    toast.warn("Please select a size first.");
-                                    return;
-                                }
-                                const selectedQty = parseInt(selectedOptions[i]?.quantity || 1);
-                                const price = sizePriceMap[selectedSize] || 0;
-
-                                addToCart({
-                                    title: item.title,
-                                    size: selectedSize,
-                                    quantity: selectedQty,
-                                    price,
-                                    image: item.url,
-                                });
-
-                                if (onAddToCart) onAddToCart();
-                                sessionStorage.setItem("openCartOnReturn", "true");
-                                toast.success(`${selectedQty} of "${item.title}" added to cart!`);
-                            }}
-                        >
-                            Add to Cart
-                        </button>
+                            <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                            ></circle>
+                            <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                            ></path>
+                        </svg>
+                        <p className="mt-4 text-sm text-gray-400">Loading products...</p>
                     </div>
-                ))}
+                ) : items.length === 0 ? (
+                    <p className="col-span-full text-white text-center mt-12">
+                        No products found in <span className="font-semibold">{folder}</span>.
+                    </p>
+                ) : (
+                    items.map((item, i) => (
+                        <div key={i} className="bg-zinc-800 p-4 rounded-lg shadow-md flex flex-col">
+                            <img
+                                src={item.url}
+                                alt={item.title}
+                                className="w-full h-64 object-contain bg-zinc-900 mb-4 rounded cursor-pointer p-2"
+                                onClick={() => {
+                                    setCurrentIndex(i);
+                                    setLightboxOpen(true);
+                                }}
+                            />
 
+                            <h2 className="text-xl font-semibold mb-1">{item.title}</h2>
 
+                            <label className="block mb-1 text-sm">Size:</label>
+                            <select
+                                className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
+                                onChange={(e) => handleSizeChange(i, e.target.value)}
+                                value={selectedOptions[i]?.size || ""}
+                            >
+                                <option value="">Select size</option>
+                                {item.sizes?.map((s, idx) => (
+                                    <option key={idx} value={s}>
+                                        {s} — ${sizePriceMap[s] || "?"}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <label className="block mb-1 text-sm">Quantity:</label>
+                            <select
+                                className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
+                                onChange={(e) => handleQuantityChange(i, e.target.value)}
+                                value={selectedOptions[i]?.quantity || 1}
+                            >
+                                {Array.from({ length: Number(item.quantity) }, (_, k) => k + 1).map((q) => (
+                                    <option key={q} value={q}>
+                                        {q}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <button
+                                className="w-full bg-gradient-to-r from-[#111] to-[#333] hover:from-[#222] hover:to-[#444] text-white border border-[#444] py-2 rounded mt-auto transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={() => {
+                                    const selectedSize = selectedOptions[i]?.size;
+                                    if (!selectedSize) {
+                                        toast.warn("Please select a size first.");
+                                        return;
+                                    }
+
+                                    const selectedQty = parseInt(selectedOptions[i]?.quantity || 1);
+                                    const price = sizePriceMap[selectedSize] || 0;
+
+                                    addToCart({
+                                        title: item.title,
+                                        size: selectedSize,
+                                        quantity: selectedQty,
+                                        price,
+                                        image: item.url,
+                                    });
+
+                                    // Must match Navbar listener: "open-cart"
+                                    window.dispatchEvent(new Event("open-cart"));
+
+                                    toast.success(`${selectedQty} of "${item.title}" added to cart!`);
+                                }}
+                                disabled={!selectedOptions[i]?.size}
+                            >
+                                Add to Cart
+                            </button>
+                        </div>
+                    ))
+                )}
             </div>
-
-            {/* 📭 No Items Fallback */}
-            {loading && (
-                <div className="col-span-full text-center mt-12">
-                    <svg
-                        className="animate-spin h-8 w-8 text-white mx-auto"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                    >
-                        <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                        ></circle>
-                        <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
-                        ></path>
-                    </svg>
-                    <p className="mt-4 text-sm text-gray-400">Loading products...</p>
-                </div>
-            )}
-
-            {!loading && items.length === 0 && (
-                <p className="text-white col-span-full text-center mt-12">
-                    No products found in <span className="font-semibold">{folder}</span>.
-                </p>
-            )}
-
 
             <Lightbox
                 open={lightboxOpen}
                 close={() => setLightboxOpen(false)}
                 index={currentIndex}
-                slides={items.map((item) => ({ src: item.url }))}
+                slides={items.map((item) => ({ src: item.url, alt: item.title }))}
                 animation={{ fade: 250 }}
                 styles={{
                     container: {
@@ -283,7 +280,7 @@ export default function ShopGallery({ initialFolder = "airbrush", onAddToCart })
                     slide: ({ slide }) => (
                         <img
                             src={slide.src}
-                            alt={slide.caption}
+                            alt={slide.alt}
                             style={{
                                 maxWidth: '90vw',
                                 maxHeight: '90vh',

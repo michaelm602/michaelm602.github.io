@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import emailjs from "@emailjs/browser";
 
 export default function Contact() {
@@ -25,8 +25,8 @@ export default function Contact() {
 
         emailjs
             .send(
-                "service_6j3le5o",      // ✅ Your Gmail service ID
-                "template_xs5pzrr",   // 🔁 Replace with your actual EmailJS template ID
+                "service_6j3le5o",
+                "template_xs5pzrr",
                 {
                     title: "Website Contact",
                     name: formData.name,
@@ -34,7 +34,7 @@ export default function Contact() {
                     message: formData.message,
                     time: new Date().toLocaleString(),
                 },
-                "OLAEWsvf8PTH1I8A-"  // 🔁 Replace with your EmailJS public key
+                "OLAEWsvf8PTH1I8A-"
             )
             .then(
                 (result) => {

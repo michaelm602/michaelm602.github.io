@@ -23,9 +23,22 @@ export default function Navbar() {
     return () => unsub();
   }, []);
 
+  // Open cart immediately via window event (same-page add-to-cart)
+  useEffect(() => {
+    const handler = () => setIsCartOpen(true);
+    window.addEventListener("open-cart", handler);
+    return () => window.removeEventListener("open-cart", handler);
+  }, []);
+
   const isAdmin = isAdminUser(user);
 
   const closeMenu = () => setMenuOpen(false);
+
+  // ✅ single helper for simple routes
+  const goTo = (path) => {
+    navigate(path);
+    closeMenu();
+  };
 
   const goToServices = () => {
     const currentPath = window.location.hash;
@@ -45,26 +58,6 @@ export default function Navbar() {
     await signOut(auth);
     closeMenu();
     navigate("/");
-  };
-
-  const goAdmin = () => {
-    navigate("/admin");
-    closeMenu();
-  };
-
-  const goHome = () => {
-    navigate("/");
-    closeMenu();
-  };
-
-  const goContact = () => {
-    navigate("/contact");
-    closeMenu();
-  };
-
-  const goShop = () => {
-    navigate("/shop");
-    closeMenu();
   };
 
   const cartCount = cartItems.reduce((t, i) => t + i.quantity, 0);
@@ -110,7 +103,7 @@ export default function Navbar() {
 
             {isAdmin && (
               <li className="flex items-center relative before:content-[''] before:inline-block before:w-px before:h-4 before:bg-white before:mx-3">
-                <button onClick={goAdmin} className="text-[#ccc] hover:text-white">
+                <button onClick={() => goTo("/admin")} className="text-[#ccc] hover:text-white">
                   Admin
                 </button>
               </li>
@@ -168,7 +161,7 @@ export default function Navbar() {
         `}
       >
         <div className="flex flex-col items-center justify-center gap-10 text-2xl font-semibold text-white tracking-wide">
-          <button onClick={goHome} className="hover:text-[#ccc] transition-colors">
+          <button onClick={() => goTo("/")} className="hover:text-[#ccc] transition-colors">
             Home
           </button>
 
@@ -176,16 +169,19 @@ export default function Navbar() {
             Portfolio
           </button>
 
-          <button onClick={goContact} className="hover:text-[#ccc] transition-colors">
+          <button
+            onClick={() => goTo("/contact")}
+            className="hover:text-[#ccc] transition-colors"
+          >
             Contact
           </button>
 
-          <button onClick={goShop} className="hover:text-[#ccc] transition-colors">
+          <button onClick={() => goTo("/shop")} className="hover:text-[#ccc] transition-colors">
             Shop
           </button>
 
           {isAdmin && (
-            <button onClick={goAdmin} className="hover:text-[#ccc] transition-colors">
+            <button onClick={() => goTo("/admin")} className="hover:text-[#ccc] transition-colors">
               Admin
             </button>
           )}
@@ -232,13 +228,13 @@ export default function Navbar() {
             </a>
 
             <button
-              onClick={goContact}
+              onClick={() => goTo("/contact")}
               className="hover:text-[#ccc] transition-colors"
               aria-label="Contact Likwit Blvd"
+              type="button"
             >
               <FaEnvelope />
             </button>
-
           </div>
 
           {/* Tap outside vibe */}
@@ -260,10 +256,7 @@ export default function Navbar() {
         />
       )}
 
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-      />
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );
 }

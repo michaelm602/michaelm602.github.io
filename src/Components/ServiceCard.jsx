@@ -29,7 +29,7 @@ export default function ServiceCard({ title, description, image, link, tag }) {
         )}
 
         <img
-          src={image || "https://via.placeholder.com/600x400?text=Service+Image"}
+          src={image}
           alt={title}
           className="w-full h-full object-cover object-center block brightness-90"
           loading="lazy"
