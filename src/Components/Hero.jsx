@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 export default function Hero({ images = [], intervalMs = 3000 }) {
   // sanitize input
@@ -47,32 +48,28 @@ export default function Hero({ images = [], intervalMs = 3000 }) {
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full text-white text-center px-4">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">
-          AIRBRUSH & INK
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4 tracking-tight">
+          Made to Order. Built to Hit.
         </h1>
 
-        <p className="text-base sm:text-lg md:text-xl max-w-md sm:max-w-lg mb-6 sm:mb-8">
-          Unique visuals and layered detail in every piece. Explore the work.
+        <p className="text-base sm:text-lg md:text-xl max-w-md sm:max-w-lg mb-6 sm:mb-8 text-white/80">
+          Hand-finished airbrush and ink work — no mass production, no shortcuts. Every piece ships once.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4">
-          <a
-            href="#/shop"
+          <Link
+            to="/shop"
             className="px-6 py-2 rounded bg-white text-black font-semibold hover:bg-zinc-200 transition"
           >
-            Shop Prints
-          </a>
+            Shop Artwork
+          </Link>
 
-          <button
-            type="button"
-            onClick={() => {
-              const el = document.getElementById("services");
-              if (el) el.scrollIntoView({ behavior: "smooth" });
-            }}
+          <Link
+            to="/contact"
             className="px-6 py-2 rounded border border-white/40 text-white hover:bg-white/10 transition"
           >
-            View Portfolio
-          </button>
+            Request Custom Piece
+          </Link>
         </div>
       </div>
     </section>

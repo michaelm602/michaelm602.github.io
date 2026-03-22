@@ -10,8 +10,12 @@ export function useCart() {
 
 export default function CartProvider({ children }) {
     const [cart, setCart] = useState(() => {
-        const stored = localStorage.getItem("cart");
-        return stored ? JSON.parse(stored) : [];
+        try {
+            const stored = localStorage.getItem("cart");
+            return stored ? JSON.parse(stored) : [];
+        } catch {
+            return [];
+        }
     });
 
     function updateCartItem(index, updatedFields) {

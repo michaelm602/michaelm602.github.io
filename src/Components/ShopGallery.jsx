@@ -7,8 +7,25 @@ import "yet-another-react-lightbox/styles.css";
 import { toast } from "react-toastify";
 
 
+const descriptionMap = {
+    // Add entries here matching your exact product titles (from filenames)
+    // e.g. "Brown Pride Lowrider": "Chrome pipes and low-rider lines — where the street meets the sacred.",
+};
+
+const defaultDescriptions = [
+    "Urban airbrush work inspired by culture and raw expression.",
+    "Built for spaces that don't follow rules.",
+    "A surreal exploration of identity and perception.",
+    "Hand-finished. Made to order. No two the same.",
+    "Street-rooted art that hits different on any wall.",
+];
+
+function getDescription(title, index) {
+    return descriptionMap[title] || defaultDescriptions[index % defaultDescriptions.length];
+}
+
 export default function ShopGallery({ initialFolder = "airbrush" }) {
-    const [folder, setFolder] = useState(initialFolder);
+    const [folder] = useState(initialFolder);
     const [items, setItems] = useState([]);
     const [selectedOptions, setSelectedOptions] = useState({});
     const [loading, setLoading] = useState(true);
@@ -21,8 +38,6 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
     const { addToCart } = useCart();
 
     const storage = getStorage();
-
-    const folders = ["airbrush"];
 
     const defaultSizes = Object.keys(sizePriceMap);
     const defaultQuantity = 5;
@@ -137,20 +152,10 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
 
     return (
         <div className="text-white px-4">
-            {/* 🔽 Folder Selector */}
-            <div className="flex justify-center mb-8">
-                <select
-                    value={folder}
-                    onChange={(e) => setFolder(e.target.value)}
-                    className="bg-zinc-800 text-white border border-zinc-600 px-4 py-2 rounded"
-                >
-                    {folders.map((f) => (
-                        <option key={f} value={f}>
-                            {f.charAt(0).toUpperCase() + f.slice(1)}
-                        </option>
-                    ))}
-                </select>
-            </div>
+            {/* Category label */}
+            <p className="text-center text-zinc-500 text-xs uppercase tracking-widest mb-8">
+                Airbrush Prints — All Made to Order
+            </p>
 
             {/* 🖼️ Product Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-20">
@@ -196,6 +201,12 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                             />
 
                             <h2 className="text-xl font-semibold mb-1">{item.title}</h2>
+                            <p className="text-xs text-zinc-400 mb-1">
+                                {getDescription(item.title, i)}
+                            </p>
+                            <p className="text-sm text-zinc-300 mb-3">
+                                From ${Math.min(...Object.values(sizePriceMap))}
+                            </p>
 
                             <label className="block mb-1 text-sm">Size:</label>
                             <select
@@ -224,6 +235,11 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                                 ))}
                             </select>
 
+                            {!selectedOptions[i]?.size && (
+                                <p className="text-xs text-zinc-500 text-center mb-2">
+                                    Select a size to continue
+                                </p>
+                            )}
                             <button
                                 className="w-full bg-gradient-to-r from-[#111] to-[#333] hover:from-[#222] hover:to-[#444] text-white border border-[#444] py-2 rounded mt-auto transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                 onClick={() => {
@@ -251,7 +267,7 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                                 }}
                                 disabled={!selectedOptions[i]?.size}
                             >
-                                Add to Cart
+                                Own This Piece
                             </button>
                         </div>
                     ))

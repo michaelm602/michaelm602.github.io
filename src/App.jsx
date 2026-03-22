@@ -1,4 +1,4 @@
-import { HashRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Home from './pages/Home';
 import Airbrush from "./pages/Airbrush";
 import Photoshop from "./pages/Photoshop";
@@ -13,24 +13,9 @@ import { Toaster } from "react-hot-toast";
 import AdminRoute from "./Components/AdminRoute";
 import AdminHomeEditor from "./pages/AdminHomeEditor";
 
-// auth & protected route
-import { auth } from "./firebase"
-import { onAuthStateChanged } from "firebase/auth";
-import { useEffect, useState } from "react";
 import ShopPage from "./pages/ShopPage";
-// Trigger DigitalOcean redeploy
-
 
 function App() {
-  const [setUser] = useState(null);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsub();
-  }, []);
 
   return (
     <Router>

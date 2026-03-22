@@ -39,7 +39,11 @@ export default function ShopPage() {
 
             {/* Foreground content */}
             <div className="relative z-10 text-center">
-                <h1 className="text-4xl font-bold mb-4">Shop</h1>
+                <h1 className="text-4xl font-bold mb-3">Shop</h1>
+                <p className="text-zinc-400 text-sm mb-10 max-w-md mx-auto leading-relaxed">
+                    Every print is made to order — hand-finished, limited in run.
+                    No reprints. No restocks. Once it's gone, it's gone.
+                </p>
                 <ShopGallery onAddToCart={() => setIsCartOpen(true)} />
             </div>
         </div>

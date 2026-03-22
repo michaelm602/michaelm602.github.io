@@ -5,7 +5,7 @@ export const stripeLinks = {
         "24x36": "price_1Rr2V9JEVsglohuhkHqjWPzP",
         "30x40": "price_1Rr2XsJEVsglohuh2XUXZgj3",
     },
-    "AlterEgo": {
+    "Alter Ego": {
         "16x20": "price_1Rr3gKJEVsglohuh9BVqreUW",
         "18x24": "price_1Rr3hqJEVsglohuhTZ312kRH",
         "24x36": "price_1Rr3iwJEVsglohuhOSswWLIo",

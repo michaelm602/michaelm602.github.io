@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Menu, X, ShoppingCart } from "lucide-react";
 import { FaFacebookF, FaInstagram, FaTiktok, FaEnvelope } from "react-icons/fa";
@@ -15,6 +15,7 @@ export default function Navbar() {
 
   const { cartItems } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
@@ -41,9 +42,7 @@ export default function Navbar() {
   };
 
   const goToServices = () => {
-    const currentPath = window.location.hash;
-
-    if (currentPath === "#/") {
+    if (location.pathname === "/") {
       const el = document.getElementById("services");
       if (el) el.scrollIntoView({ behavior: "smooth" });
       closeMenu();
