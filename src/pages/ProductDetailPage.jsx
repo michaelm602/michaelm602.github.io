@@ -52,10 +52,21 @@ export default function ProductDetailPage() {
     setMeta("og:type", "product", "property");
     if (imageUrl) setMeta("og:image", imageUrl, "property");
 
+    // Canonical
+    const canonicalHref = `https://www.likwitblvd.com/shop/${product.slug}`;
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", canonicalHref);
+
     return () => {
       document.title = "Likwit Blvd";
+      canonical.removeAttribute("href");
     };
-  }, [product?.title, imageUrl]);
+  }, [product?.title, product?.slug, imageUrl]);
 
   // Single listAll — fetches main image + related products in one Firebase round-trip
   useEffect(() => {
