@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "sitemap": "node scripts/generate-sitemap.mjs",
-    "predeploy": "npm run sitemap && npm run build",
+    "predeploy": "npm run sitemap && npm run build && node scripts/copy-routes.mjs",
     "deploy": "gh-pages -d dist",
     "images:webp": "node scripts/optimize-images.mjs"
   },

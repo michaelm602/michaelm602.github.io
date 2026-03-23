@@ -3,9 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <script>
-      // SPA fallback for GitHub Pages.
-      // Encodes the full path/query/hash into a query string so index.html
-      // can restore it before React Router initialises.
+      // Fallback for paths not covered by the build-time route copy
+      // (e.g. typos, removed slugs). Known routes return 200 directly.
       var l = window.location;
       l.replace(
         l.protocol + '//' + l.host +
