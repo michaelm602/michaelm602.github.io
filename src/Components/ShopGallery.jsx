@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useCart } from "../Components/CartContext";
 import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
 import { sizePriceMap } from "../utils/sizePricing";
-import Lightbox from "yet-another-react-lightbox";
-import "yet-another-react-lightbox/styles.css";
+import { products } from "../data/products";
 import { toast } from "react-toastify";
 
 
@@ -29,11 +29,6 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
     const [items, setItems] = useState([]);
     const [selectedOptions, setSelectedOptions] = useState({});
     const [loading, setLoading] = useState(true);
-
-    const [lightboxOpen, setLightboxOpen] = useState(false);
-    const [currentIndex, setCurrentIndex] = useState(0);
-
-
 
     const { addToCart } = useCart();
 
@@ -188,19 +183,29 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                         No products found in <span className="font-semibold">{folder}</span>.
                     </p>
                 ) : (
-                    items.map((item, i) => (
+                    items.map((item, i) => {
+                        const slug = products.find((p) => p.title === item.title)?.slug;
+                        return (
                         <div key={i} className="bg-zinc-800 p-4 rounded-lg shadow-md flex flex-col">
-                            <img
-                                src={item.url}
-                                alt={item.title}
-                                className="w-full h-64 object-contain bg-zinc-900 mb-4 rounded cursor-pointer p-2"
-                                onClick={() => {
-                                    setCurrentIndex(i);
-                                    setLightboxOpen(true);
-                                }}
-                            />
-
-                            <h2 className="text-xl font-semibold mb-1">{item.title}</h2>
+                            {slug ? (
+                                <Link to={`/shop/${slug}`} className="block hover:opacity-80 transition-opacity">
+                                    <img
+                                        src={item.url}
+                                        alt={item.title}
+                                        className="w-full h-64 object-contain bg-zinc-900 mb-4 rounded cursor-pointer p-2"
+                                    />
+                                    <h2 className="text-xl font-semibold mb-1">{item.title}</h2>
+                                </Link>
+                            ) : (
+                                <>
+                                    <img
+                                        src={item.url}
+                                        alt={item.title}
+                                        className="w-full h-64 object-contain bg-zinc-900 mb-4 rounded p-2"
+                                    />
+                                    <h2 className="text-xl font-semibold mb-1">{item.title}</h2>
+                                </>
+                            )}
                             <p className="text-xs text-zinc-400 mb-1">
                                 {getDescription(item.title, i)}
                             </p>
@@ -270,42 +275,10 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                                 Own This Piece
                             </button>
                         </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
-
-            <Lightbox
-                open={lightboxOpen}
-                close={() => setLightboxOpen(false)}
-                index={currentIndex}
-                slides={items.map((item) => ({ src: item.url, alt: item.title }))}
-                animation={{ fade: 250 }}
-                styles={{
-                    container: {
-                        backdropFilter: 'blur(10px)',
-                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                        WebkitBackdropFilter: 'blur(10px)',
-                    },
-                    slide: {
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                    },
-                }}
-                render={{
-                    slide: ({ slide }) => (
-                        <img
-                            src={slide.src}
-                            alt={slide.alt}
-                            style={{
-                                maxWidth: '90vw',
-                                maxHeight: '90vh',
-                                objectFit: 'contain',
-                            }}
-                        />
-                    ),
-                }}
-            />
 
         </div>
     );

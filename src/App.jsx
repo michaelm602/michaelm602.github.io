@@ -12,13 +12,16 @@ import "react-toastify/dist/ReactToastify.css";
 import { Toaster } from "react-hot-toast";
 import AdminRoute from "./Components/AdminRoute";
 import AdminHomeEditor from "./pages/AdminHomeEditor";
+import ScrollToTop from "./Components/ScrollToTop";
 
 import ShopPage from "./pages/ShopPage";
+import ProductDetailPage from "./pages/ProductDetailPage";
 
 function App() {
 
   return (
     <Router>
+      <ScrollToTop />
       <div className="flex flex-col min-h-screen">
         <Navbar />
         <main className="flex-grow" >
@@ -28,6 +31,7 @@ function App() {
             <Route path="/portfolio/airbrush" element={<Airbrush />} />
             <Route path="/portfolio/photoshop" element={<Photoshop />} />
             <Route path="/shop" element={<ShopPage />} />
+            <Route path="/shop/:slug" element={<ProductDetailPage />} />
             <Route path="/contact" element={<Contact />} />
 
             {/* If Stripe returns to these, send them back to shop */}
