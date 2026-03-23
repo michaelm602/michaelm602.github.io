@@ -28,6 +28,22 @@
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/airbrush.png" />
+
+  <!-- SPA routing restore: undoes the 404.html redirect before React boots -->
+  <script>
+    (function () {
+      var p = window.location.search;
+      if (p && p[1] === 'p') {
+        var params = p.slice(1).split('&');
+        var path   = params[0].slice(2).replace(/~and~/g, '&');
+        var query  = params[1] ? '?' + params[1].slice(2).replace(/~and~/g, '&') : '';
+        window.history.replaceState(
+          null, null,
+          '/' + path + query + window.location.hash
+        );
+      }
+    })();
+  </script>
 </head>
 
   <body>
