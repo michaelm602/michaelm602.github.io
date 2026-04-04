@@ -18,6 +18,7 @@ const logger = require("firebase-functions/logger");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { onRequest } = require("firebase-functions/v2/https");
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
+const { defineSecret } = require("firebase-functions/params");
 
 const cors = require("cors");
 const Stripe = require("stripe");
@@ -52,99 +53,170 @@ const corsHandler = cors({
     allowedHeaders: ["Content-Type", "Authorization"],
 });
 
-// ----- Stripe Secret -----
-// Preferred: set via Firebase Functions config (legacy style):
-//   firebase functions:config:set stripe.secret="sk_live_..."
-// OR use env var in Cloud Functions (advanced):
-//   STRIPE_SECRET_KEY
-function getStripeSecret() {
-    // Try legacy functions config if available
-    try {
-        // firebase-functions v7 still supports functions.config() via v1 compat,
-        // but it’s not guaranteed in every setup.
-        // We attempt it safely.
-        // eslint-disable-next-line global-require
-        const functionsV1 = require("firebase-functions");
-        const cfg = functionsV1.config?.();
-        const fromConfig = cfg?.stripe?.secret;
-        if (fromConfig) return fromConfig;
-    } catch (_) {
-        // ignore
-    }
+// ----- Stripe Secret (Gen 2 / Secret Manager) -----
+const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
+const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 
-    // Fallback to env var
-    if (process.env.STRIPE_SECRET_KEY) return process.env.STRIPE_SECRET_KEY;
-
-    return null;
+function getStripe(secret) {
+    return new Stripe(secret);
 }
-
-const STRIPE_SECRET = getStripeSecret();
-const stripe = STRIPE_SECRET ? new Stripe(STRIPE_SECRET) : null;
 
 // =============================
 // 1) STRIPE CHECKOUT (Gen 2)
 // =============================
-exports.createStripeCheckoutSession = onRequest(async (req, res) => {
-    corsHandler(req, res, async () => {
-        try {
-            if (req.method === "OPTIONS") {
-                return res.status(204).send("");
-            }
+exports.createStripeCheckoutSession = onRequest(
+    { secrets: [stripeSecretKey] },
+    async (req, res) => {
+        corsHandler(req, res, async () => {
+            try {
+                if (req.method === "OPTIONS") {
+                    return res.status(204).send("");
+                }
 
-            if (req.method !== "POST") {
-                return res.status(405).json({ error: "Method not allowed. Use POST." });
-            }
+                if (req.method !== "POST") {
+                    return res.status(405).json({ error: "Method not allowed. Use POST." });
+                }
 
-            if (!stripe) {
+                const secret = stripeSecretKey.value();
+                if (!secret) {
+                    return res.status(500).json({
+                        error: "Stripe is not configured. STRIPE_SECRET_KEY secret is missing.",
+                    });
+                }
+
+                const stripe = getStripe(secret);
+
+                const body = req.body || {};
+                const lineItems = body.lineItems;
+                const successUrl = body.successUrl;
+                const cancelUrl = body.cancelUrl;
+                const mode = body.mode || "payment";
+                const orderId = body.orderId;
+
+                if (!Array.isArray(lineItems) || lineItems.length === 0) {
+                    return res.status(400).json({ error: "Missing lineItems array." });
+                }
+                if (!successUrl || !cancelUrl) {
+                    return res.status(400).json({ error: "Missing successUrl/cancelUrl." });
+                }
+                if (!orderId || typeof orderId !== "string") {
+                    return res.status(400).json({ error: "Missing orderId." });
+                }
+
+                const session = await stripe.checkout.sessions.create({
+                    mode,
+                    line_items: lineItems,
+                    success_url: successUrl,
+                    cancel_url: cancelUrl,
+                    client_reference_id: orderId,
+                    metadata: {
+                        orderId,
+                    },
+                });
+
+                return res.status(200).json({ id: session.id, url: session.url });
+            } catch (err) {
+                logger.error("Stripe session error", {
+                    message: err?.message,
+                    type: err?.type,
+                    code: err?.code,
+                    statusCode: err?.statusCode,
+                });
                 return res.status(500).json({
-                    error:
-                        "Stripe is not configured. Set stripe.secret via functions config or STRIPE_SECRET_KEY env var.",
+                    error: err?.message || "Failed to create Stripe Checkout session",
+                });
+            }
+        });
+    }
+);
+
+// ===========================================
+// 2) STRIPE WEBHOOK (Gen 2 / HTTPS)
+// ===========================================
+exports.handleStripeWebhook = onRequest(
+    { secrets: [stripeSecretKey, stripeWebhookSecret] },
+    async (req, res) => {
+        if (req.method !== "POST") {
+            return res.status(405).json({ error: "Method not allowed. Use POST." });
+        }
+
+        try {
+            const stripeSecret = stripeSecretKey.value();
+            const webhookSecret = stripeWebhookSecret.value();
+            const signature = req.get("stripe-signature");
+
+            if (!stripeSecret || !webhookSecret) {
+                return res.status(500).json({
+                    error: "Stripe webhook is not configured. Missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET.",
                 });
             }
 
-            // Expected payload:
-            // {
-            //   lineItems: [{ price: "price_...", quantity: 1 }, ...],
-            //   successUrl: "https://www.likwitblvd.com/#/success?session_id={CHECKOUT_SESSION_ID}",
-            //   cancelUrl: "https://www.likwitblvd.com/#/shop",
-            //   mode: "payment" (optional, default payment)
-            // }
-            const body = req.body || {};
-            const lineItems = body.lineItems;
-            const successUrl = body.successUrl;
-            const cancelUrl = body.cancelUrl;
-            const mode = body.mode || "payment";
-
-            if (!Array.isArray(lineItems) || lineItems.length === 0) {
-                return res.status(400).json({ error: "Missing lineItems array." });
-            }
-            if (!successUrl || !cancelUrl) {
-                return res.status(400).json({ error: "Missing successUrl/cancelUrl." });
+            if (!signature) {
+                return res.status(400).json({ error: "Missing Stripe signature." });
             }
 
-            // Create session
-            const session = await stripe.checkout.sessions.create({
-                mode,
-                line_items: lineItems,
-                success_url: successUrl,
-                cancel_url: cancelUrl,
-                // Optional helpers:
-                // allow_promotion_codes: true,
-                // automatic_tax: { enabled: true },
+            const stripe = getStripe(stripeSecret);
+            const event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
+
+            if (event.type === "checkout.session.completed") {
+                const session = event.data.object;
+                const orderId = session.metadata?.orderId || session.client_reference_id;
+
+                if (orderId) {
+                    await admin.firestore().collection("orders").doc(orderId).set(
+                        {
+                            status: "paid",
+                            paymentProvider: "stripe",
+                            paymentStatus: "paid",
+                            stripeSessionId: session.id,
+                            stripePaymentIntentId: session.payment_intent || null,
+                            stripeCustomerId: session.customer || null,
+                            stripeCustomerEmail: session.customer_details?.email || null,
+                            stripePaymentStatus: session.payment_status || null,
+                            paidAt: admin.firestore.FieldValue.serverTimestamp(),
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        },
+                        { merge: true }
+                    );
+                }
+            }
+
+            if (event.type === "checkout.session.expired") {
+                const session = event.data.object;
+                const orderId = session.metadata?.orderId || session.client_reference_id;
+
+                if (orderId) {
+                    await admin.firestore().collection("orders").doc(orderId).set(
+                        {
+                            status: "cancelled",
+                            paymentProvider: "stripe",
+                            paymentStatus: "expired",
+                            stripeSessionId: session.id,
+                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        },
+                        { merge: true }
+                    );
+                }
+            }
+
+            return res.status(200).json({ received: true });
+        } catch (err) {
+            logger.error("Stripe webhook error", {
+                message: err?.message,
+                type: err?.type,
+                code: err?.code,
+                statusCode: err?.statusCode,
             });
 
-            return res.status(200).json({ id: session.id, url: session.url });
-        } catch (err) {
-            logger.error("Stripe session error:", err);
-            return res.status(500).json({
-                error: err?.message || "Failed to create Stripe Checkout session",
+            return res.status(400).json({
+                error: err?.message || "Stripe webhook processing failed",
             });
         }
-    });
-});
+    }
+);
 
 // ===========================================
-// 2) AUTO IMAGE VARIANTS (Gen 2 / Storage)
+// 3) AUTO IMAGE VARIANTS (Gen 2 / Storage)
 // ===========================================
 const FULL_MAX_WIDTH = 1600; // lightbox
 const THUMB_MAX_WIDTH = 600; // grid

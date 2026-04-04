@@ -7,7 +7,7 @@
 import { copyFileSync, mkdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { products } from "../src/data/products.js";
+import { getAllProducts } from "../src/data/products.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dist      = resolve(__dirname, "../dist");
@@ -17,7 +17,7 @@ const routes = [
   "portfolio",
   "contact",
   "shop",
-  ...products.map((p) => `shop/${p.slug}`),
+  ...getAllProducts().map((p) => `shop/${p.slug}`),
 ];
 
 for (const route of routes) {

@@ -1,8 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "./CartContext";
 import { X } from "lucide-react";
-import { stripeLinks } from "../utils/stripeLinks";
+import {
+    getProductSizeOptions,
+    getStripePriceId,
+    resolveCartItemProduct,
+} from "../data/products";
 import usePayPalScript from "../utils/usePayPalScript";
+import { buildOrderItems, saveOrderToFirestore } from "../utils/orderUtils";
 import emailjs from "@emailjs/browser";
 import toast from "react-hot-toast";
 
@@ -25,19 +30,19 @@ export default function CartDrawer({ isOpen, onClose }) {
 
     const cartSignature = useMemo(() => {
         return JSON.stringify(
-            cartItems.map((i) => ({
-                title: i.title,
-                size: i.size,
-                price: i.price,
-                quantity: i.quantity,
-                image: i.image,
+            cartItems.map((item) => ({
+                productId: item.productId || null,
+                title: item.title,
+                size: item.size,
+                price: item.price,
+                quantity: item.quantity,
+                image: item.image,
             }))
         );
     }, [cartItems]);
 
-
     useEffect(() => {
-        if (!isOpen) return; // only render when drawer is open
+        if (!isOpen) return;
         if (!isPayPalReady) return;
 
         const containerId = "paypal-button-container";
@@ -46,15 +51,12 @@ export default function CartDrawer({ isOpen, onClose }) {
 
         if (paypalRenderedRef.current && container.children.length) return;
 
-
-        // If cart empty, clear and bail
         if (cartItems.length === 0) {
             container.innerHTML = "";
             paypalRenderedRef.current = false;
             return;
         }
 
-        // Always re-render buttons when cartSignature changes
         container.innerHTML = "";
         paypalRenderedRef.current = false;
 
@@ -96,9 +98,21 @@ export default function CartDrawer({ isOpen, onClose }) {
                         try {
                             const details = await actions.order.capture();
                             const { name, email_address } = details.payer;
+                            const capture = details.purchase_units?.[0]?.payments?.captures?.[0] || null;
+                            const buyerInfo = {
+                                name: `${name.given_name} ${name.surname}`.trim(),
+                                email: email_address,
+                                payerId: details.payer?.payer_id || null,
+                            };
+                            const fulfilledItems = buildOrderItems(
+                                cartItems.map((item) => ({
+                                    ...item,
+                                    productId: item.productId || resolveCartItemProduct(item)?.id || null,
+                                }))
+                            );
 
                             const itemsForEmail = cartItems.map((item) => ({
-                                name: `${item.title} — ${item.size}`,
+                                name: `${item.title} - ${item.size}`,
                                 units: item.quantity,
                                 price: (item.price * item.quantity).toFixed(2),
                                 image_url: item.image,
@@ -110,14 +124,26 @@ export default function CartDrawer({ isOpen, onClose }) {
                                 total: total.toFixed(2),
                             };
 
+                            await saveOrderToFirestore(fulfilledItems, buyerInfo, {
+                                status: "paid",
+                                paymentProvider: "paypal",
+                                paypalOrderId: data.orderID,
+                                paypalCaptureId: capture?.id || null,
+                                paypalPayerId: details.payer?.payer_id || null,
+                                orderTotal: Number(total.toFixed(2)),
+                                currency: capture?.amount?.currency_code || "USD",
+                                paymentStatus: capture?.status || "COMPLETED",
+                                captureStatus: capture?.status || "COMPLETED",
+                            });
+
                             await emailjs.send(
                                 "service_6j3le5o",
                                 "template_dxmzwa3",
                                 {
-                                    name: `${name.given_name} ${name.surname}`,
+                                    name: buyerInfo.name,
                                     message: "New PayPal order received!",
                                     order_id: data.orderID,
-                                    email: email_address,
+                                    email: buyerInfo.email,
                                     orders: itemsForEmail,
                                     cost,
                                 },
@@ -128,7 +154,6 @@ export default function CartDrawer({ isOpen, onClose }) {
                             clearCart();
                             onClose();
 
-                            // reset so next open re-renders clean
                             paypalRenderedRef.current = false;
                         } catch (err) {
                             console.error("PayPal error:", err);
@@ -148,7 +173,6 @@ export default function CartDrawer({ isOpen, onClose }) {
             console.error("PayPal render failed:", e);
         }
 
-        // cleanup when drawer closes/unmounts
         return () => {
             const c = document.getElementById(containerId);
             if (c) c.innerHTML = "";
@@ -157,16 +181,23 @@ export default function CartDrawer({ isOpen, onClose }) {
     }, [
         isOpen,
         isPayPalReady,
-        cartSignature, // 🔥 key: only changes when cart content changes
+        cartSignature,
         total,
         clearCart,
         onClose,
+        cartItems,
     ]);
 
     const handleStripeCheckout = async () => {
         try {
-            const line_items = cartItems.map((item) => {
-                const priceId = stripeLinks[item.title]?.[item.size];
+            const orderItems = buildOrderItems(
+                cartItems.map((item) => ({
+                    ...item,
+                    productId: item.productId || resolveCartItemProduct(item)?.id || null,
+                }))
+            );
+            const lineItems = cartItems.map((item) => {
+                const priceId = getStripePriceId(item.productId || item.title, item.size);
                 if (!priceId) {
                     throw new Error(
                         `Missing Stripe price ID for ${item.title} - ${item.size}`
@@ -178,30 +209,51 @@ export default function CartDrawer({ isOpen, onClose }) {
                 };
             });
 
+            const baseUrl = import.meta.env.PROD
+                ? "https://www.likwitblvd.com"
+                : window.location.origin;
+            const pendingOrderId = await saveOrderToFirestore(orderItems, {}, {
+                status: "pending",
+                paymentProvider: "stripe",
+                paymentStatus: "pending",
+                orderTotal: Number(total.toFixed(2)),
+                currency: "USD",
+            });
+
+            try {
+                sessionStorage.setItem("pendingStripeOrderId", pendingOrderId);
+            } catch {
+                // Non-fatal: checkout can proceed without session storage.
+            }
+
             const response = await fetch(
-                "https://us-central1-airbrushnink-9f735.cloudfunctions.net/createStripeCheckoutSessionLive",
+                "https://us-central1-airbrushnink-9f735.cloudfunctions.net/createStripeCheckoutSession",
                 {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({ items: line_items }),
+                    body: JSON.stringify({
+                        lineItems,
+                        orderId: pendingOrderId,
+                        successUrl: `${baseUrl}/shop?status=success&provider=stripe&orderId=${pendingOrderId}`,
+                        cancelUrl: `${baseUrl}/shop?status=cancel&provider=stripe&orderId=${pendingOrderId}`,
+                    }),
                 }
             );
 
-            const data = await response.json();
-            if (data.url) {
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.url) {
                 window.location.href = data.url;
             } else {
                 toast.error("Checkout failed. Please try again.");
-                console.error("Stripe Checkout URL not returned:", data);
+                console.error("Stripe checkout session error:", data?.error || data);
             }
         } catch (err) {
             toast.error("Checkout failed. Please try again.");
             console.error("Checkout failed:", err.message);
         }
     };
-
 
     return (
         <div
@@ -220,86 +272,97 @@ export default function CartDrawer({ isOpen, onClose }) {
             </div>
 
             <div className="p-4 overflow-y-auto flex-1">
-                {cartItems.map((item, index) => (
-                    <div
-                        key={index}
-                        className="flex flex-col gap-2 mb-4 border-b pb-3"
-                    >
-                        <div className="flex items-center gap-4">
-                            <img
-                                src={item.image}
-                                alt={item.title}
-                                className="w-16 h-16 object-cover rounded shadow"
-                            />
-                            <div className="flex-1">
-                                <h3 className="font-semibold text-white">{item.title}</h3>
-                                {isEditing ? (
-                                    <>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <label className="text-sm mr-1">Qty:</label>
-                                            <button
-                                                onClick={() =>
-                                                    item.quantity > 1 &&
-                                                    updateCartItem(index, {
-                                                        quantity: item.quantity - 1,
-                                                    })
-                                                }
-                                                className="w-7 h-7 bg-zinc-700 text-white rounded hover:bg-zinc-600"
-                                            >
-                                                –
-                                            </button>
-                                            <span className="px-2 w-6 text-center">
-                                                {item.quantity}
-                                            </span>
-                                            <button
-                                                onClick={() =>
-                                                    updateCartItem(index, {
-                                                        quantity: item.quantity + 1,
-                                                    })
-                                                }
-                                                className="w-7 h-7 bg-zinc-700 text-white rounded hover:bg-zinc-600"
-                                            >
-                                                +
-                                            </button>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <label className="text-sm">Size:</label>
-                                            <select
-                                                value={item.size}
-                                                onChange={(e) =>
-                                                    updateCartItem(index, { size: e.target.value })
-                                                }
-                                                className="w-full px-2 py-1 rounded text-black"
-                                            >
-                                                <option value="16x20">16x20</option>
-                                                <option value="18x24">18x24</option>
-                                                <option value="24x36">24x36</option>
-                                                <option value="30x40">30x40</option>
-                                            </select>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <p className="text-sm text-white/80">
-                                            Size: {item.size} — Qty: {item.quantity}
-                                        </p>
-                                        <p className="text-sm text-white/90">
-                                            ${item.price * item.quantity}
-                                        </p>
-                                    </>
-                                )}
-                                {isEditing && (
-                                    <button
-                                        onClick={() => removeFromCart(index)}
-                                        className="text-red-500 text-xs mt-2"
-                                    >
-                                        Remove
-                                    </button>
-                                )}
+                {cartItems.map((item, index) => {
+                    const product = resolveCartItemProduct(item);
+                    const sizeOptions = getProductSizeOptions(product);
+
+                    return (
+                        <div
+                            key={index}
+                            className="flex flex-col gap-2 mb-4 border-b pb-3"
+                        >
+                            <div className="flex items-center gap-4">
+                                <img
+                                    src={item.image}
+                                    alt={item.title}
+                                    className="w-16 h-16 object-cover rounded shadow"
+                                />
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-white">{item.title}</h3>
+                                    {isEditing ? (
+                                        <>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <label className="text-sm mr-1">Qty:</label>
+                                                <button
+                                                    onClick={() =>
+                                                        item.quantity > 1 &&
+                                                        updateCartItem(index, {
+                                                            quantity: item.quantity - 1,
+                                                        })
+                                                    }
+                                                    className="w-7 h-7 bg-zinc-700 text-white rounded hover:bg-zinc-600"
+                                                >
+                                                    -
+                                                </button>
+                                                <span className="px-2 w-6 text-center">
+                                                    {item.quantity}
+                                                </span>
+                                                <button
+                                                    onClick={() =>
+                                                        updateCartItem(index, {
+                                                            quantity: item.quantity + 1,
+                                                        })
+                                                    }
+                                                    className="w-7 h-7 bg-zinc-700 text-white rounded hover:bg-zinc-600"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <label className="text-sm">Size:</label>
+                                                <select
+                                                    value={item.size}
+                                                    onChange={(e) =>
+                                                        updateCartItem(index, { size: e.target.value })
+                                                    }
+                                                    className="w-full px-2 py-1 rounded text-black"
+                                                >
+                                                    {(sizeOptions.length ? sizeOptions : [
+                                                        { label: "16x20" },
+                                                        { label: "18x24" },
+                                                        { label: "24x36" },
+                                                        { label: "30x40" },
+                                                    ]).map((size) => (
+                                                        <option key={size.label} value={size.label}>
+                                                            {size.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm text-white/80">
+                                                Size: {item.size} - Qty: {item.quantity}
+                                            </p>
+                                            <p className="text-sm text-white/90">
+                                                ${item.price * item.quantity}
+                                            </p>
+                                        </>
+                                    )}
+                                    {isEditing && (
+                                        <button
+                                            onClick={() => removeFromCart(index)}
+                                            className="text-red-500 text-xs mt-2"
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             <div className="p-4 border-t border-gray-300 flex flex-col gap-2 flex-shrink-0">

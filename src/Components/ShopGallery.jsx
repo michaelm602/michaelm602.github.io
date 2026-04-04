@@ -1,122 +1,56 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useCart } from "../Components/CartContext";
-import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
-import { sizePriceMap } from "../utils/sizePricing";
-import { products } from "../data/products";
 import { toast } from "react-toastify";
-
-
-const descriptionMap = {
-    // Add entries here matching your exact product titles (from filenames)
-    // e.g. "Brown Pride Lowrider": "Chrome pipes and low-rider lines — where the street meets the sacred.",
-};
-
-const defaultDescriptions = [
-    "Urban airbrush work inspired by culture and raw expression.",
-    "Built for spaces that don't follow rules.",
-    "A surreal exploration of identity and perception.",
-    "Hand-finished. Made to order. No two the same.",
-    "Street-rooted art that hits different on any wall.",
-];
-
-function getDescription(title, index) {
-    return descriptionMap[title] || defaultDescriptions[index % defaultDescriptions.length];
-}
+import { useCart } from "../Components/CartContext";
+import {
+    getAllProducts,
+    getDefaultProductSize,
+    getPrimaryProductImage,
+    getProductMinPrice,
+    getProductPrice,
+    getProductSizeOptions,
+} from "../data/products";
+import { resolveProductImageUrl } from "../utils/productImageUrls";
 
 export default function ShopGallery({ initialFolder = "airbrush" }) {
-    const [folder] = useState(initialFolder);
-    const [items, setItems] = useState([]);
     const [selectedOptions, setSelectedOptions] = useState({});
+    const [imageUrls, setImageUrls] = useState({});
     const [loading, setLoading] = useState(true);
-
     const { addToCart } = useCart();
 
-    const storage = getStorage();
-
-    const defaultSizes = Object.keys(sizePriceMap);
-    const defaultQuantity = 5;
+    const products = useMemo(() => {
+        const allProducts = getAllProducts();
+        if (initialFolder === "airbrush") {
+            return allProducts.filter((product) => product.category?.toLowerCase().includes("airbrush"));
+        }
+        return allProducts;
+    }, [initialFolder]);
 
     useEffect(() => {
         let alive = true;
-
-        const stripExt = (name = "") => name.replace(/\.[^.]+$/, "");
-        const getExt = (name = "") => {
-            const m = name.match(/\.([^.]+)$/);
-            return m ? m[1].toLowerCase() : "";
-        };
-
-        const isImage = (name = "") => {
-            const ext = getExt(name);
-            return ["jpg", "jpeg", "png", "webp"].includes(ext);
-        };
 
         const fetchImages = async () => {
             setLoading(true);
 
             try {
-                const folderRef = ref(storage, `${folder}`);
-                const result = await listAll(folderRef);
+                const entries = await Promise.all(
+                    products.map(async (product) => {
+                        const primaryImage = getPrimaryProductImage(product);
+                        if (!primaryImage) return [product.id, null];
 
-                // 1) only image files
-                const imageRefs = result.items.filter((r) => isImage(r.name));
-
-                // 2) group by base name, ignore thumbs
-                // base -> { webpRef, jpgRef, pngRef }
-                const byBase = new Map();
-
-                for (const itemRef of imageRefs) {
-                    const name = itemRef.name;
-
-                    // ignore thumbs completely
-                    if (name.toLowerCase().endsWith("__thumb.webp")) continue;
-
-                    const base = stripExt(name);       // e.g. "20260131_173401" or "Title__5"
-                    const ext = getExt(name);
-
-                    if (!byBase.has(base)) byBase.set(base, {});
-                    const entry = byBase.get(base);
-
-                    if (ext === "webp") entry.webpRef = itemRef;
-                    if (ext === "jpg" || ext === "jpeg") entry.jpgRef = itemRef;
-                    if (ext === "png") entry.pngRef = itemRef;
-                }
-
-                // 3) pick best display ref per base (webp > jpg > png)
-                const bases = Array.from(byBase.keys()).sort((a, b) => a.localeCompare(b));
-
-                const itemsWithMeta = await Promise.all(
-                    bases.map(async (base) => {
-                        const entry = byBase.get(base) || {};
-                        const bestRef = entry.webpRef || entry.jpgRef || entry.pngRef;
-
-                        if (!bestRef) return null;
-
-                        const url = await getDownloadURL(bestRef);
-
-                        // Your existing title/quantity logic uses "__"
-                        const [titleRaw, quantityRaw] = base.split("__");
-                        const title = titleRaw || "Untitled";
-                        const quantity = quantityRaw || defaultQuantity;
-
-                        return {
-                            title,
-                            quantity,
-                            sizes: defaultSizes,
-                            url,
-                            // optional: keep base/ref name for debugging
-                            // base,
-                            // file: bestRef.name,
-                        };
+                        try {
+                            const url = await resolveProductImageUrl(primaryImage, "thumb");
+                            return [product.id, url];
+                        } catch (error) {
+                            console.error(`Shop image load failed for "${product.title}"`, error);
+                            return [product.id, null];
+                        }
                     })
                 );
 
-                const clean = itemsWithMeta.filter(Boolean);
-
-                if (alive) setItems(clean);
-            } catch (err) {
-                console.error("🔥 Storage error:", err?.message || err);
-                if (alive) setItems([]);
+                if (alive) {
+                    setImageUrls(Object.fromEntries(entries));
+                }
             } finally {
                 if (alive) setLoading(false);
             }
@@ -127,32 +61,28 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
         return () => {
             alive = false;
         };
-    }, [folder]);
+    }, [products]);
 
-
-
-    const handleSizeChange = (index, value) => {
+    const handleSizeChange = (productId, value) => {
         setSelectedOptions((prev) => ({
             ...prev,
-            [index]: { ...prev[index], size: value }
+            [productId]: { ...prev[productId], size: value },
         }));
     };
 
-    const handleQuantityChange = (index, value) => {
+    const handleQuantityChange = (productId, value) => {
         setSelectedOptions((prev) => ({
             ...prev,
-            [index]: { ...prev[index], quantity: value }
+            [productId]: { ...prev[productId], quantity: value },
         }));
     };
 
     return (
         <div className="text-white px-4">
-            {/* Category label */}
             <p className="text-center text-zinc-500 text-xs uppercase tracking-widest mb-8">
-                Airbrush Prints — All Made to Order
+                Airbrush Prints - All Made to Order
             </p>
 
-            {/* 🖼️ Product Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-20">
                 {loading ? (
                     <div className="col-span-full text-center mt-12">
@@ -178,108 +108,105 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                         </svg>
                         <p className="mt-4 text-sm text-gray-400">Loading products...</p>
                     </div>
-                ) : items.length === 0 ? (
+                ) : products.length === 0 ? (
                     <p className="col-span-full text-white text-center mt-12">
-                        No products found in <span className="font-semibold">{folder}</span>.
+                        No products found in <span className="font-semibold">{initialFolder}</span>.
                     </p>
                 ) : (
-                    items.map((item, i) => {
-                        const slug = products.find((p) => p.title === item.title)?.slug;
+                    products.map((product) => {
+                        const sizeOptions = getProductSizeOptions(product);
+                        const defaultSize = getDefaultProductSize(product);
+                        const selectedSize = selectedOptions[product.id]?.size || "";
+                        const selectedQty = parseInt(selectedOptions[product.id]?.quantity || 1, 10);
+                        const imageUrl = imageUrls[product.id];
+                        const primaryImage = getPrimaryProductImage(product);
+
                         return (
-                        <div key={i} className="bg-zinc-800 p-4 rounded-lg shadow-md flex flex-col">
-                            {slug ? (
-                                <Link to={`/shop/${slug}`} className="block hover:opacity-80 transition-opacity">
-                                    <img
-                                        src={item.url}
-                                        alt={item.title}
-                                        className="w-full h-64 object-contain bg-zinc-900 mb-4 rounded cursor-pointer p-2"
-                                    />
-                                    <h2 className="text-xl font-semibold mb-1">{item.title}</h2>
+                            <div key={product.id} className="bg-zinc-800 p-4 rounded-lg shadow-md flex flex-col">
+                                <Link to={`/shop/${product.slug}`} className="block hover:opacity-80 transition-opacity">
+                                    {imageUrl ? (
+                                        <img
+                                            src={imageUrl}
+                                            alt={primaryImage?.alt || product.title}
+                                            className="w-full h-64 object-contain bg-zinc-900 mb-4 rounded cursor-pointer p-2"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-64 bg-zinc-900 mb-4 rounded p-2 flex items-center justify-center text-zinc-500 text-sm">
+                                            Image unavailable
+                                        </div>
+                                    )}
+                                    <h2 className="text-xl font-semibold mb-1">{product.title}</h2>
                                 </Link>
-                            ) : (
-                                <>
-                                    <img
-                                        src={item.url}
-                                        alt={item.title}
-                                        className="w-full h-64 object-contain bg-zinc-900 mb-4 rounded p-2"
-                                    />
-                                    <h2 className="text-xl font-semibold mb-1">{item.title}</h2>
-                                </>
-                            )}
-                            <p className="text-xs text-zinc-400 mb-1">
-                                {getDescription(item.title, i)}
-                            </p>
-                            <p className="text-sm text-zinc-300 mb-3">
-                                From ${Math.min(...Object.values(sizePriceMap))}
-                            </p>
-
-                            <label className="block mb-1 text-sm">Size:</label>
-                            <select
-                                className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
-                                onChange={(e) => handleSizeChange(i, e.target.value)}
-                                value={selectedOptions[i]?.size || ""}
-                            >
-                                <option value="">Select size</option>
-                                {item.sizes?.map((s, idx) => (
-                                    <option key={idx} value={s}>
-                                        {s} — ${sizePriceMap[s] || "?"}
-                                    </option>
-                                ))}
-                            </select>
-
-                            <label className="block mb-1 text-sm">Quantity:</label>
-                            <select
-                                className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
-                                onChange={(e) => handleQuantityChange(i, e.target.value)}
-                                value={selectedOptions[i]?.quantity || 1}
-                            >
-                                {Array.from({ length: Number(item.quantity) }, (_, k) => k + 1).map((q) => (
-                                    <option key={q} value={q}>
-                                        {q}
-                                    </option>
-                                ))}
-                            </select>
-
-                            {!selectedOptions[i]?.size && (
-                                <p className="text-xs text-zinc-500 text-center mb-2">
-                                    Select a size to continue
+                                <p className="text-xs text-zinc-400 mb-1">
+                                    {product.shortDescription || product.description}
                                 </p>
-                            )}
-                            <button
-                                className="w-full bg-gradient-to-r from-[#111] to-[#333] hover:from-[#222] hover:to-[#444] text-white border border-[#444] py-2 rounded mt-auto transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                onClick={() => {
-                                    const selectedSize = selectedOptions[i]?.size;
-                                    if (!selectedSize) {
-                                        toast.warn("Please select a size first.");
-                                        return;
-                                    }
+                                <p className="text-sm text-zinc-300 mb-3">
+                                    From ${getProductMinPrice(product)}
+                                </p>
 
-                                    const selectedQty = parseInt(selectedOptions[i]?.quantity || 1);
-                                    const price = sizePriceMap[selectedSize] || 0;
+                                <label className="block mb-1 text-sm">Size:</label>
+                                <select
+                                    className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
+                                    onChange={(e) => handleSizeChange(product.id, e.target.value)}
+                                    value={selectedSize}
+                                >
+                                    <option value="">Select size</option>
+                                    {sizeOptions.map((size) => (
+                                        <option key={size.label} value={size.label}>
+                                            {size.label} - ${size.price}
+                                        </option>
+                                    ))}
+                                </select>
 
-                                    addToCart({
-                                        title: item.title,
-                                        size: selectedSize,
-                                        quantity: selectedQty,
-                                        price,
-                                        image: item.url,
-                                    });
+                                <label className="block mb-1 text-sm">Quantity:</label>
+                                <select
+                                    className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
+                                    onChange={(e) => handleQuantityChange(product.id, e.target.value)}
+                                    value={selectedQty}
+                                >
+                                    {[1, 2, 3, 4, 5].map((quantity) => (
+                                        <option key={quantity} value={quantity}>
+                                            {quantity}
+                                        </option>
+                                    ))}
+                                </select>
 
-                                    // Must match Navbar listener: "open-cart"
-                                    window.dispatchEvent(new Event("open-cart"));
+                                {!selectedSize && (
+                                    <p className="text-xs text-zinc-500 text-center mb-2">
+                                        Select a size to continue
+                                    </p>
+                                )}
+                                <button
+                                    className="w-full bg-gradient-to-r from-[#111] to-[#333] hover:from-[#222] hover:to-[#444] text-white border border-[#444] py-2 rounded mt-auto transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={() => {
+                                        if (!selectedSize) {
+                                            toast.warn("Please select a size first.");
+                                            return;
+                                        }
 
-                                    toast.success(`${selectedQty} of "${item.title}" added to cart!`);
-                                }}
-                                disabled={!selectedOptions[i]?.size}
-                            >
-                                Own This Piece
-                            </button>
-                        </div>
+                                        const price = getProductPrice(product, selectedSize) || defaultSize?.price || 0;
+
+                                        addToCart({
+                                            productId: product.id,
+                                            title: product.title,
+                                            size: selectedSize,
+                                            quantity: selectedQty,
+                                            price,
+                                            image: imageUrl,
+                                        });
+
+                                        window.dispatchEvent(new Event("open-cart"));
+                                        toast.success(`${selectedQty} of "${product.title}" added to cart!`);
+                                    }}
+                                    disabled={!selectedSize}
+                                >
+                                    Own This Piece
+                                </button>
+                            </div>
                         );
                     })
                 )}
             </div>
-
         </div>
     );
 }

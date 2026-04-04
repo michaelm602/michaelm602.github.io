@@ -6,7 +6,7 @@
 import { writeFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { products } from "../src/data/products.js";
+import { getAllProducts } from "../src/data/products.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BASE_URL  = "https://www.likwitblvd.com";
@@ -19,7 +19,7 @@ const staticRoutes = [
   { path: "/shop",      changefreq: "weekly",  priority: "0.8" },
 ];
 
-const productRoutes = products.map((p) => ({
+const productRoutes = getAllProducts().map((p) => ({
   path:       `/shop/${p.slug}`,
   changefreq: "monthly",
   priority:   "0.7",

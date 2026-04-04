@@ -11,8 +11,36 @@ export default function ShopPage() {
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const status = params.get("status");
+        const provider = params.get("provider");
+        const orderId = params.get("orderId");
 
-        if (status === "success") {
+        const pendingStripeOrderId = (() => {
+            try {
+                return sessionStorage.getItem("pendingStripeOrderId");
+            } catch {
+                return null;
+            }
+        })();
+
+        if (provider === "stripe" && status === "success") {
+            toast.success("Payment received. We're confirming your order now.");
+            if (pendingStripeOrderId && (!orderId || orderId === pendingStripeOrderId)) {
+                try {
+                    sessionStorage.removeItem("pendingStripeOrderId");
+                } catch {
+                    // ignore session storage failures
+                }
+            }
+        } else if (provider === "stripe" && status === "cancel") {
+            toast.error("Stripe checkout cancelled. Your cart was preserved.");
+            if (pendingStripeOrderId && (!orderId || orderId === pendingStripeOrderId)) {
+                try {
+                    sessionStorage.removeItem("pendingStripeOrderId");
+                } catch {
+                    // ignore session storage failures
+                }
+            }
+        } else if (status === "success") {
             toast.success("Payment successful!");
         } else if (status === "cancel") {
             toast.error("Checkout canceled.");
