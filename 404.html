@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // Fallback for paths not covered by the build-time route copy
+      // (e.g. typos, removed slugs). Known routes return 200 directly.
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.host +
+        '/?p=/' + l.pathname.slice(1).replace(/&/g, '~and~') +
+        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
