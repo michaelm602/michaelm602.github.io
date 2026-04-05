@@ -88,10 +88,11 @@ exports.createStripeCheckoutSession = onRequest(
 
                 const body = req.body || {};
                 const lineItems = body.lineItems;
+                const cartItems = body.cartItems || [];
+                const orderTotal = body.orderTotal || 0;
                 const successUrl = body.successUrl;
                 const cancelUrl = body.cancelUrl;
                 const mode = body.mode || "payment";
-                const orderId = body.orderId;
 
                 if (!Array.isArray(lineItems) || lineItems.length === 0) {
                     return res.status(400).json({ error: "Missing lineItems array." });
@@ -99,22 +100,31 @@ exports.createStripeCheckoutSession = onRequest(
                 if (!successUrl || !cancelUrl) {
                     return res.status(400).json({ error: "Missing successUrl/cancelUrl." });
                 }
-                if (!orderId || typeof orderId !== "string") {
-                    return res.status(400).json({ error: "Missing orderId." });
-                }
+
+                // Create pending order in Firestore (admin SDK bypasses security rules)
+                const orderRef = await admin.firestore().collection("orders").add({
+                    cartItems,
+                    buyerInfo: {},
+                    status: "pending",
+                    paymentProvider: "stripe",
+                    paymentStatus: "pending",
+                    orderTotal,
+                    currency: "USD",
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                const orderId = orderRef.id;
 
                 const session = await stripe.checkout.sessions.create({
                     mode,
                     line_items: lineItems,
-                    success_url: successUrl,
-                    cancel_url: cancelUrl,
+                    success_url: `${successUrl}&orderId=${orderId}`,
+                    cancel_url: `${cancelUrl}&orderId=${orderId}`,
                     client_reference_id: orderId,
-                    metadata: {
-                        orderId,
-                    },
+                    metadata: { orderId },
                 });
 
-                return res.status(200).json({ id: session.id, url: session.url });
+                return res.status(200).json({ id: session.id, url: session.url, orderId });
             } catch (err) {
                 logger.error("Stripe session error", {
                     message: err?.message,

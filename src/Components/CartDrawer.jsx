@@ -190,12 +190,6 @@ export default function CartDrawer({ isOpen, onClose }) {
 
     const handleStripeCheckout = async () => {
         try {
-            const orderItems = buildOrderItems(
-                cartItems.map((item) => ({
-                    ...item,
-                    productId: item.productId || resolveCartItemProduct(item)?.id || null,
-                }))
-            );
             const lineItems = cartItems.map((item) => {
                 const priceId = getStripePriceId(item.productId || item.title, item.size);
                 if (!priceId) {
@@ -203,47 +197,40 @@ export default function CartDrawer({ isOpen, onClose }) {
                         `Missing Stripe price ID for ${item.title} - ${item.size}`
                     );
                 }
-                return {
-                    price: priceId,
-                    quantity: item.quantity,
-                };
+                return { price: priceId, quantity: item.quantity };
             });
 
             const baseUrl = import.meta.env.PROD
                 ? "https://www.likwitblvd.com"
                 : window.location.origin;
-            const pendingOrderId = await saveOrderToFirestore(orderItems, {}, {
-                status: "pending",
-                paymentProvider: "stripe",
-                paymentStatus: "pending",
-                orderTotal: Number(total.toFixed(2)),
-                currency: "USD",
-            });
 
-            try {
-                sessionStorage.setItem("pendingStripeOrderId", pendingOrderId);
-            } catch {
-                // Non-fatal: checkout can proceed without session storage.
-            }
+            const orderItems = buildOrderItems(
+                cartItems.map((item) => ({
+                    ...item,
+                    productId: item.productId || resolveCartItemProduct(item)?.id || null,
+                }))
+            );
 
             const response = await fetch(
                 "https://us-central1-airbrushnink-9f735.cloudfunctions.net/createStripeCheckoutSession",
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         lineItems,
-                        orderId: pendingOrderId,
-                        successUrl: `${baseUrl}/shop?status=success&provider=stripe&orderId=${pendingOrderId}`,
-                        cancelUrl: `${baseUrl}/shop?status=cancel&provider=stripe&orderId=${pendingOrderId}`,
+                        cartItems: orderItems,
+                        orderTotal: Number(total.toFixed(2)),
+                        successUrl: `${baseUrl}/shop?status=success&provider=stripe`,
+                        cancelUrl: `${baseUrl}/shop?status=cancel&provider=stripe`,
                     }),
                 }
             );
 
             const data = await response.json().catch(() => ({}));
             if (response.ok && data.url) {
+                try {
+                    if (data.orderId) sessionStorage.setItem("pendingStripeOrderId", data.orderId);
+                } catch { /* non-fatal */ }
                 window.location.href = data.url;
             } else {
                 toast.error("Checkout failed. Please try again.");
