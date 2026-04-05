@@ -96,7 +96,12 @@ export const products = [
       "airbrush/Blind Faith.webp",
       "Blind Faith airbrush print by Likwit Blvd"
     ),
-    sizes: buildSizes(),
+    sizes: buildSizes({
+      "16x20": "price_1TIfofJEVsglohuhDbE7Mrg4",
+      "18x24": "price_1TIfojJEVsglohuhIXBkerVl",
+      "24x36": "price_1TIfooJEVsglohuhK8Vd5Aol",
+      "30x40": "price_1TIfosJEVsglohuhFxQ8BTq8",
+    }),
     defaultSize: "16x20",
     seo: {
       title: "Blind Faith - Airbrush Artwork Print | Likwit Blvd",
