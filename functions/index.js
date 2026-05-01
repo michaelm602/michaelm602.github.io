@@ -56,9 +56,274 @@ const corsHandler = cors({
 // ----- Stripe Secret (Gen 2 / Secret Manager) -----
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
+const emailjsPublicKey = defineSecret("EMAILJS_PUBLIC_KEY");
+
+const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID || "service_6j3le5o";
+const EMAILJS_STRIPE_CUSTOMER_TEMPLATE_ID =
+    process.env.EMAILJS_STRIPE_CUSTOMER_TEMPLATE_ID || "template_dxmzwa3";
+const EMAIL_SEND_CLAIM_TTL_MS = 10 * 60 * 1000;
 
 function getStripe(secret) {
     return new Stripe(secret);
+}
+
+function money(value, currency = "USD") {
+    const amount = Number(value) || 0;
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency,
+    }).format(amount);
+}
+
+function normalizeOrderItems(cartItems = []) {
+    if (!Array.isArray(cartItems)) return [];
+
+    return cartItems.map((item) => {
+        const quantity = Number(item.quantity) || 1;
+        const unitPrice = Number(item.unitPrice ?? item.price) || 0;
+
+        return {
+            productId: item.productId || null,
+            title: item.title || "Untitled artwork",
+            size: item.size || "Selected size",
+            quantity,
+            unitPrice,
+            lineTotal: unitPrice * quantity,
+            image: item.image || null,
+        };
+    });
+}
+
+function buildItemsText(items = [], currency = "USD") {
+    if (!items.length) return "Order items are listed in Firestore.";
+
+    return items
+        .map((item) => {
+            return `${item.quantity} x ${item.title} (${item.size}) - ${money(
+                item.lineTotal,
+                currency
+            )}`;
+        })
+        .join("\n");
+}
+
+function buildEmailParams({ orderId, order, session, customer, items, eventId }) {
+    const currency = (order.currency || "USD").toUpperCase();
+    const orderTotal =
+        Number(order.orderTotal) ||
+        items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const itemsText = buildItemsText(items, currency);
+    const orderPath = `orders/${orderId}`;
+
+    return {
+        order_id: orderId,
+        order_path: orderPath,
+        firestore_order_path: orderPath,
+        customer_name: customer.name || "Customer",
+        customer_email: customer.email || "",
+        to_name: customer.name || "Customer",
+        to_email: customer.email || "",
+        orders: items.map((item) => ({
+            name: `${item.title} - ${item.size}`,
+            title: item.title,
+            size: item.size,
+            units: item.quantity,
+            quantity: item.quantity,
+            unit_price: money(item.unitPrice, currency),
+            price: money(item.lineTotal, currency),
+            line_total: money(item.lineTotal, currency),
+            image_url: item.image || "",
+        })),
+        items_text: itemsText,
+        item_count: items.reduce((sum, item) => sum + item.quantity, 0),
+        order_total: money(orderTotal, currency),
+        total: money(orderTotal, currency),
+        currency,
+        payment_provider: "Stripe",
+        payment_status: session.payment_status || "paid",
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: session.payment_intent || "",
+        stripe_customer_id: session.customer || "",
+        stripe_event_id: eventId,
+        message:
+            "A paid Stripe order was confirmed. Fulfillment can begin after reviewing the Firestore order record.",
+        cost: {
+            shipping: money(0, currency),
+            tax: money(0, currency),
+            total: money(orderTotal, currency),
+        },
+    };
+}
+
+async function sendEmailjsTemplate(templateId, templateParams) {
+    const publicKey = emailjsPublicKey.value();
+
+    if (!EMAILJS_SERVICE_ID || !templateId || !publicKey) {
+        throw new Error("EmailJS is missing service ID, template ID, or public key.");
+    }
+
+    const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            service_id: EMAILJS_SERVICE_ID,
+            template_id: templateId,
+            user_id: publicKey,
+            template_params: templateParams,
+        }),
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`EmailJS send failed (${response.status}): ${text}`);
+    }
+
+    return { status: response.status, text };
+}
+
+async function claimEmailSend(orderRef, sentField, eventId) {
+    const sendingField = `${sentField}Sending`;
+    const startedMsField = `${sentField}SendingStartedMs`;
+    const eventField = `${sentField}EventId`;
+    const nowMs = Date.now();
+
+    return admin.firestore().runTransaction(async (transaction) => {
+        const snap = await transaction.get(orderRef);
+        const data = snap.exists ? snap.data() : {};
+
+        if (data?.[sentField]) return false;
+
+        const startedMs = Number(data?.[startedMsField]) || 0;
+        const isFreshClaim =
+            data?.[sendingField] && startedMs && nowMs - startedMs < EMAIL_SEND_CLAIM_TTL_MS;
+
+        if (isFreshClaim) return false;
+
+        transaction.set(
+            orderRef,
+            {
+                [sendingField]: true,
+                [startedMsField]: nowMs,
+                [eventField]: eventId,
+                emailStatus: "sending",
+                emailLastEventId: eventId,
+                emailUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+        );
+
+        return true;
+    });
+}
+
+async function markEmailSendComplete(orderRef, sentField, result) {
+    await orderRef.set(
+        {
+            [sentField]: true,
+            [`${sentField}Sending`]: false,
+            [`${sentField}SentAt`]: admin.firestore.FieldValue.serverTimestamp(),
+            [`${sentField}Result`]: result,
+            [`${sentField}Error`]: admin.firestore.FieldValue.delete(),
+            emailStatus: "sent",
+            emailUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+    );
+}
+
+async function markEmailSendFailed(orderRef, sentField, error) {
+    await orderRef.set(
+        {
+            [`${sentField}Sending`]: false,
+            [`${sentField}Error`]: error?.message || String(error),
+            [`${sentField}FailedAt`]: admin.firestore.FieldValue.serverTimestamp(),
+            emailStatus: "failed",
+            emailUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+    );
+}
+
+async function sendClaimedEmail({ orderRef, sentField, templateId, params }) {
+    try {
+        const result = await sendEmailjsTemplate(templateId, params);
+        await markEmailSendComplete(orderRef, sentField, result);
+        return result;
+    } catch (error) {
+        await markEmailSendFailed(orderRef, sentField, error);
+        throw error;
+    }
+}
+
+async function sendStripeOrderEmails({ orderRef, orderId, session, eventId }) {
+    const orderSnap = await orderRef.get();
+    const order = orderSnap.exists ? orderSnap.data() : {};
+    const customer = {
+        name:
+            session.customer_details?.name ||
+            order.buyerInfo?.name ||
+            "Customer",
+        email:
+            session.customer_details?.email ||
+            order.stripeCustomerEmail ||
+            order.buyerInfo?.email ||
+            "",
+    };
+    const items = normalizeOrderItems(order.cartItems);
+    const params = buildEmailParams({ orderId, order, session, customer, items, eventId });
+
+    if (!EMAILJS_STRIPE_CUSTOMER_TEMPLATE_ID) {
+        await orderRef.set(
+            {
+                emailStatus: "config_missing",
+                emailConfigError:
+                    "Missing EMAILJS_STRIPE_CUSTOMER_TEMPLATE_ID.",
+                emailUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+        );
+        logger.warn("Stripe order email skipped due to missing EmailJS template config", {
+            orderId,
+        });
+        return;
+    }
+
+    const customerClaimed =
+        Boolean(customer.email) &&
+        (await claimEmailSend(orderRef, "customerEmailSent", eventId));
+
+    if (customerClaimed) {
+        await sendClaimedEmail({
+            orderRef,
+            sentField: "customerEmailSent",
+            templateId: EMAILJS_STRIPE_CUSTOMER_TEMPLATE_ID,
+            params: {
+                ...params,
+                message:
+                    "Thank you for your Likwit Blvd order. Your payment is confirmed, your order has been received, and we will contact you if any fulfillment details are needed.",
+            },
+        });
+    } else if (!customer.email) {
+        await orderRef.set(
+            {
+                customerEmailSkipped: true,
+                customerEmailError: "Stripe checkout session did not include a customer email.",
+                emailUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+        );
+    }
+
+    if (customerClaimed) {
+        await orderRef.set(
+            {
+                ownerEmailSent: true,
+                ownerEmailSentVia: "customer_template_cc",
+                ownerEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+        );
+    }
 }
 
 // =============================
@@ -144,7 +409,7 @@ exports.createStripeCheckoutSession = onRequest(
 // 2) STRIPE WEBHOOK (Gen 2 / HTTPS)
 // ===========================================
 exports.handleStripeWebhook = onRequest(
-    { secrets: [stripeSecretKey, stripeWebhookSecret] },
+    { secrets: [stripeSecretKey, stripeWebhookSecret, emailjsPublicKey] },
     async (req, res) => {
         if (req.method !== "POST") {
             return res.status(405).json({ error: "Method not allowed. Use POST." });
@@ -173,8 +438,14 @@ exports.handleStripeWebhook = onRequest(
                 const orderId = session.metadata?.orderId || session.client_reference_id;
 
                 if (orderId) {
-                    await admin.firestore().collection("orders").doc(orderId).set(
+                    const orderRef = admin.firestore().collection("orders").doc(orderId);
+
+                    await orderRef.set(
                         {
+                            buyerInfo: {
+                                name: session.customer_details?.name || null,
+                                email: session.customer_details?.email || null,
+                            },
                             status: "paid",
                             paymentProvider: "stripe",
                             paymentStatus: "paid",
@@ -188,6 +459,13 @@ exports.handleStripeWebhook = onRequest(
                         },
                         { merge: true }
                     );
+
+                    await sendStripeOrderEmails({
+                        orderRef,
+                        orderId,
+                        session,
+                        eventId: event.id,
+                    });
                 }
             }
 
