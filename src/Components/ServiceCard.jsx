@@ -6,11 +6,13 @@ export default function ServiceCard({ title, description, image, link, tag }) {
     <Link
       to={link}
       className="
-        rounded-xl shadow-lg overflow-hidden
-        transition-transform duration-300 transform hover:scale-[1.03]
+        group rounded-lg shadow-lg overflow-hidden
+        transition duration-300 transform hover:-translate-y-1 hover:shadow-2xl
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black
         w-full max-w-[500px]
         flex flex-col
         bg-gradient-to-b from-black to-[#222]
+        border border-white/10 hover:border-white/20
       "
     >
       <div className="relative w-full h-[220px] overflow-hidden">
@@ -32,7 +34,7 @@ export default function ServiceCard({ title, description, image, link, tag }) {
           <img
             src={image}
             alt={title}
-            className="w-full h-full object-cover object-center block brightness-90"
+            className="w-full h-full object-cover object-center block brightness-90 transition duration-500 group-hover:scale-[1.035] group-hover:brightness-100"
             loading="lazy"
             decoding="async"
           />
@@ -42,7 +44,7 @@ export default function ServiceCard({ title, description, image, link, tag }) {
           </div>
         )}
 
-        <div className="absolute inset-0 bg-black/25" />
+        <div className="absolute inset-0 bg-black/25 transition duration-300 group-hover:bg-black/15" />
       </div>
 
       <div className="p-4 flex flex-col flex-grow">
@@ -60,8 +62,8 @@ export default function ServiceCard({ title, description, image, link, tag }) {
     cursor-pointer
     relative
     animate-attention
-    hover:text-white
-    hover:animate-none
+    group-hover:text-white
+    group-hover:animate-none
   "
           >
             Portfolio →

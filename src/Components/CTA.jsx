@@ -4,7 +4,7 @@ export default function CTA() {
   return (
     <Link
       to="/shop"
-      className="inline-block bg-white text-black text-sm sm:text-base uppercase font-semibold tracking-wide sm:tracking-wider py-2.5 px-6 sm:py-3 sm:px-8 rounded-md transition duration-300 hover:bg-gray-100 shadow-lg"
+      className="inline-flex justify-center rounded-sm bg-white px-7 py-3 text-sm sm:text-base font-semibold uppercase tracking-[0.12em] text-black shadow-lg transition duration-200 hover:-translate-y-0.5 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
     >
       SHOP NOW
     </Link>
