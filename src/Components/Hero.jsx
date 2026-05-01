@@ -30,18 +30,25 @@ export default function Hero({ images = [], intervalMs = 3000 }) {
   return (
     <section aria-label="Hero slideshow" className="relative w-full h-[90vh] md:h-screen bg-black overflow-hidden">
       {/* Background images */}
-      {safeImages.map((img, idx) => (
-        <img
-          key={`${img}-${idx}`}
-          src={img}
-          alt=""
-          role="presentation"
-          loading="eager"
-          decoding="async"
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === currentIndex ? "opacity-100" : "opacity-0"
-            }`}
-        />
-      ))}
+      {safeImages.map((img, idx) => {
+        const isFirstImage = idx === 0;
+        const isCurrentImage = idx === currentIndex;
+
+        return (
+          <img
+            key={`${img}-${idx}`}
+            src={img}
+            alt=""
+            role="presentation"
+            aria-hidden="true"
+            loading={isFirstImage ? "eager" : "lazy"}
+            decoding="async"
+            fetchPriority={isFirstImage ? "high" : "low"}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${isCurrentImage ? "opacity-100" : "opacity-0"
+              }`}
+          />
+        );
+      })}
 
       {/* Dark overlay — keeps text readable regardless of image brightness */}
       <div className="absolute inset-0 z-[1] bg-black/60" />

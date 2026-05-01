@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import Hero from "../Components/Hero";
 import Intro from "../Components/Intro";
@@ -10,16 +10,67 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { homeContent as FALLBACK } from "../content/homeContent";
 
+const LOCAL_HERO_IMAGES = [
+  "/hero-images/iwata.webp",
+  "/hero-images/photoshop.webp",
+];
+
+function preloadImage(src) {
+  if (!src || typeof window === "undefined") return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(done, 2500);
+    img.onload = done;
+    img.onerror = done;
+    img.src = src;
+  });
+}
+
 export default function Home() {
   // 🔥 Firestore-backed content with safe fallback
-  const [content, setContent] = useState(FALLBACK);
+  const [content, setContent] = useState(() => ({
+    ...FALLBACK,
+    heroImages: LOCAL_HERO_IMAGES,
+  }));
 
-  const heroImages = content.heroImages || [];
+  const heroImages = content.heroImages?.length ? content.heroImages : LOCAL_HERO_IMAGES;
+  const services = useMemo(
+    () =>
+      (content.services?.length ? content.services : FALLBACK.services).map((service) => ({
+        ...service,
+        image: service.image || "",
+      })),
+    [content.services]
+  );
 
   const airbrushRef = useRef(null);
   const inkRef = useRef(null);
   const [showAirbrush, setShowAirbrush] = useState(false);
   const [showInk, setShowInk] = useState(false);
+
+  useEffect(() => {
+    const firstHero = heroImages[0];
+    if (!firstHero) return;
+
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = firstHero;
+    link.fetchPriority = "high";
+    document.head.appendChild(link);
+
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, [heroImages]);
 
   // 🔥 Load Home content from Firestore (fallback silently)
   useEffect(() => {
@@ -32,16 +83,21 @@ export default function Home() {
 
         if (snap.exists()) {
           const data = snap.data();
-          setContent({
+          const nextContent = {
             heroImages:
               Array.isArray(data.heroImages) && data.heroImages.length
                 ? data.heroImages
-                : FALLBACK.heroImages,
+                : LOCAL_HERO_IMAGES,
             services:
               Array.isArray(data.services) && data.services.length
                 ? data.services
                 : FALLBACK.services,
-          });
+          };
+
+          await preloadImage(nextContent.heroImages[0]);
+          if (!alive) return;
+
+          setContent(nextContent);
 
         }
       } catch {
@@ -140,7 +196,7 @@ export default function Home() {
           Featured Pieces
         </h2>
         <div className="flex flex-wrap justify-center gap-x-20 gap-y-12">
-          {content.services.map((s, i) => (
+          {services.map((s, i) => (
             <ServiceCard
               key={`${s.title}-${i}`}
               tag={s.tag}

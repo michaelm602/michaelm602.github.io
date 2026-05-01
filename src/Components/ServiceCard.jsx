@@ -28,12 +28,19 @@ export default function ServiceCard({ title, description, image, link, tag }) {
           </span>
         )}
 
-        <img
-          src={image}
-          alt={title}
-          className="w-full h-full object-cover object-center block brightness-90"
-          loading="lazy"
-        />
+        {image ? (
+          <img
+            src={image}
+            alt={title}
+            className="w-full h-full object-cover object-center block brightness-90"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-500 text-sm">
+            Image coming soon
+          </div>
+        )}
 
         <div className="absolute inset-0 bg-black/25" />
       </div>
