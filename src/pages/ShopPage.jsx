@@ -6,7 +6,7 @@ import { toast } from "react-hot-toast";
 
 export default function ShopPage() {
     const location = useLocation();
-    const { setIsCartOpen } = useCart();
+    const { clearCart, setIsCartOpen } = useCart();
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -25,6 +25,7 @@ export default function ShopPage() {
         if (provider === "stripe" && status === "success") {
             toast.success("Payment received. We're confirming your order now.");
             if (pendingStripeOrderId && (!orderId || orderId === pendingStripeOrderId)) {
+                clearCart();
                 try {
                     sessionStorage.removeItem("pendingStripeOrderId");
                 } catch {
@@ -50,7 +51,7 @@ export default function ShopPage() {
             setIsCartOpen(true);
             window.history.replaceState({}, document.title);
         }
-    }, [location, setIsCartOpen]);
+    }, [clearCart, location, setIsCartOpen]);
 
     return (
         <div className="relative min-h-screen pt-24 px-4 text-white">

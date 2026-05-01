@@ -220,8 +220,8 @@ export default function CartDrawer({ isOpen, onClose }) {
                         lineItems,
                         cartItems: orderItems,
                         orderTotal: Number(total.toFixed(2)),
-                        successUrl: `${baseUrl}/shop?status=success&provider=stripe`,
-                        cancelUrl: `${baseUrl}/shop?status=cancel&provider=stripe`,
+                        successUrl: `${baseUrl}/success?status=success&provider=stripe`,
+                        cancelUrl: `${baseUrl}/cancel?status=cancel&provider=stripe`,
                     }),
                 }
             );

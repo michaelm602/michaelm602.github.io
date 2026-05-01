@@ -16,6 +16,8 @@ import ScrollToTop from "./Components/ScrollToTop";
 
 import ShopPage from "./pages/ShopPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
+import Success from "./pages/Success";
+import Cancel from "./pages/Cancel";
 
 function App() {
 
@@ -34,9 +36,8 @@ function App() {
             <Route path="/shop/:slug" element={<ProductDetailPage />} />
             <Route path="/contact" element={<Contact />} />
 
-            {/* If Stripe returns to these, send them back to shop */}
-            <Route path="/success" element={<Navigate to="/shop" replace />} />
-            <Route path="/cancel" element={<Navigate to="/shop" replace />} />
+            <Route path="/success" element={<Success />} />
+            <Route path="/cancel" element={<Cancel />} />
 
             {/* Login */}
             <Route path="/login" element={<LoginForm />} />
