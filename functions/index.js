@@ -22,7 +22,10 @@ const { defineSecret } = require("firebase-functions/params");
 
 const cors = require("cors");
 const Stripe = require("stripe");
-const { buildTrustedCheckout } = require("./stripeCatalog");
+const {
+    buildTrustedCheckout,
+    getStripeModeFromSecret,
+} = require("./stripeCatalog");
 
 const path = require("path");
 const os = require("os");
@@ -350,6 +353,18 @@ exports.createStripeCheckoutSession = onRequest(
                     });
                 }
 
+                const stripeMode = getStripeModeFromSecret(secret);
+                if (!stripeMode) {
+                    logger.error("Stripe secret key mode could not be determined", {
+                        secretName: "STRIPE_SECRET_KEY",
+                        supportedModes: ["live", "test"],
+                    });
+                    return res.status(500).json({
+                        error: "Stripe checkout configuration is invalid.",
+                    });
+                }
+
+                const expectedLivemode = stripeMode === "live";
                 const stripe = getStripe(secret);
 
                 const body = req.body || {};
@@ -371,6 +386,7 @@ exports.createStripeCheckoutSession = onRequest(
                 } = await buildTrustedCheckout({
                     items: requestedItems,
                     stripe,
+                    expectedLivemode,
                 });
 
                 // Create pending order in Firestore (admin SDK bypasses security rules)

@@ -9,6 +9,7 @@ const {
     CheckoutConfigurationError,
     CheckoutInputError,
     buildTrustedCheckout,
+    getStripeModeFromSecret,
     validateAndAggregateItems,
 } = require("./stripeCatalog");
 
@@ -21,6 +22,7 @@ function stripeWithPrices(overrides = {}) {
                 type: "one_time",
                 currency: "usd",
                 unit_amount: 12500,
+                livemode: false,
                 ...overrides,
             }),
         },
@@ -62,6 +64,7 @@ test("trusted checkout ignores browser prices, totals, titles, and Stripe IDs", 
             },
         ],
         stripe: stripeWithPrices(),
+        expectedLivemode: false,
         orderTotal: 0.02,
     });
 
@@ -135,8 +138,47 @@ test("inactive, recurring, wrong-currency, or malformed trusted Prices fail clos
 
     for (const override of invalidPrices) {
         await assert.rejects(
-            () => buildTrustedCheckout({ items, stripe: stripeWithPrices(override) }),
+            () =>
+                buildTrustedCheckout({
+                    items,
+                    stripe: stripeWithPrices(override),
+                    expectedLivemode: false,
+                }),
             CheckoutConfigurationError
         );
     }
+});
+
+test("Stripe secret mode is detected without exposing or storing the key", () => {
+    assert.equal(getStripeModeFromSecret("sk_" + "live_example"), "live");
+    assert.equal(getStripeModeFromSecret("sk_" + "test_example"), "test");
+    assert.equal(getStripeModeFromSecret("pk_" + "test_example"), null);
+    assert.equal(getStripeModeFromSecret(null), null);
+});
+
+test("trusted Prices must match the mode detected from the secret key", async () => {
+    const items = [{ productId: "serenity", size: "16x20", quantity: 1 }];
+
+    await assert.rejects(
+        () =>
+            buildTrustedCheckout({
+                items,
+                stripe: stripeWithPrices({ livemode: false }),
+                expectedLivemode: true,
+            }),
+        (error) => {
+            assert.ok(error instanceof CheckoutConfigurationError);
+            assert.equal(error.details.expectedMode, "live");
+            assert.equal(error.details.priceMode, "test");
+            return true;
+        }
+    );
+
+    await assert.doesNotReject(() =>
+        buildTrustedCheckout({
+            items,
+            stripe: stripeWithPrices({ livemode: true }),
+            expectedLivemode: true,
+        })
+    );
 });

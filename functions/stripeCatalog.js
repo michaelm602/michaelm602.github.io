@@ -161,6 +161,13 @@ class CheckoutConfigurationError extends Error {
     }
 }
 
+function getStripeModeFromSecret(secret) {
+    if (typeof secret !== "string") return null;
+    if (secret.startsWith("sk_live_")) return "live";
+    if (secret.startsWith("sk_test_")) return "test";
+    return null;
+}
+
 function validateAndAggregateItems(items) {
     if (!Array.isArray(items) || items.length === 0) {
         throw new CheckoutInputError("Your cart is empty.");
@@ -214,11 +221,18 @@ function validateAndAggregateItems(items) {
     return [...aggregated.values()];
 }
 
-async function buildTrustedCheckout({ items, stripe }) {
+async function buildTrustedCheckout({ items, stripe, expectedLivemode }) {
     if (!stripe?.prices?.retrieve) {
         throw new CheckoutConfigurationError("Stripe price lookup is unavailable.");
     }
 
+    if (typeof expectedLivemode !== "boolean") {
+        throw new CheckoutConfigurationError(
+            "Stripe credential mode was not provided for catalog validation."
+        );
+    }
+
+    const expectedMode = expectedLivemode ? "live" : "test";
     const validatedItems = validateAndAggregateItems(items);
     const resolvedItems = await Promise.all(
         validatedItems.map(async (item) => {
@@ -227,12 +241,34 @@ async function buildTrustedCheckout({ items, stripe }) {
                 price = await stripe.prices.retrieve(item.priceId);
             } catch (error) {
                 throw new CheckoutConfigurationError(
-                    "A configured Stripe Price could not be loaded.",
+                    `A configured Stripe Price could not be loaded with ${expectedMode} credentials.`,
                     {
                         productId: item.productId,
                         size: item.size,
                         priceId: item.priceId,
+                        expectedMode,
                         stripeCode: error?.code || null,
+                    }
+                );
+            }
+
+            if (
+                typeof price?.livemode !== "boolean" ||
+                price.livemode !== expectedLivemode
+            ) {
+                throw new CheckoutConfigurationError(
+                    "Stripe Price mode does not match the configured secret key mode.",
+                    {
+                        productId: item.productId,
+                        size: item.size,
+                        priceId: item.priceId,
+                        expectedMode,
+                        priceMode:
+                            typeof price?.livemode === "boolean"
+                                ? price.livemode
+                                    ? "live"
+                                    : "test"
+                                : "unknown",
                     }
                 );
             }
@@ -297,5 +333,6 @@ module.exports = {
     CheckoutConfigurationError,
     CheckoutInputError,
     buildTrustedCheckout,
+    getStripeModeFromSecret,
     validateAndAggregateItems,
 };
