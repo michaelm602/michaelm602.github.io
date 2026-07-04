@@ -3,7 +3,6 @@ import { useCart } from "./CartContext";
 import { X } from "lucide-react";
 import {
     getProductSizeOptions,
-    getStripePriceId,
     resolveCartItemProduct,
 } from "../data/products";
 import usePayPalScript from "../utils/usePayPalScript";
@@ -190,26 +189,16 @@ export default function CartDrawer({ isOpen, onClose }) {
 
     const handleStripeCheckout = async () => {
         try {
-            const lineItems = cartItems.map((item) => {
-                const priceId = getStripePriceId(item.productId || item.title, item.size);
-                if (!priceId) {
-                    throw new Error(
-                        `Missing Stripe price ID for ${item.title} - ${item.size}`
-                    );
-                }
-                return { price: priceId, quantity: item.quantity };
-            });
+            const items = cartItems.map((item) => ({
+                productId:
+                    item.productId || resolveCartItemProduct(item)?.id || null,
+                size: item.size,
+                quantity: item.quantity,
+            }));
 
             const baseUrl = import.meta.env.PROD
                 ? "https://www.likwitblvd.com"
                 : window.location.origin;
-
-            const orderItems = buildOrderItems(
-                cartItems.map((item) => ({
-                    ...item,
-                    productId: item.productId || resolveCartItemProduct(item)?.id || null,
-                }))
-            );
 
             const response = await fetch(
                 "https://us-central1-airbrushnink-9f735.cloudfunctions.net/createStripeCheckoutSession",
@@ -217,9 +206,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        lineItems,
-                        cartItems: orderItems,
-                        orderTotal: Number(total.toFixed(2)),
+                        items,
                         successUrl: `${baseUrl}/success?status=success&provider=stripe`,
                         cancelUrl: `${baseUrl}/cancel?status=cancel&provider=stripe`,
                     }),

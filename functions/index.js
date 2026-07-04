@@ -22,6 +22,7 @@ const { defineSecret } = require("firebase-functions/params");
 
 const cors = require("cors");
 const Stripe = require("stripe");
+const { buildTrustedCheckout } = require("./stripeCatalog");
 
 const path = require("path");
 const os = require("os");
@@ -352,19 +353,25 @@ exports.createStripeCheckoutSession = onRequest(
                 const stripe = getStripe(secret);
 
                 const body = req.body || {};
-                const lineItems = body.lineItems;
-                const cartItems = body.cartItems || [];
-                const orderTotal = body.orderTotal || 0;
+                // Accept legacy cartItems during rollout, but never trust its
+                // title, price, total, image, or Stripe Price values.
+                const requestedItems = body.items || body.cartItems || [];
                 const successUrl = body.successUrl;
                 const cancelUrl = body.cancelUrl;
-                const mode = body.mode || "payment";
 
-                if (!Array.isArray(lineItems) || lineItems.length === 0) {
-                    return res.status(400).json({ error: "Missing lineItems array." });
-                }
                 if (!successUrl || !cancelUrl) {
                     return res.status(400).json({ error: "Missing successUrl/cancelUrl." });
                 }
+
+                const {
+                    lineItems,
+                    cartItems,
+                    orderTotal,
+                    currency,
+                } = await buildTrustedCheckout({
+                    items: requestedItems,
+                    stripe,
+                });
 
                 // Create pending order in Firestore (admin SDK bypasses security rules)
                 const orderRef = await admin.firestore().collection("orders").add({
@@ -374,14 +381,14 @@ exports.createStripeCheckoutSession = onRequest(
                     paymentProvider: "stripe",
                     paymentStatus: "pending",
                     orderTotal,
-                    currency: "USD",
+                    currency,
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
                 const orderId = orderRef.id;
 
                 const session = await stripe.checkout.sessions.create({
-                    mode,
+                    mode: "payment",
                     line_items: lineItems,
                     success_url: `${successUrl}&orderId=${orderId}`,
                     cancel_url: `${cancelUrl}&orderId=${orderId}`,
@@ -391,14 +398,26 @@ exports.createStripeCheckoutSession = onRequest(
 
                 return res.status(200).json({ id: session.id, url: session.url, orderId });
             } catch (err) {
-                logger.error("Stripe session error", {
+                const statusCode = err?.statusCode === 400 ? 400 : 500;
+                const logContext = {
                     message: err?.message,
                     type: err?.type,
                     code: err?.code,
-                    statusCode: err?.statusCode,
-                });
-                return res.status(500).json({
-                    error: err?.message || "Failed to create Stripe Checkout session",
+                    statusCode,
+                    details: err?.details || null,
+                };
+
+                if (statusCode === 400) {
+                    logger.warn("Stripe checkout request rejected", logContext);
+                } else {
+                    logger.error("Stripe session error", logContext);
+                }
+
+                return res.status(statusCode).json({
+                    error:
+                        statusCode === 400
+                            ? err.message
+                            : "Checkout is temporarily unavailable. Please try again.",
                 });
             }
         });
