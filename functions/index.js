@@ -456,6 +456,19 @@ exports.handleStripeWebhook = onRequest(
                 const session = event.data.object;
                 const orderId = session.metadata?.orderId || session.client_reference_id;
 
+                if (session.payment_status !== "paid") {
+                    logger.warn(
+                        "Stripe Checkout Session completed without confirmed payment; order remains pending",
+                        {
+                            eventId: event.id,
+                            orderId: orderId || null,
+                            paymentStatus: session.payment_status || null,
+                        }
+                    );
+
+                    return res.status(200).json({ received: true });
+                }
+
                 if (orderId) {
                     const orderRef = admin.firestore().collection("orders").doc(orderId);
 
