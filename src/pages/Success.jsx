@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { doc, onSnapshot } from "firebase/firestore";
 import { CheckCircle2, Clock3, Mail, ShoppingBag } from "lucide-react";
-import { db } from "../firebase";
 import { useCart } from "../Components/CartContext";
+
+const ORDER_STATUS_URL =
+    "https://us-central1-airbrushnink-9f735.cloudfunctions.net/getOrderStatus";
+const ORDER_STATUS_POLL_MS = 2000;
+const MAX_ORDER_STATUS_ATTEMPTS = 15;
 
 function readPendingStripeOrderId() {
     try {
@@ -49,29 +52,59 @@ export default function Success() {
     }, [clearCart, isStripeSuccess, orderId]);
 
     useEffect(() => {
-        if (!orderId) return;
+        if (!isStripeSuccess || !orderId) return;
 
-        const unsubscribe = onSnapshot(
-            doc(db, "orders", orderId),
-            (snapshot) => {
+        let stopped = false;
+        let timeoutId = null;
+        let attempts = 0;
+
+        const scheduleRetry = () => {
+            if (!stopped && attempts < MAX_ORDER_STATUS_ATTEMPTS) {
+                timeoutId = window.setTimeout(
+                    checkOrderStatus,
+                    ORDER_STATUS_POLL_MS
+                );
+            }
+        };
+
+        const checkOrderStatus = async () => {
+            attempts += 1;
+
+            try {
+                const response = await fetch(ORDER_STATUS_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orderId }),
+                });
+                if (!response.ok) throw new Error("Order status request failed");
+
+                const result = await response.json();
+                if (stopped) return;
+
                 setOrderLookupFailed(false);
+                const confirmed =
+                    result?.exists === true &&
+                    result?.status === "paid" &&
+                    result?.paymentStatus === "paid" &&
+                    result?.confirmationState === "confirmed";
+                setOrderStatus(confirmed ? "paid" : "processing");
 
-                if (!snapshot.exists()) {
-                    setOrderStatus("processing");
-                    return;
-                }
-
-                const data = snapshot.data();
-                setOrderStatus(data.status === "paid" || data.paymentStatus === "paid" ? "paid" : "processing");
-            },
-            () => {
+                if (!confirmed) scheduleRetry();
+            } catch {
+                if (stopped) return;
                 setOrderLookupFailed(true);
                 setOrderStatus("processing");
+                scheduleRetry();
             }
-        );
+        };
 
-        return () => unsubscribe();
-    }, [orderId]);
+        checkOrderStatus();
+
+        return () => {
+            stopped = true;
+            if (timeoutId) window.clearTimeout(timeoutId);
+        };
+    }, [isStripeSuccess, orderId]);
 
     const isConfirmed = orderStatus === "paid";
 

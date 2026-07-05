@@ -27,6 +27,11 @@ const {
     getStripeModeFromSecret,
 } = require("./stripeCatalog");
 
+const {
+    buildPublicOrderStatus,
+    isValidOrderId,
+} = require("./orderStatus");
+
 const path = require("path");
 const os = require("os");
 const fs = require("fs/promises");
@@ -441,7 +446,52 @@ exports.createStripeCheckoutSession = onRequest(
 );
 
 // ===========================================
-// 2) STRIPE WEBHOOK (Gen 2 / HTTPS)
+// 2) SAFE ORDER STATUS (Gen 2 / HTTPS)
+// ===========================================
+exports.getOrderStatus = onRequest(async (req, res) => {
+    corsHandler(req, res, async () => {
+        res.set("Cache-Control", "no-store");
+
+        if (req.method === "OPTIONS") {
+            return res.status(204).send("");
+        }
+
+        if (req.method !== "POST") {
+            return res.status(405).json({ error: "Method not allowed. Use POST." });
+        }
+
+        const orderId = req.body?.orderId;
+        if (!isValidOrderId(orderId)) {
+            return res.status(400).json({ error: "Invalid order reference." });
+        }
+
+        try {
+            const orderSnap = await admin
+                .firestore()
+                .collection("orders")
+                .doc(orderId)
+                .get();
+
+            return res.status(200).json(
+                buildPublicOrderStatus(
+                    orderSnap.exists ? orderSnap.data() : null
+                )
+            );
+        } catch (error) {
+            logger.error("Safe order status lookup failed", {
+                message: error?.message,
+                code: error?.code,
+                orderId,
+            });
+            return res.status(500).json({
+                error: "Order status is temporarily unavailable.",
+            });
+        }
+    });
+});
+
+// ===========================================
+// 3) STRIPE WEBHOOK (Gen 2 / HTTPS)
 // ===========================================
 exports.handleStripeWebhook = onRequest(
     { secrets: [stripeSecretKey, stripeWebhookSecret, emailjsPublicKey] },
@@ -552,7 +602,7 @@ exports.handleStripeWebhook = onRequest(
 );
 
 // ===========================================
-// 3) AUTO IMAGE VARIANTS (Gen 2 / Storage)
+// 4) AUTO IMAGE VARIANTS (Gen 2 / Storage)
 // ===========================================
 const FULL_MAX_WIDTH = 1600; // lightbox
 const THUMB_MAX_WIDTH = 600; // grid
