@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth, storage } from "../firebase";
+import { storage } from "../firebase";
 import {
   ref,
   uploadBytesResumable,
@@ -8,6 +7,7 @@ import {
   listAll,
   getDownloadURL,
 } from "firebase/storage";
+import useAdminAuth from "../hooks/useAdminAuth";
 
 /**
  * AdminPanel (deduped)
@@ -50,46 +50,34 @@ async function safeGetURL(storageRef) {
   }
 }
 
+const FOLDERS = ["airbrush", "photoshop", "tattoos", "portfolio-videos"];
+const FOLDER_LABELS = {
+  airbrush: "Airbrush artwork",
+  photoshop: "Photoshop artwork",
+  tattoos: "Tattoo artwork",
+  "portfolio-videos": "Portfolio videos",
+};
+
 export default function AdminPanel() {
   const [items, setItems] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState("airbrush");
-  const [user, setUser] = useState(null);
-  const [userLoaded, setUserLoaded] = useState(false);
+  const { isAdmin, loading: adminLoading, error: adminError } = useAdminAuth();
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [operationError, setOperationError] = useState("");
 
   const fileInputRef = useRef(null);
 
-  // Add folders you actually use
-  const FOLDERS = ["airbrush", "photoshop", "tattoos", "portfolio-videos"];
-  const ADMIN_EMAIL = "airbrushnink@gmail.com";
-
-  const isAdmin =
-    userLoaded &&
-    user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setUserLoaded(true);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (userLoaded) fetchItems();
+    if (!adminLoading) fetchItems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userLoaded]);
-
-  useEffect(() => {
-    fetchItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFolder]);
+  }, [adminLoading, selectedFolder]);
 
   const fetchItems = async () => {
     setLoadingItems(true);
+    setOperationError("");
 
     try {
       const listRef = ref(storage, `${selectedFolder}/`);
@@ -183,19 +171,40 @@ export default function AdminPanel() {
     } catch (err) {
       console.error("🔥 Admin list error:", err);
       setItems([]);
+      setOperationError(err?.code === "storage/unauthorized"
+        ? "Image listing was denied by Firebase Storage."
+        : err?.message || "Unable to load images.");
     } finally {
       setLoadingItems(false);
     }
   };
 
   const handleUpload = async () => {
-    if (!isAdmin) return alert("Not authorized.");
+    if (!isAdmin) {
+      setOperationError("This account is not authorized to upload images.");
+      return;
+    }
     const file = fileInputRef.current?.files?.[0];
-    if (!file) return alert("Please choose a file");
+    if (!file) {
+      setOperationError("Choose a file before uploading.");
+      return;
+    }
+
+    const expectsVideo = selectedFolder === "portfolio-videos";
+    const validType = expectsVideo ? isVideo(file.name) : isImage(file.name);
+    if (!validType) {
+      setOperationError(
+        expectsVideo
+          ? "Portfolio videos must be MP4, WebM, MOV, or M4V files."
+          : "Artwork uploads must be JPG, JPEG, PNG, or WebP files."
+      );
+      return;
+    }
 
     const imageRef = ref(storage, `${selectedFolder}/${file.name}`);
     setUploading(true);
     setUploadProgress(0);
+    setOperationError("");
 
     const uploadTask = uploadBytesResumable(imageRef, file);
 
@@ -208,31 +217,46 @@ export default function AdminPanel() {
       },
       (error) => {
         console.error(error);
-        alert("Upload failed");
+        setOperationError(error?.code === "storage/unauthorized"
+          ? "Upload denied. Confirm the admin claim, then sign out and back in."
+          : error?.message || "Upload failed.");
         setUploading(false);
       },
       async () => {
-        await safeGetURL(uploadTask.snapshot.ref);
-        alert("Upload successful!");
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        setUploading(false);
-        fetchItems();
+        try {
+          await getDownloadURL(uploadTask.snapshot.ref);
+          alert("Upload successful!");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          await fetchItems();
+        } catch (error) {
+          console.error(error);
+          setOperationError(error?.message || "The file uploaded, but its public URL could not be loaded.");
+        } finally {
+          setUploading(false);
+        }
       }
     );
   };
 
   const handleDelete = async (item) => {
-    if (!isAdmin) return alert("Not authorized.");
+    if (!isAdmin) {
+      setOperationError("This account is not authorized to delete images.");
+      return;
+    }
 
     const count = item.refsToDelete?.length || 1;
-    const msg =
+    const baseMessage =
       count > 1
         ? `Delete this artwork and ALL ${count} file variants (jpg/webp/thumb)?`
         : "Delete this file?";
+    const msg = selectedFolder === "airbrush"
+      ? `${baseMessage}\n\nAirbrush files may also be referenced by shop products. Confirm the source catalog before deleting.`
+      : baseMessage;
 
     if (!window.confirm(msg)) return;
 
     try {
+      setOperationError("");
       // delete everything tied to that base
       const refs = item.refsToDelete || [];
       await Promise.all(refs.map((r) => deleteObject(r)));
@@ -240,9 +264,15 @@ export default function AdminPanel() {
       fetchItems();
     } catch (err) {
       console.error(err);
-      alert("Failed to delete");
+      setOperationError(err?.code === "storage/unauthorized"
+        ? "Delete denied. Confirm the admin claim, then sign out and back in."
+        : err?.message || "Failed to delete.");
     }
   };
+
+  if (adminError) {
+    return <p className="min-h-screen bg-black px-4 py-12 text-center text-red-300">{adminError}</p>;
+  }
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gradient-to-r from-black via-[#111] to-[#222] text-white px-4 pb-12">
@@ -250,18 +280,21 @@ export default function AdminPanel() {
         className="w-full max-w-md p-6 rounded-2xl shadow-lg mb-12 mt-12"
         style={{ background: "linear-gradient(to right, #000, #222)" }}
       >
-        <h2 className="text-2xl font-bold text-center mb-4">
-          Upload Your Artwork
-        </h2>
+        <h1 className="text-2xl font-bold text-center mb-2">Manage Artwork & Media</h1>
+        <p className="mb-5 text-center text-sm text-white/55">
+          Upload or remove files used by public galleries and portfolio media.
+        </p>
 
         <select
           value={selectedFolder}
           onChange={(e) => setSelectedFolder(e.target.value)}
+          aria-label="Storage folder"
+          disabled={uploading}
           className="w-full mb-4 p-2 rounded bg-black text-white"
         >
           {FOLDERS.map((folder) => (
             <option key={folder} value={folder}>
-              {folder.charAt(0).toUpperCase() + folder.slice(1)}
+              {FOLDER_LABELS[folder]}
             </option>
           ))}
         </select>
@@ -269,8 +302,13 @@ export default function AdminPanel() {
         <input
           type="file"
           ref={fileInputRef}
+          accept={selectedFolder === "portfolio-videos" ? "video/mp4,video/webm,video/quicktime,video/x-m4v" : "image/jpeg,image/png,image/webp"}
           className="w-full mb-4 p-2 rounded bg-black text-white file:bg-[#222] file:text-white file:border-none"
         />
+
+        <p className="mb-4 text-xs text-white/45">
+          Storage destination: <code>/{selectedFolder}/filename</code>
+        </p>
 
         {uploading && (
           <div className="w-full bg-gray-700 rounded mb-2">
@@ -290,9 +328,15 @@ export default function AdminPanel() {
           {uploading ? "Uploading..." : "Upload"}
         </button>
 
-        {!isAdmin && (
+        {!adminLoading && !isAdmin && (
           <p className="mt-3 text-xs text-gray-400 text-center">
-            Logged in users can view. Only admin can upload/delete.
+            This account is not authorized to upload or delete files.
+          </p>
+        )}
+
+        {operationError && (
+          <p role="alert" className="mt-3 text-sm text-red-300 text-center">
+            {operationError}
           </p>
         )}
       </div>

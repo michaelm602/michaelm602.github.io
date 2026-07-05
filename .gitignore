@@ -9,6 +9,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 functions/.runtimeconfig.json
+*service-account*.json
+firebase-adminsdk-*.json
 
 
 node_modules

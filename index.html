@@ -40,7 +40,7 @@
       var p = window.location.search;
       if (p && p[1] === 'p') {
         var params = p.slice(1).split('&');
-        var path   = params[0].slice(2).replace(/~and~/g, '&');
+        var path   = params[0].slice(2).replace(/~and~/g, '&').replace(/^\/+/, '');
         var query  = params[1] ? '?' + params[1].slice(2).replace(/~and~/g, '&') : '';
         window.history.replaceState(
           null, null,

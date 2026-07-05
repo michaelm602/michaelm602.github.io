@@ -7,10 +7,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "postbuild": "node scripts/copy-routes.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "node --test tests/*.test.js functions/*.test.js",
+    "test:admin": "node --test tests/*.test.js",
+    "admin:claim": "node scripts/set-admin-claim.cjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
-    "predeploy": "npm run sitemap && npm run build && node scripts/copy-routes.mjs",
+    "predeploy": "npm run sitemap && npm run build",
     "deploy": "gh-pages -d dist",
     "images:webp": "node scripts/optimize-images.mjs"
   },

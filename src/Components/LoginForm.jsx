@@ -1,23 +1,40 @@
 import React, { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { authorizeAdminLogin, getLoginErrorMessage } from "../utils/login";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+    setSubmitting(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      alert("Login successful");
-      navigate("/upload"); // or wherever your protected route is
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const authorized = await authorizeAdminLogin(
+        credential.user,
+        () => signOut(auth)
+      );
+
+      if (!authorized) {
+        setError("This account is not authorized for admin access.");
+        return;
+      }
+
+      navigate("/admin/home", { replace: true });
     } catch (err) {
       console.error("Login error:", err);
-      alert("Login failed");
+      if (auth.currentUser) await signOut(auth).catch(() => {});
+      setError(getLoginErrorMessage(err));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -35,6 +52,9 @@ export default function LoginForm() {
         <input
           type="email"
           placeholder="Email"
+          autoComplete="email"
+          required
+          disabled={submitting}
           className="w-full mb-4 p-3 rounded-md bg-[#111] text-white"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -43,19 +63,29 @@ export default function LoginForm() {
         <input
           type="password"
           placeholder="Password"
+          autoComplete="current-password"
+          required
+          disabled={submitting}
           className="w-full mb-6 p-3 rounded-md bg-[#111] text-white"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
 
+        {error && (
+          <p role="alert" className="mb-4 text-sm text-red-300">
+            {error}
+          </p>
+        )}
+
         <button
           type="submit"
+          disabled={submitting}
           className="w-full py-3 rounded-md font-semibold"
           style={{
             background: "linear-gradient(to right, #000000, #222222)",
           }}
         >
-          Login
+          {submitting ? "Checking access..." : "Login"}
         </button>
       </form>
     </div>

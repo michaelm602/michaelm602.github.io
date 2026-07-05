@@ -1,18 +1,12 @@
-import { useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
 import { Navigate } from "react-router-dom";
-import { auth } from "../firebase";
-import { isAdminUser } from "../utils/admin";
+import useAdminAuth from "../hooks/useAdminAuth";
 
 export default function ProtectedRoute({ children }) {
-  const [user, setUser] = useState(undefined);
+  const { user, isAdmin, loading, error } = useAdminAuth();
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u || null));
-    return unsub;
-  }, []);
+  if (loading) return <p className="text-center mt-10 text-white">Checking auth...</p>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (error) return <p className="text-center mt-10 text-red-300">{error}</p>;
 
-  if (user === undefined) return <p className="text-center mt-10 text-white">Checking auth…</p>;
-
-  return isAdminUser(user) ? children : <Navigate to="/" replace />;
+  return isAdmin ? children : <Navigate to="/" replace />;
 }

@@ -14,9 +14,20 @@ const dist      = resolve(__dirname, "../dist");
 const src       = resolve(dist, "index.html");
 
 const routes = [
+  "admin",
+  "admin/artwork",
+  "admin/home",
+  "login",
+  "upload",
   "portfolio",
+  "portfolio/airbrush",
+  "portfolio/photoshop",
+  "portfolio/tattoos",
+  "gallery",
   "contact",
   "shop",
+  "success",
+  "cancel",
   ...getAllProducts().map((p) => `shop/${p.slug}`),
 ];
 

@@ -15,6 +15,10 @@ const today     = new Date().toISOString().split("T")[0];
 const staticRoutes = [
   { path: "/",          changefreq: "weekly",  priority: "1.0" },
   { path: "/portfolio", changefreq: "weekly",  priority: "0.8" },
+  { path: "/portfolio/airbrush", changefreq: "weekly", priority: "0.7" },
+  { path: "/portfolio/photoshop", changefreq: "weekly", priority: "0.7" },
+  { path: "/portfolio/tattoos", changefreq: "weekly", priority: "0.7" },
+  { path: "/gallery",   changefreq: "weekly",  priority: "0.7" },
   { path: "/contact",   changefreq: "weekly",  priority: "0.8" },
   { path: "/shop",      changefreq: "weekly",  priority: "0.8" },
 ];

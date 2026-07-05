@@ -1,10 +1,12 @@
-export const ADMIN_UID = "1AWLkAfMGjgDSNik9bRsIWROGW73";
-export const ADMIN_EMAIL = "airbrushnink@gmail.com";
+export const ADMIN_CLAIM = "admin";
 
-export function isAdminUser(user) {
-    if (!user) return false;
-    return (
-        user.uid === ADMIN_UID ||
-        (user.email || "").toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim()
-    );
+export function hasAdminClaim(tokenResult) {
+    return tokenResult?.claims?.[ADMIN_CLAIM] === true;
+}
+
+export async function isAdminUser(user, forceRefresh = false) {
+    if (!user || typeof user.getIdTokenResult !== "function") return false;
+
+    const tokenResult = await user.getIdTokenResult(forceRefresh);
+    return hasAdminClaim(tokenResult);
 }

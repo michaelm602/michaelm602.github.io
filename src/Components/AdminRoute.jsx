@@ -1,20 +1,19 @@
-import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../firebase";
-import { isAdminUser } from "../utils/admin";
+import useAdminAuth from "../hooks/useAdminAuth";
+import AdminNav from "./AdminNav";
 
 export default function AdminRoute({ children }) {
-    const [user, setUser] = useState(undefined);
+    const { user, isAdmin, loading, error } = useAdminAuth();
 
-    useEffect(() => {
-        const unsub = onAuthStateChanged(auth, (u) => setUser(u || null));
-        return () => unsub();
-    }, []);
-
-    if (user === undefined) return <p className="text-center mt-10">Checking admin…</p>;
+    if (loading) return <p className="text-center mt-10">Checking admin...</p>;
     if (!user) return <Navigate to="/login" replace />;
-    if (!isAdminUser(user)) return <Navigate to="/" replace />;
+    if (error) return <p className="text-center mt-10 text-red-300">{error}</p>;
+    if (!isAdmin) return <Navigate to="/" replace />;
 
-    return children;
+    return (
+        <>
+            <AdminNav />
+            {children}
+        </>
+    );
 }

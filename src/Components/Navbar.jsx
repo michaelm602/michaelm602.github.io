@@ -2,27 +2,20 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Menu, X, ShoppingCart } from "lucide-react";
 import { FaFacebookF, FaInstagram, FaTiktok, FaEnvelope } from "react-icons/fa";
-import { signOut, onAuthStateChanged } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import CartDrawer from "./CartDrawer";
 import { useCart } from "./CartContext";
-import { isAdminUser } from "../utils/admin";
+import useAdminAuth from "../hooks/useAdminAuth";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState(undefined); // undefined while auth resolves
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const { user, isAdmin } = useAdminAuth();
 
   const { cartItems } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser || null);
-    });
-    return () => unsub();
-  }, []);
 
   // Open cart immediately via window event (same-page add-to-cart)
   useEffect(() => {
@@ -30,8 +23,6 @@ export default function Navbar() {
     window.addEventListener("open-cart", handler);
     return () => window.removeEventListener("open-cart", handler);
   }, []);
-
-  const isAdmin = isAdminUser(user);
 
   const closeMenu = () => setMenuOpen(false);
 

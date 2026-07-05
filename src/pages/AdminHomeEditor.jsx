@@ -1,12 +1,10 @@
 // src/pages/AdminHomeEditor.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth, db, storage } from "../firebase";
+import React, { useEffect, useRef, useState } from "react";
+import { db, storage } from "../firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { homeContent as FALLBACK } from "../content/homeContent";
-
-const ADMIN_EMAIL = "airbrushnink@gmail.com";
+import useAdminAuth from "../hooks/useAdminAuth";
 
 // ---- helpers ----
 function normalizeHome(data) {
@@ -35,16 +33,19 @@ function withTimeout(promise, ms, label = "Operation") {
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-export default function AdminHomeEditor() {
-    const [user, setUser] = useState(null);
-    const [userLoaded, setUserLoaded] = useState(false);
+function getOperationErrorMessage(error, action) {
+    const code = error?.code || "";
+    if (code === "permission-denied" || code === "storage/unauthorized") {
+        return `${action} was denied. Confirm the admin claim and security rules are deployed, then sign out and back in.`;
+    }
+    if (code === "unavailable" || code === "storage/retry-limit-exceeded") {
+        return `${action} is temporarily unavailable. Check your connection and try again.`;
+    }
+    return error?.message || `${action} failed.`;
+}
 
-    const isAdmin = useMemo(() => {
-        return (
-            userLoaded &&
-            user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim()
-        );
-    }, [userLoaded, user]);
+export default function AdminHomeEditor() {
+    const { isAdmin, loading: adminLoading, error: adminError } = useAdminAuth();
 
     const [loading, setLoading] = useState(true);
 
@@ -68,15 +69,6 @@ export default function AdminHomeEditor() {
         setSaveOk(false);
         setSaveErr("");
     };
-
-    // auth
-    useEffect(() => {
-        const unsub = onAuthStateChanged(auth, (u) => {
-            setUser(u);
-            setUserLoaded(true);
-        });
-        return () => unsub();
-    }, []);
 
     // load Firestore content
     useEffect(() => {
@@ -102,17 +94,20 @@ export default function AdminHomeEditor() {
                 setLastSavedAt(null);
             } catch (e) {
                 console.error("Load home content failed:", e);
-                setSaveErr(e?.message || "Failed to load.");
+                setSaveErr(getOperationErrorMessage(e, "Loading home content"));
             } finally {
                 setLoading(false);
             }
         };
 
-        if (userLoaded) run();
-    }, [userLoaded]);
+        if (!adminLoading && isAdmin) run();
+    }, [adminLoading, isAdmin]);
 
     const saveAll = async () => {
-        if (!isAdmin) return alert("Not authorized.");
+        if (!isAdmin) {
+            setSaveErr("This account is not authorized to save homepage content.");
+            return;
+        }
         if (!navigator.onLine) {
             setSaveErr("You look offline. Check internet, then try again.");
             return;
@@ -145,20 +140,18 @@ export default function AdminHomeEditor() {
             setTimeout(() => setSaveOk(false), 2500);
         } catch (e) {
             console.error("Save failed:", e);
-            setSaveErr(e?.message || "Save failed. Check console.");
+            setSaveErr(getOperationErrorMessage(e, "Saving home content"));
         } finally {
             setSaving(false);
         }
-        console.log("Saving to Firestore:", {
-            heroImages,
-            services,
-            project: import.meta.env.VITE_FIREBASE_PROJECT_ID
-        });
     };
 
     // HERO handlers
     const addHeroImage = async () => {
-        if (!isAdmin) return alert("Not authorized.");
+        if (!isAdmin) {
+            setSaveErr("This account is not authorized to upload images.");
+            return;
+        }
         const file = heroFileRef.current?.files?.[0];
         if (!file) return alert("Choose a hero image first.");
 
@@ -183,7 +176,7 @@ export default function AdminHomeEditor() {
             markDirty();
         } catch (e) {
             console.error(e);
-            setSaveErr(e?.message || "Hero upload failed.");
+            setSaveErr(getOperationErrorMessage(e, "Hero image upload"));
         } finally {
             setSaving(false);
         }
@@ -235,7 +228,10 @@ export default function AdminHomeEditor() {
     };
 
     const uploadServiceImage = async (idx, file) => {
-        if (!isAdmin) return alert("Not authorized.");
+        if (!isAdmin) {
+            setSaveErr("This account is not authorized to upload images.");
+            return;
+        }
         if (!file) return;
 
         try {
@@ -253,7 +249,7 @@ export default function AdminHomeEditor() {
             updateService(idx, { image: url });
         } catch (e) {
             console.error(e);
-            setSaveErr(e?.message || "Service image upload failed.");
+            setSaveErr(getOperationErrorMessage(e, "Service image upload"));
         } finally {
             setSaving(false);
         }
@@ -269,7 +265,15 @@ export default function AdminHomeEditor() {
                     ? "Save Changes"
                     : "Up to date";
 
-    if (loading) {
+    if (adminError) {
+        return (
+            <div className="min-h-screen flex items-center justify-center text-red-300">
+                {adminError}
+            </div>
+        );
+    }
+
+    if (adminLoading || loading) {
         return (
             <div className="min-h-screen flex items-center justify-center text-white">
                 Loading Home editor...

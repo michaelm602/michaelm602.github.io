@@ -1,17 +1,25 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
     // Stripe orders are created and updated only by trusted Admin SDK functions.
     // Browser clients cannot read customer/payment data or mutate any order field.
     match /orders/{document=**} {
       allow read, write: if false;
     }
 
-    // Preserve the existing public-read/client-write-deny policy everywhere else.
-    // The collection check prevents this broader rule from overriding /orders.
-    match /{collection}/{document=**} {
-      allow read: if collection != "orders";
-      allow write: if false;
+    // The homepage reads this document publicly. Only claimed admins may edit it.
+    match /siteContent/home {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // No other Firestore document is browser-accessible unless explicitly added above.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

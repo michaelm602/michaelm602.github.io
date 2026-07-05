@@ -1,10 +1,39 @@
 rules_version = '2';
 
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Homepage editor uploads and public homepage assets.
+    match /site/home/{allPaths=**} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Public gallery/storefront folders managed by the legacy admin uploader.
+    match /airbrush/{allPaths=**} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /photoshop/{allPaths=**} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /tattoos/{allPaths=**} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /portfolio-videos/{allPaths=**} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Everything else remains private.
     match /{allPaths=**} {
       allow read, write: if false;
     }
