@@ -31,8 +31,11 @@ test("shop inventory remains a source catalog rather than an invented Firebase c
   assert.doesNotMatch(productCatalog, /collection\(|onSnapshot\(|getDocs\(/);
 });
 
-test("public portfolio routes include airbrush, Photoshop, and tattoos", () => {
-  for (const route of ["/portfolio", "/portfolio/airbrush", "/portfolio/photoshop", "/portfolio/tattoos"]) {
+test("public portfolio routes keep hidden tattoo work behind a visibility guard", () => {
+  for (const route of ["/portfolio", "/portfolio/airbrush", "/portfolio/photoshop"]) {
     assert.match(app, new RegExp(`path="${route.replaceAll("/", "\\/")}"`));
   }
+  assert.match(app, /path="\/portfolio\/tattoos"/);
+  assert.match(app, /isPortfolioCategoryVisible\("tattoos"\)/);
+  assert.match(app, /<Navigate to="\/portfolio" replace \/>/);
 });

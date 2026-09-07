@@ -22,11 +22,10 @@ test("build output includes direct-entry admin routes", () => {
     "success",
     "cancel",
     "portfolio",
-    "portfolio/airbrush",
-    "portfolio/photoshop",
-    "portfolio/tattoos",
     "gallery",
   ]) {
     assert.match(routeCopies, new RegExp(`"${route.replace("/", "\\/")}"`));
   }
+  assert.match(routeCopies, /getVisiblePortfolioCategories/);
+  assert.doesNotMatch(routeCopies, /"portfolio\/tattoos"/);
 });

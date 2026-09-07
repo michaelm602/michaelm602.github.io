@@ -8,6 +8,7 @@ import { copyFileSync, mkdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { getAllProducts } from "../src/data/products.js";
+import { getVisiblePortfolioCategories } from "../src/config/portfolioCategories.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dist      = resolve(__dirname, "../dist");
@@ -20,9 +21,7 @@ const routes = [
   "login",
   "upload",
   "portfolio",
-  "portfolio/airbrush",
-  "portfolio/photoshop",
-  "portfolio/tattoos",
+  ...getVisiblePortfolioCategories().map(({ path }) => path.replace(/^\//, "")),
   "gallery",
   "contact",
   "shop",

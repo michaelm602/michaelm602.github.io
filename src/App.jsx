@@ -17,6 +17,7 @@ import AdminHomeEditor from "./pages/AdminHomeEditor";
 import AdminDashboard from "./pages/AdminDashboard";
 import UploadImage from "./Components/UploadImage";
 import ScrollToTop from "./Components/ScrollToTop";
+import { isPortfolioCategoryVisible } from "./config/portfolioCategories";
 
 import ShopPage from "./pages/ShopPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -24,6 +25,7 @@ import Success from "./pages/Success";
 import Cancel from "./pages/Cancel";
 
 function App() {
+  const tattoosVisible = isPortfolioCategoryVisible("tattoos");
 
   return (
     <Router>
@@ -37,7 +39,10 @@ function App() {
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/portfolio/airbrush" element={<Airbrush />} />
             <Route path="/portfolio/photoshop" element={<Photoshop />} />
-            <Route path="/portfolio/tattoos" element={<Tattoos />} />
+            <Route
+              path="/portfolio/tattoos"
+              element={tattoosVisible ? <Tattoos /> : <Navigate to="/portfolio" replace />}
+            />
             <Route path="/shop" element={<ShopPage />} />
             <Route path="/shop/:slug" element={<ProductDetailPage />} />
             <Route path="/contact" element={<Contact />} />
