@@ -6,6 +6,7 @@ import {
     getAllProducts,
     getDefaultProductSize,
     getPrimaryProductImage,
+    getProductAvailabilityLabel,
     getProductMinPrice,
     getProductPrice,
     getProductSizeOptions,
@@ -137,6 +138,11 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                                     )}
                                     <h2 className="text-xl font-semibold mb-1">{product.title}</h2>
                                 </Link>
+                                {getProductAvailabilityLabel(product) && (
+                                    <p className="text-sm text-amber-200 mb-2">
+                                        {getProductAvailabilityLabel(product)}
+                                    </p>
+                                )}
                                 <p className="text-xs text-zinc-400 mb-1">
                                     {product.shortDescription || product.description}
                                 </p>
@@ -144,7 +150,7 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                                     From ${getProductMinPrice(product)}
                                 </p>
 
-                                <label className="block mb-1 text-sm">Size:</label>
+                                <label className="block mb-1 text-sm">{product.printsAvailable ? "Print size:" : "Size:"}</label>
                                 <select
                                     className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
                                     onChange={(e) => handleSizeChange(product.id, e.target.value)}
@@ -200,7 +206,7 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                                     }}
                                     disabled={!selectedSize}
                                 >
-                                    Own This Piece
+                                    {product.printsAvailable ? "Add Print to Cart" : "Own This Piece"}
                                 </button>
                             </div>
                         );

@@ -7,6 +7,7 @@ import { useCart } from "../Components/CartContext";
 import {
   getAllProducts,
   getPrimaryProductImage,
+  getProductAvailabilityLabel,
   getProductBySlug,
   getProductMinPrice,
   getProductPrice,
@@ -473,7 +474,7 @@ export default function ProductDetailPage() {
               }}
             >
               <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: "#c89d61" }} />
-              Limited run - once it's gone, it's gone
+              {getProductAvailabilityLabel(product) || "Limited run - once it's gone, it's gone"}
             </div>
 
             <button
@@ -495,7 +496,7 @@ export default function ProductDetailPage() {
                 width: "100%",
               }}
             >
-              Claim This Artwork
+              {product.printsAvailable ? "Add Print to Cart" : "Claim This Artwork"}
             </button>
 
             <div
@@ -546,7 +547,7 @@ export default function ProductDetailPage() {
                   marginBottom: "10px",
                 }}
               >
-                Choose Size
+                {product.printsAvailable ? "Choose Print Size" : "Choose Size"}
               </div>
 
               <div
@@ -733,6 +734,11 @@ export default function ProductDetailPage() {
                     )}
                   </div>
                   <div style={{ fontSize: "16px", color: "#ffffff", fontWeight: 500 }}>{related.title}</div>
+                  {getProductAvailabilityLabel(related) && (
+                    <div style={{ fontSize: "13px", color: "#dcc6a3" }}>
+                      {getProductAvailabilityLabel(related)}
+                    </div>
+                  )}
                   <div style={{ fontSize: "15px", color: "#d4d4d8" }}>From ${getProductMinPrice(related)}</div>
                   <div
                     style={{
@@ -930,7 +936,7 @@ export default function ProductDetailPage() {
                 cursor: "pointer",
               }}
             >
-              Claim This Artwork
+              {product.printsAvailable ? "Add Print to Cart" : "Claim This Artwork"}
             </button>
           </div>
         </div>

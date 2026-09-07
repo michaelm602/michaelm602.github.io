@@ -303,9 +303,12 @@ export const products = [
     id: "overwhelmed",
     slug: "overwhelmed",
     title: "Overwhelmed",
-    description: "The moment before breaking - and the beauty that lives there.",
+    description: "The moment before breaking - and the beauty that lives there. The original 16x20 canvas has been sold. Made-to-order prints are available in the sizes below.",
     shortDescription: "Uncomfortable. Honest. Hard to look away.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
+    // Availability of the original is separate from the purchasable print sizes.
+    original: { size: "16x20", status: "sold" },
+    printsAvailable: true,
     tags: ["airbrush", "emotion", "portrait", "surreal"],
     featured: true,
     images: buildImagePaths(
@@ -321,7 +324,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Overwhelmed - Airbrush Artwork Print | Likwit Blvd",
-      description: "Overwhelmed original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Overwhelmed by Likwit Blvd. Original 16x20 canvas sold. Prints available in four sizes, hand-finished and made to order.",
     },
     relatedProductIds: ["lost-in-thought", "fractured-perception", "alter-ego"],
     status: "active",
@@ -464,6 +467,13 @@ export function resolveCartItemProduct(cartItem) {
 
 export function getPrimaryProductImage(product) {
   return product?.images?.[0] || null;
+}
+
+export function getProductAvailabilityLabel(product) {
+  const labels = [];
+  if (product?.original?.status === "sold") labels.push("Original sold");
+  if (product?.printsAvailable === true) labels.push("Prints available");
+  return labels.join(" · ");
 }
 
 export function getProductSizeOptions(product) {
