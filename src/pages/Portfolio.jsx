@@ -10,9 +10,9 @@ export default function Portfolio() {
       <h2 className="text-3xl md:text-4xl font-bold mb-4">Portfolio</h2>
       <p className="text-lg mb-8">Select a category to see the work:</p>
 
-      <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 animate-fadeSlideUp">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-stretch justify-center gap-8 animate-fadeSlideUp">
         {categories.map((category) => (
-          <Link key={category.slug} to={category.path} className="group block bg-[#1c1c1c] p-6 rounded-xl shadow-md hover:bg-[#333] hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+          <Link key={category.slug} to={category.path} className="group flex w-full max-w-[500px] flex-[1_1_320px] flex-col bg-[#1c1c1c] p-6 rounded-xl shadow-md hover:bg-[#333] hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
             <img
               src={category.previewImage}
               alt={category.previewAlt}
