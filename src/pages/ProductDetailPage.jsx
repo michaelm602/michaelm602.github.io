@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getDownloadURL, ref } from "firebase/storage";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import { useCart } from "../Components/CartContext";
@@ -64,7 +63,7 @@ export default function ProductDetailPage() {
     const title = product.seo?.title || `${product.title} - Airbrush Artwork Print | Likwit Blvd`;
     const description =
       product.seo?.description ||
-      `${product.title} original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.`;
+      `${product.title} print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.`;
 
     document.title = title;
 
@@ -215,10 +214,10 @@ export default function ProductDetailPage() {
   };
 
   const trustPoints = [
-    "Made to order - never mass produced",
-    "Crafted individually with care",
+    "Made to order - printed after purchase",
+    "Fulfilled by a professional print partner",
     "Secure checkout with Stripe & PayPal",
-    "Ships in 7-10 days",
+    "Production and shipping times may vary",
   ];
 
   return (
@@ -474,7 +473,7 @@ export default function ProductDetailPage() {
               }}
             >
               <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: "#c89d61" }} />
-              {getProductAvailabilityLabel(product) || "Limited run - once it's gone, it's gone"}
+              {getProductAvailabilityLabel(product) || "Made-to-order print"}
             </div>
 
             <button
@@ -496,8 +495,27 @@ export default function ProductDetailPage() {
                 width: "100%",
               }}
             >
-              {product.printsAvailable ? "Add Print to Cart" : "Claim This Artwork"}
+              Add Print to Cart
             </button>
+            <p className="text-sm text-zinc-300 mb-3 leading-relaxed">
+              This listing is for a made-to-order print, not the original canvas.
+            </p>
+            <Link
+              to={product.original?.status === "sold"
+                ? `/contact?intent=print&piece=${encodeURIComponent(product.slug)}`
+                : `/contact?intent=product&product=${encodeURIComponent(product.slug)}`}
+              className="text-sm text-zinc-200 underline underline-offset-4 mb-5"
+            >
+              Ask About This Print
+            </Link>
+            <p className="text-sm text-zinc-300 mb-3 leading-relaxed">
+              After your payment, I submit your print order to a professional print production partner
+              using your shipping information. The partner produces and fulfills your print order.
+            </p>
+            {/* TODO(owner): Confirm print material and framing options before adding specifics. */}
+            <p className="text-sm text-zinc-400 mb-5 leading-relaxed">
+              Contact me before ordering with any print or shipping questions.
+            </p>
 
             <div
               style={{
@@ -547,7 +565,7 @@ export default function ProductDetailPage() {
                   marginBottom: "10px",
                 }}
               >
-                {product.printsAvailable ? "Choose Print Size" : "Choose Size"}
+                Print size
               </div>
 
               <div
@@ -591,7 +609,7 @@ export default function ProductDetailPage() {
 
               {sizeError && (
                 <div style={{ fontSize: "11px", color: "#9d5c5c", marginTop: "8px", letterSpacing: "0.4px" }}>
-                  Please select a size
+                  Please select a print size
                 </div>
               )}
             </div>
@@ -752,7 +770,7 @@ export default function ProductDetailPage() {
                       transition: "color 0.2s ease, border-color 0.2s ease",
                     }}
                   >
-                    View Piece -
+                    View Print -
                   </div>
                 </Link>
               ))}
@@ -804,7 +822,7 @@ export default function ProductDetailPage() {
             Every custom piece starts with a conversation. Bring the concept - I'll bring it to life.
           </div>
           <Link
-            to="/contact"
+            to="/contact?intent=custom-art"
             style={{
               display: "inline-block",
               border: "1px solid #333",
@@ -817,7 +835,7 @@ export default function ProductDetailPage() {
               textDecoration: "none",
             }}
           >
-            Start a Commission
+            Request Custom Artwork
           </Link>
         </div>
       </div>
@@ -903,7 +921,7 @@ export default function ProductDetailPage() {
                   marginBottom: "4px",
                 }}
               >
-                {selectedSize ? selectedSize : "Select size"}
+                {selectedSize ? selectedSize : "Select print size"}
               </div>
               <div
                 style={{
@@ -913,7 +931,7 @@ export default function ProductDetailPage() {
                   letterSpacing: "-0.4px",
                 }}
               >
-                {selectedPrice != null ? `$${selectedPrice}` : "Select size"}
+                {selectedPrice != null ? `$${selectedPrice}` : "Select print size"}
               </div>
             </div>
 
@@ -936,7 +954,7 @@ export default function ProductDetailPage() {
                 cursor: "pointer",
               }}
             >
-              {product.printsAvailable ? "Add Print to Cart" : "Claim This Artwork"}
+              Add Print to Cart
             </button>
           </div>
         </div>

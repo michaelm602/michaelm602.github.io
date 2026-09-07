@@ -137,28 +137,6 @@ export default function Home() {
     return () => observer.disconnect();
   }, []);
 
-  // Scroll to services
-  useEffect(() => {
-    const shouldScroll = sessionStorage.getItem("scrollToServices");
-    if (shouldScroll) {
-      sessionStorage.removeItem("scrollToServices");
-
-      const scrollToServices = () => {
-        const section = document.getElementById("services");
-        if (section) {
-          const yOffset = -100;
-          const y =
-            section.getBoundingClientRect().top +
-            window.scrollY +
-            yOffset;
-          window.scrollTo({ top: y, behavior: "smooth" });
-        }
-      };
-
-      requestAnimationFrame(() => requestAnimationFrame(scrollToServices));
-    }
-  }, []);
-
   return (
     <div className="relative z-0">
       {/* HERO SECTION */}
@@ -171,15 +149,15 @@ export default function Home() {
         <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-0 text-center text-white">
           <div className="sm:px-6">
             <p className="text-sm font-semibold uppercase tracking-widest text-zinc-300 mb-1">Made to Order</p>
-            <p className="text-xs text-zinc-500">Nothing sits in a warehouse. Every piece is made when you buy it.</p>
+            <p className="text-xs text-zinc-500">Prints are produced after purchase.</p>
           </div>
           <div className="sm:px-6 sm:border-x sm:border-white/10">
-            <p className="text-sm font-semibold uppercase tracking-widest text-zinc-300 mb-1">Hand-Finished</p>
-            <p className="text-xs text-zinc-500">Every print is touched before it ships. No assembly line, no shortcuts.</p>
+            <p className="text-sm font-semibold uppercase tracking-widest text-zinc-300 mb-1">Professional Print Partner</p>
+            <p className="text-xs text-zinc-500">Print orders are fulfilled by a professional print partner. Production and shipping times may vary.</p>
           </div>
           <div className="sm:px-6">
             <p className="text-sm font-semibold uppercase tracking-widest text-zinc-300 mb-1">One Artist</p>
-            <p className="text-xs text-zinc-500">You're buying directly from the person who made it. That's the whole point.</p>
+            <p className="text-xs text-zinc-500">Order artwork through Likwit Blvd, directly from the artist.</p>
           </div>
         </div>
       </section>
@@ -190,10 +168,10 @@ export default function Home() {
         <Intro />
       </section>
 
-      {/* FEATURED PIECES */}
+      {/* WORK AND SERVICES */}
       <section id="services" className="relative z-10 px-5 sm:px-8 pt-8 sm:pt-10 pb-4">
         <h2 className="text-center text-xs uppercase tracking-widest text-zinc-500 mb-8">
-          Featured Pieces
+          Explore My Work
         </h2>
         <div className="flex flex-wrap justify-center gap-x-10 lg:gap-x-16 gap-y-10">
           {services.map((s, i) => (
@@ -222,15 +200,15 @@ export default function Home() {
             Bring your concept — a vision, a memory, a feeling you can't describe. I'll build it from scratch, made specifically for you.
           </p>
           <Link
-            to="/contact"
+            to="/contact?intent=custom-art"
             className="inline-flex justify-center rounded-sm bg-white px-7 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-black transition duration-200 hover:-translate-y-0.5 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
-            Request Custom Piece
+            Request Custom Artwork
           </Link>
         </div>
 
         <div className="relative z-10 text-center">
-          <p className="text-zinc-500 text-xs uppercase tracking-widest mb-4">Ready to own something real?</p>
+          <p className="text-zinc-500 text-xs uppercase tracking-widest mb-4">Find a print for your space</p>
           <CTA />
         </div>
       </section>

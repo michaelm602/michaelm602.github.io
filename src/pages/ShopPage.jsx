@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../Components/CartContext";
 import ShopGallery from "../Components/ShopGallery";
 import { toast } from "react-hot-toast";
@@ -68,10 +68,19 @@ export default function ShopPage() {
 
             {/* Foreground content */}
             <div className="relative z-10 text-center">
-                <h1 className="text-4xl font-bold mb-3">Shop</h1>
-                <p className="text-zinc-400 text-sm mb-10 max-w-md mx-auto leading-relaxed">
-                    Every print is made to order — hand-finished, limited in run.
-                    No reprints. No restocks. Once it's gone, it's gone.
+                <h1 className="text-4xl font-bold mb-3">Shop Prints</h1>
+                <p className="text-zinc-300 text-sm mb-4 max-w-xl mx-auto leading-relaxed">
+                    You’re shopping made-to-order prints of my artwork. An original canvas is only
+                    for sale when explicitly listed; sold originals can still have prints available.
+                </p>
+                <p className="text-zinc-300 text-sm mb-4 max-w-xl mx-auto leading-relaxed">
+                    After payment, I submit your print order to a professional print production partner
+                    using your shipping information. Prints are produced after purchase and fulfilled
+                    by the partner. Production and shipping times may vary.
+                </p>
+                <p className="text-zinc-400 text-sm mb-10 max-w-xl mx-auto leading-relaxed">
+                    Questions before ordering? <Link to="/contact?intent=print" className="underline underline-offset-4 text-zinc-200">Contact the artist</Link> to
+                    discuss print details or shipping questions.
                 </p>
                 <ShopGallery onAddToCart={() => setIsCartOpen(true)} />
             </div>

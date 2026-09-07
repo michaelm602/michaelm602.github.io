@@ -10,7 +10,7 @@ export default function Portfolio() {
       <div className="grid gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 animate-fadeSlideUp">
         <Link to="/portfolio/airbrush" className="group block bg-[#1c1c1c] p-6 rounded-xl shadow-md hover:bg-[#333] hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
           <img
-            src="https://firebasestorage.googleapis.com/v0/b/airbrushnink-9f735.firebasestorage.app/o/airbrush%2FAlterEgo.jpg?alt=media&token=00eff53c-5a88-4497-8e44-b497902e6ec0"
+            src="/hero-images/iwata.webp"
             alt="Airbrush preview"
             className="h-48 w-full object-cover rounded-md mb-4"
           />
@@ -32,8 +32,13 @@ export default function Portfolio() {
             alt="Tattoos preview"
             className="h-48 w-full object-cover rounded-md mb-4"
           />
-          <span className="block text-xl font-medium text-white group-hover:text-[#ccc]">Tattoos</span>
+          <span className="block text-xl font-medium text-white group-hover:text-[#ccc]">Tattoos · Portfolio only</span>
         </Link>
+      </div>
+      <div className="mt-10 flex flex-wrap justify-center gap-6 text-sm">
+        <Link to="/contact?intent=airbrush" className="underline underline-offset-4">Ask About Airbrush Work</Link>
+        <Link to="/contact?intent=photoshop" className="underline underline-offset-4">Request Design Work</Link>
+        <Link to="/contact?intent=custom-art" className="underline underline-offset-4">Request Custom Artwork</Link>
       </div>
     </div>
   );

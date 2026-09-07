@@ -126,7 +126,7 @@ export default function Hero({ images = [], intervalMs = 3000 }) {
 
       <div className="relative z-10 flex flex-col items-center justify-center h-full text-white text-center px-5 pt-3">
         <p className="mb-4 text-[0.68rem] sm:text-xs uppercase tracking-[0.28em] text-white/65">
-          Hand-finished prints and custom work
+          Made-to-order prints and custom work
         </p>
 
         <h1
@@ -140,7 +140,7 @@ export default function Hero({ images = [], intervalMs = 3000 }) {
           className="text-base sm:text-lg md:text-xl max-w-md sm:max-w-xl mb-7 sm:mb-9 text-white/80 leading-relaxed"
           style={{ textShadow: "0 2px 18px rgba(0,0,0,0.58)" }}
         >
-          Hand-finished airbrush and ink work - no mass production, no shortcuts. Every piece ships once.
+          Made-to-order prints of my airbrush artwork, plus custom artwork created around your idea.
         </p>
 
         <div className="flex w-full max-w-xs flex-col sm:max-w-none sm:w-auto sm:flex-row gap-3 sm:gap-4">
@@ -148,16 +148,19 @@ export default function Hero({ images = [], intervalMs = 3000 }) {
             to="/shop"
             className="inline-flex justify-center rounded-sm bg-white px-7 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-black shadow-[0_14px_40px_rgba(0,0,0,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
-            Shop Artwork
+            Shop Prints
           </Link>
 
           <Link
-            to="/contact"
+            to="/contact?intent=custom-art"
             className="inline-flex justify-center rounded-sm border border-white/35 bg-black/10 px-7 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:border-white/60 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
-            Request Custom Piece
+            Request Custom Artwork
           </Link>
         </div>
+        <Link to="/portfolio" className="mt-5 text-sm text-white/80 underline underline-offset-4 hover:text-white">
+          View Portfolio
+        </Link>
       </div>
     </section>
   );

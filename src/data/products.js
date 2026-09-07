@@ -35,7 +35,7 @@ export const products = [
     title: "Adoration in the lights darkness",
     description: "Light finds its way through even the deepest dark - this piece holds that tension.",
     shortDescription: "For the ones who feel everything.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "faith", "shadow", "portrait"],
     featured: true,
     images: buildImagePaths(
@@ -51,7 +51,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Adoration in the lights darkness - Airbrush Artwork Print | Likwit Blvd",
-      description: "Adoration in the lights darkness original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Adoration in the lights darkness print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["walk-in-faith", "blind-faith", "harmony-in-shadows"],
     status: "active",
@@ -62,7 +62,7 @@ export const products = [
     title: "Alter Ego",
     description: "Two versions of the same person, neither one wrong - just one you show and one you carry.",
     shortDescription: "A piece people stop and stare at. Then ask about.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "identity", "portrait", "surreal"],
     featured: true,
     images: buildImagePaths(
@@ -78,7 +78,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Alter Ego - Airbrush Artwork Print | Likwit Blvd",
-      description: "Alter Ego original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Alter Ego print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["fractured-perception", "lost-in-thought", "overwhelmed"],
     status: "active",
@@ -89,7 +89,7 @@ export const products = [
     title: "Blind Faith",
     description: "Surrender isn't weakness - this piece captures the courage it takes to let go and trust.",
     shortDescription: "For the ones who keep going without a guarantee.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "faith", "portrait", "emotion"],
     featured: false,
     images: buildImagePaths(
@@ -105,7 +105,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Blind Faith - Airbrush Artwork Print | Likwit Blvd",
-      description: "Blind Faith original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Blind Faith print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["walk-in-faith", "adoration-in-the-lights-darkness", "serenity"],
     status: "active",
@@ -116,7 +116,7 @@ export const products = [
     title: "Feathered Serenity",
     description: "Stillness made visible. Every feather placed with intention.",
     shortDescription: "Soft, but it commands the room.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "serenity", "nature", "light"],
     featured: false,
     images: buildImagePaths(
@@ -132,7 +132,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Feathered Serenity - Airbrush Artwork Print | Likwit Blvd",
-      description: "Feathered Serenity original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Feathered Serenity print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["serenity", "harmony-in-shadows", "veiled-whispers"],
     status: "active",
@@ -143,7 +143,7 @@ export const products = [
     title: "Fractured Perception",
     description: "Reality isn't one thing - this piece explores the cracks between versions of it.",
     shortDescription: "The more you look, the more you see.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "surreal", "identity", "portrait"],
     featured: true,
     images: buildImagePaths(
@@ -159,7 +159,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Fractured Perception - Airbrush Artwork Print | Likwit Blvd",
-      description: "Fractured Perception original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Fractured Perception print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["alter-ego", "overwhelmed", "lost-in-thought"],
     status: "active",
@@ -170,7 +170,7 @@ export const products = [
     title: "Harmony in Shadows",
     description: "Balance doesn't always live in the light - sometimes it hides where the eye doesn't go first.",
     shortDescription: "A slow burn. The kind that stays with you.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "shadow", "serenity", "portrait"],
     featured: false,
     images: buildImagePaths(
@@ -186,7 +186,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Harmony in Shadows - Airbrush Artwork Print | Likwit Blvd",
-      description: "Harmony in Shadows original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Harmony in Shadows print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["feathered-serenity", "veiled-whispers", "illuminated-void"],
     status: "active",
@@ -197,7 +197,7 @@ export const products = [
     title: "Illuminated Void",
     description: "Emptiness rendered luminous. A paradox you can hang on a wall.",
     shortDescription: "It fills a room without trying.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "shadow", "light", "surreal"],
     featured: false,
     images: buildImagePaths(
@@ -213,7 +213,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Illuminated Void - Airbrush Artwork Print | Likwit Blvd",
-      description: "Illuminated Void original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Illuminated Void print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["harmony-in-shadows", "veiled-whispers", "serenity"],
     status: "active",
@@ -224,7 +224,7 @@ export const products = [
     title: "Lost in Thought",
     description: "Everyone's been there. This piece captures that exact place between presence and somewhere else.",
     shortDescription: "People recognize themselves in it.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "portrait", "emotion", "identity"],
     featured: false,
     images: buildImagePaths(
@@ -240,7 +240,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Lost in Thought - Airbrush Artwork Print | Likwit Blvd",
-      description: "Lost in Thought original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Lost in Thought print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["alter-ego", "overwhelmed", "fractured-perception"],
     status: "active",
@@ -251,7 +251,7 @@ export const products = [
     title: "Love is Love",
     description: "No conditions. No exceptions. Just the thing itself.",
     shortDescription: "Unapologetic. Exactly as it should be.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "love", "portrait", "statement"],
     featured: false,
     images: buildImagePaths(
@@ -267,7 +267,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Love is Love - Airbrush Artwork Print | Likwit Blvd",
-      description: "Love is Love original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Love is Love print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["adoration-in-the-lights-darkness", "serenity", "veiled-whispers"],
     status: "active",
@@ -278,7 +278,7 @@ export const products = [
     title: "Out for Fame",
     description: "Ambition made visible. Street energy, gallery presence.",
     shortDescription: "Built for walls that mean something.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "street", "portrait", "statement"],
     featured: false,
     images: buildImagePaths(
@@ -294,7 +294,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Out for Fame - Airbrush Artwork Print | Likwit Blvd",
-      description: "Out for Fame original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Out for Fame print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["spirit-of-the-knight", "love-is-love", "fractured-perception"],
     status: "active",
@@ -324,7 +324,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Overwhelmed - Airbrush Artwork Print | Likwit Blvd",
-      description: "Overwhelmed by Likwit Blvd. Original 16x20 canvas sold. Prints available in four sizes, hand-finished and made to order.",
+      description: "Overwhelmed by Likwit Blvd. Original 16x20 canvas sold. Prints available in four sizes, made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["lost-in-thought", "fractured-perception", "alter-ego"],
     status: "active",
@@ -335,7 +335,7 @@ export const products = [
     title: "Serenity",
     description: "Pure stillness. A piece that slows the room down.",
     shortDescription: "The quiet kind of powerful.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "serenity", "light", "portrait"],
     featured: false,
     images: buildImagePaths(
@@ -351,7 +351,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Serenity - Airbrush Artwork Print | Likwit Blvd",
-      description: "Serenity original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Serenity print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["feathered-serenity", "blind-faith", "walk-in-faith"],
     status: "active",
@@ -362,7 +362,7 @@ export const products = [
     title: "Spirit of the Knight",
     description: "Valor without vanity. A piece about what it means to stand for something.",
     shortDescription: "Commands attention the moment it's on the wall.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "valor", "portrait", "statement"],
     featured: false,
     images: buildImagePaths(
@@ -378,7 +378,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Spirit of the Knight - Airbrush Artwork Print | Likwit Blvd",
-      description: "Spirit of the Knight original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Spirit of the Knight print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["out-for-fame", "veiled-whispers", "harmony-in-shadows"],
     status: "active",
@@ -389,7 +389,7 @@ export const products = [
     title: "Veiled Whispers",
     description: "Secrets held in layers of shadow and light. You won't catch everything on first look.",
     shortDescription: "The kind that rewards close attention.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "shadow", "portrait", "surreal"],
     featured: false,
     images: buildImagePaths(
@@ -405,7 +405,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Veiled Whispers - Airbrush Artwork Print | Likwit Blvd",
-      description: "Veiled Whispers original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Veiled Whispers print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["harmony-in-shadows", "illuminated-void", "feathered-serenity"],
     status: "active",
@@ -416,7 +416,7 @@ export const products = [
     title: "Walk in Faith",
     description: "Forward, even when the path isn't clear. This piece is for that.",
     shortDescription: "People put it somewhere they see every morning.",
-    category: "Airbrush · Original Print",
+    category: "Airbrush · Print",
     tags: ["airbrush", "faith", "serenity", "portrait"],
     featured: true,
     images: buildImagePaths(
@@ -432,7 +432,7 @@ export const products = [
     defaultSize: "16x20",
     seo: {
       title: "Walk in Faith - Airbrush Artwork Print | Likwit Blvd",
-      description: "Walk in Faith original airbrush artwork print by Likwit Blvd. Hand-finished and made to order.",
+      description: "Walk in Faith print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.",
     },
     relatedProductIds: ["blind-faith", "adoration-in-the-lights-darkness", "serenity"],
     status: "active",

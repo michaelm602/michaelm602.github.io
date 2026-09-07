@@ -1,4 +1,4 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Menu, X, ShoppingCart } from "lucide-react";
 import { FaFacebookF, FaInstagram, FaTiktok, FaEnvelope } from "react-icons/fa";
@@ -15,7 +15,6 @@ export default function Navbar() {
 
   const { cartItems } = useCart();
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Open cart immediately via window event (same-page add-to-cart)
   useEffect(() => {
@@ -30,18 +29,6 @@ export default function Navbar() {
   const goTo = (path) => {
     navigate(path);
     closeMenu();
-  };
-
-  const goToServices = () => {
-    if (location.pathname === "/") {
-      const el = document.getElementById("services");
-      if (el) el.scrollIntoView({ behavior: "smooth" });
-      closeMenu();
-    } else {
-      sessionStorage.setItem("scrollToServices", "true");
-      navigate("/");
-      closeMenu();
-    }
   };
 
   const handleLogout = async () => {
@@ -74,9 +61,9 @@ export default function Navbar() {
             </li>
 
             <li className="flex items-center relative before:content-[''] before:inline-block before:w-px before:h-4 before:bg-white before:mx-3">
-              <button onClick={goToServices} className="text-[#ccc] hover:text-white">
+              <Link to="/portfolio" onClick={closeMenu} className="text-[#ccc] hover:text-white">
                 Portfolio
-              </button>
+              </Link>
             </li>
 
             <li className="flex items-center relative before:content-[''] before:inline-block before:w-px before:h-4 before:bg-white before:mx-3">
@@ -155,9 +142,9 @@ export default function Navbar() {
             Home
           </button>
 
-          <button onClick={goToServices} className="hover:text-[#ccc] transition-colors">
+          <Link to="/portfolio" onClick={closeMenu} className="hover:text-[#ccc] transition-colors">
             Portfolio
-          </button>
+          </Link>
 
           <button
             onClick={() => goTo("/contact")}

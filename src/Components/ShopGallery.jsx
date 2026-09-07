@@ -150,13 +150,14 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                                     From ${getProductMinPrice(product)}
                                 </p>
 
-                                <label className="block mb-1 text-sm">{product.printsAvailable ? "Print size:" : "Size:"}</label>
+                                <label htmlFor={`print-size-${product.id}`} className="block mb-1 text-sm">Print size</label>
                                 <select
+                                    id={`print-size-${product.id}`}
                                     className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
                                     onChange={(e) => handleSizeChange(product.id, e.target.value)}
                                     value={selectedSize}
                                 >
-                                    <option value="">Select size</option>
+                                    <option value="">Select print size</option>
                                     {sizeOptions.map((size) => (
                                         <option key={size.label} value={size.label}>
                                             {size.label} - ${size.price}
@@ -164,8 +165,9 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                                     ))}
                                 </select>
 
-                                <label className="block mb-1 text-sm">Quantity:</label>
+                                <label htmlFor={`print-quantity-${product.id}`} className="block mb-1 text-sm">Quantity:</label>
                                 <select
+                                    id={`print-quantity-${product.id}`}
                                     className="w-full p-2 mb-3 rounded bg-zinc-700 text-white"
                                     onChange={(e) => handleQuantityChange(product.id, e.target.value)}
                                     value={selectedQty}
@@ -206,8 +208,16 @@ export default function ShopGallery({ initialFolder = "airbrush" }) {
                                     }}
                                     disabled={!selectedSize}
                                 >
-                                    {product.printsAvailable ? "Add Print to Cart" : "Own This Piece"}
+                                    Add Print to Cart
                                 </button>
+                                <Link
+                                    to={product.original?.status === "sold"
+                                        ? `/contact?intent=print&piece=${encodeURIComponent(product.slug)}`
+                                        : `/contact?intent=product&product=${encodeURIComponent(product.slug)}`}
+                                    className="mt-4 text-sm text-zinc-200 underline underline-offset-4 text-center"
+                                >
+                                    Ask About This Print
+                                </Link>
                             </div>
                         );
                     })
