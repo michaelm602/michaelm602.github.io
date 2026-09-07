@@ -7,6 +7,11 @@ import {
 } from "../data/products";
 import usePayPalScript from "../utils/usePayPalScript";
 import { buildOrderItems, saveOrderToFirestore } from "../utils/orderUtils";
+import {
+    PRINT_CHECKOUT_ACKNOWLEDGEMENT,
+    PRINT_SALES_CONTACT_EMAIL,
+    startAcknowledgedPrintCheckout,
+} from "../utils/printCheckoutPolicy";
 import emailjs from "@emailjs/browser";
 import toast from "react-hot-toast";
 
@@ -14,6 +19,8 @@ export default function CartDrawer({ isOpen, onClose }) {
     const { cartItems, removeFromCart, clearCart, updateCartItem } = useCart();
     const [isEditing, setIsEditing] = useState(false);
     const [isPayPalReady, setIsPayPalReady] = useState(false);
+    const [acknowledgedCartSignature, setAcknowledgedCartSignature] = useState(null);
+    const [acknowledgementError, setAcknowledgementError] = useState("");
 
     const PAYPAL_CLIENT_ID =
         "AU5aAM3bPf_1lmA--7fuKSvlkyW5imXLRM4a2be_xgyiv4mYJU14v_KJviRqwy67-p5uNjchLtHurRg4";
@@ -21,6 +28,7 @@ export default function CartDrawer({ isOpen, onClose }) {
     usePayPalScript(PAYPAL_CLIENT_ID, () => setIsPayPalReady(true));
 
     const paypalRenderedRef = useRef(false);
+    const acknowledgedCartSignatureRef = useRef(null);
 
     const total = useMemo(
         () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -39,6 +47,9 @@ export default function CartDrawer({ isOpen, onClose }) {
             }))
         );
     }, [cartItems]);
+
+    const policyAcknowledged =
+        cartItems.length > 0 && acknowledgedCartSignature === cartSignature;
 
     useEffect(() => {
         if (!isOpen) return;
@@ -62,6 +73,21 @@ export default function CartDrawer({ isOpen, onClose }) {
         try {
             window.paypal
                 .Buttons({
+                    onClick: async (_data, actions) => {
+                        const result = await startAcknowledgedPrintCheckout(
+                            acknowledgedCartSignatureRef.current === cartSignature,
+                            () => actions.resolve()
+                        );
+
+                        if (!result.started) {
+                            setAcknowledgementError(result.error);
+                            return actions.reject();
+                        }
+
+                        setAcknowledgementError("");
+                        return undefined;
+                    },
+
                     createOrder: (data, actions) => {
                         return actions.order.create({
                             purchase_units: [
@@ -151,6 +177,9 @@ export default function CartDrawer({ isOpen, onClose }) {
 
                             toast.success("Payment successful! Order confirmation sent.");
                             clearCart();
+                            setAcknowledgedCartSignature(null);
+                            acknowledgedCartSignatureRef.current = null;
+                            setAcknowledgementError("");
                             onClose();
 
                             paypalRenderedRef.current = false;
@@ -187,7 +216,7 @@ export default function CartDrawer({ isOpen, onClose }) {
         cartItems,
     ]);
 
-    const handleStripeCheckout = async () => {
+    const startStripeCheckout = async () => {
         try {
             const items = cartItems.map((item) => ({
                 productId:
@@ -229,6 +258,31 @@ export default function CartDrawer({ isOpen, onClose }) {
         }
     };
 
+    const handleStripeCheckout = async () => {
+        const result = await startAcknowledgedPrintCheckout(
+            policyAcknowledged,
+            startStripeCheckout
+        );
+        setAcknowledgementError(result.error);
+    };
+
+    const handlePolicyAcknowledgement = (event) => {
+        const nextSignature = event.target.checked ? cartSignature : null;
+        setAcknowledgedCartSignature(nextSignature);
+        acknowledgedCartSignatureRef.current = nextSignature;
+
+        if (event.target.checked) {
+            setAcknowledgementError("");
+        }
+    };
+
+    const handleClose = () => {
+        setAcknowledgedCartSignature(null);
+        acknowledgedCartSignatureRef.current = null;
+        setAcknowledgementError("");
+        onClose();
+    };
+
     return (
         <div
             className={`fixed top-0 right-0 h-full w-80 flex flex-col
@@ -240,7 +294,7 @@ export default function CartDrawer({ isOpen, onClose }) {
         >
             <div className="flex items-center justify-between px-4 py-5 border-b border-gray-300 flex-shrink-0">
                 <h2 className="text-lg font-bold">Your Cart</h2>
-                <button onClick={onClose}>
+                <button onClick={handleClose} aria-label="Close cart">
                     <X size={24} />
                 </button>
             </div>
@@ -344,6 +398,46 @@ export default function CartDrawer({ isOpen, onClose }) {
                     <span className="font-semibold">Total:</span>
                     <span className="font-semibold">${total.toLocaleString()}</span>
                 </div>
+
+                {cartItems.length > 0 && (
+                    <div className="mb-3 rounded border border-white/15 bg-white/5 p-3">
+                        <p className="text-xs leading-relaxed text-zinc-300">
+                            Prints are made to order through a professional print partner. Sales are
+                            final once submitted to production. Questions or order problems?{" "}
+                            <a
+                                href={`mailto:${PRINT_SALES_CONTACT_EMAIL}`}
+                                className="text-white underline underline-offset-2"
+                            >
+                                {PRINT_SALES_CONTACT_EMAIL}
+                            </a>
+                        </p>
+                        <div className="mt-3 flex items-start gap-2">
+                            <input
+                                id="print-checkout-acknowledgement"
+                                type="checkbox"
+                                checked={policyAcknowledged}
+                                onChange={handlePolicyAcknowledgement}
+                                aria-describedby={acknowledgementError ? "print-checkout-acknowledgement-error" : undefined}
+                                className="mt-1 h-4 w-4 shrink-0 accent-white"
+                            />
+                            <label
+                                htmlFor="print-checkout-acknowledgement"
+                                className="text-xs leading-relaxed text-zinc-200"
+                            >
+                                {PRINT_CHECKOUT_ACKNOWLEDGEMENT}
+                            </label>
+                        </div>
+                        {acknowledgementError && (
+                            <p
+                                id="print-checkout-acknowledgement-error"
+                                role="alert"
+                                className="mt-2 text-xs leading-relaxed text-red-300"
+                            >
+                                {acknowledgementError}
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 <div className="flex justify-between gap-2">
                     <button

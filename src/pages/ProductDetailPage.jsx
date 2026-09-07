@@ -14,6 +14,7 @@ import {
   getRelatedProducts,
 } from "../data/products";
 import { resolveProductImageUrl } from "../utils/productImageUrls";
+import { PRINT_SALES_POLICY } from "../utils/printCheckoutPolicy";
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
@@ -508,14 +509,21 @@ export default function ProductDetailPage() {
             >
               Ask About This Print
             </Link>
-            <p className="text-sm text-zinc-300 mb-3 leading-relaxed">
-              After your payment, I submit your print order to a professional print production partner
-              using your shipping information. The partner produces and fulfills your print order.
-            </p>
+            <section
+              aria-labelledby="print-sales-policy-heading"
+              className="mb-5 border border-zinc-700 bg-zinc-900/70 p-4"
+            >
+              <h2
+                id="print-sales-policy-heading"
+                className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-100"
+              >
+                Made-to-order print sales policy
+              </h2>
+              <p className="text-sm leading-relaxed text-zinc-300">
+                {PRINT_SALES_POLICY}
+              </p>
+            </section>
             {/* TODO(owner): Confirm print material and framing options before adding specifics. */}
-            <p className="text-sm text-zinc-400 mb-5 leading-relaxed">
-              Contact me before ordering with any print or shipping questions.
-            </p>
 
             <div
               style={{

@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../Components/CartContext";
 import ShopGallery from "../Components/ShopGallery";
 import { toast } from "react-hot-toast";
+import { PRINT_SALES_CONTACT_EMAIL } from "../utils/printCheckoutPolicy";
 
 export default function ShopPage() {
     const location = useLocation();
@@ -73,15 +74,29 @@ export default function ShopPage() {
                     You’re shopping made-to-order prints of my artwork. An original canvas is only
                     for sale when explicitly listed; sold originals can still have prints available.
                 </p>
-                <p className="text-zinc-300 text-sm mb-4 max-w-xl mx-auto leading-relaxed">
-                    After payment, I submit your print order to a professional print production partner
-                    using your shipping information. Prints are produced after purchase and fulfilled
-                    by the partner. Production and shipping times may vary.
-                </p>
-                <p className="text-zinc-400 text-sm mb-10 max-w-xl mx-auto leading-relaxed">
-                    Questions before ordering? <Link to="/contact?intent=print" className="underline underline-offset-4 text-zinc-200">Contact the artist</Link> to
-                    discuss print details or shipping questions.
-                </p>
+                <section
+                    aria-labelledby="made-to-order-print-heading"
+                    className="mb-10 max-w-2xl mx-auto border border-white/15 bg-black/30 px-5 py-4"
+                >
+                    <h2
+                        id="made-to-order-print-heading"
+                        className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-white"
+                    >
+                        Made-to-order prints
+                    </h2>
+                    <p className="text-zinc-300 text-sm leading-relaxed">
+                        After payment, I submit your print order to a professional print production
+                        partner using your shipping information. The partner produces and fulfills
+                        the print, and production and shipping times may vary. Print sales are final
+                        once submitted to production.
+                    </p>
+                    <p className="mt-3 text-zinc-400 text-sm leading-relaxed">
+                        Questions before ordering? <Link to="/contact?intent=print" className="underline underline-offset-4 text-zinc-200">Contact the artist</Link> or email{" "}
+                        <a href={`mailto:${PRINT_SALES_CONTACT_EMAIL}`} className="underline underline-offset-4 text-zinc-200">
+                            {PRINT_SALES_CONTACT_EMAIL}
+                        </a>.
+                    </p>
+                </section>
                 <ShopGallery onAddToCart={() => setIsCartOpen(true)} />
             </div>
         </div>
