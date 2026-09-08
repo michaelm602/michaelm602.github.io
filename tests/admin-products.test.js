@@ -254,9 +254,9 @@ test("product manager uses explicit Firestore create and update operations witho
   assert.doesNotMatch(adminData, /deleteDoc|deleteField/);
 });
 
-test("storefront and checkout remain on their source catalogs", () => {
-  assert.match(storefront, /getAllProducts/);
-  assert.doesNotMatch(storefront, /shopProducts|getDocs|onSnapshot/);
+test("storefront uses the selected display adapter while checkout retains its source catalog", () => {
+  assert.match(storefront, /useStorefrontCatalog\("shop"\)/);
+  assert.doesNotMatch(storefront, /getAllProducts|getDocs|onSnapshot/);
   assert.match(checkout, /require\("\.\/stripeCatalog"\)/);
   assert.doesNotMatch(checkout, /require\("\.\/shopProductRepository"\)/);
 });

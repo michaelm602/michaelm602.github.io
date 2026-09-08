@@ -8,10 +8,17 @@ test("missing, unsupported, and inherited object names fall back to general", ()
   }
 });
 
-test("all Phase 1 intents survive query parsing", () => {
-  for (const intent of ["general", "custom-art", "print", "product", "airbrush", "photoshop"]) {
+test("all customer inquiry intents survive query parsing", () => {
+  for (const intent of ["general", "custom-art", "print", "product", "original", "airbrush", "photoshop"]) {
     assert.equal(parseContactContext(`?intent=${intent}`).intent, intent);
   }
+});
+
+test("original artwork inquiries retain live product context", () => {
+  const context = parseContactContext("?intent=original&product=adoration-in-the-lights-darkness&productName=Adoration%20Updated");
+  assert.equal(context.intent, "original");
+  assert.equal(context.product, "adoration-in-the-lights-darkness");
+  assert.equal(context.productTitle, "Adoration Updated");
 });
 
 test("product and sold artwork slugs resolve to catalog titles", () => {

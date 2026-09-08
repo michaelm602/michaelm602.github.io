@@ -471,9 +471,10 @@ export function getPrimaryProductImage(product) {
 
 export function getProductAvailabilityLabel(product) {
   const labels = [];
+  if (product?.original?.status === "available") labels.push("Original available");
   if (product?.original?.status === "sold") labels.push("Original sold");
   if (product?.printsAvailable === true) labels.push("Prints available");
-  return labels.join(" · ");
+  return labels.join(" | ");
 }
 
 export function getProductSizeOptions(product) {

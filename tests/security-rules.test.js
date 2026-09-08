@@ -12,9 +12,14 @@ test("Firestore keeps orders closed and scopes admin writes to homepage content"
   assert.doesNotMatch(firestoreRules, /allow write: if true/);
 });
 
-test("shopProducts stays dark to the public and only claimed admins can validate writes", () => {
+test("shopProducts permits constrained public catalog reads and keeps writes admin-only", () => {
   assert.match(firestoreRules, /match \/shopProducts\/\{productId\}/);
-  assert.match(firestoreRules, /allow read: if isAdmin\(\);/);
+  assert.match(firestoreRules, /function isPublicShopProduct\(data\)/);
+  assert.match(firestoreRules, /data\.active == true/);
+  assert.match(firestoreRules, /data\.archivedAt == null/);
+  assert.match(firestoreRules, /data\.channels\.shop == true;/);
+  assert.doesNotMatch(firestoreRules, /data\.channels\.portfolio == true/);
+  assert.match(firestoreRules, /allow read: if isAdmin\(\) \|\| isPublicShopProduct\(resource\.data\);/);
   assert.match(firestoreRules, /allow create: if isAdmin\(\)[\s\S]*isValidShopProductCreate/);
   assert.match(firestoreRules, /allow update: if isAdmin\(\)[\s\S]*isValidShopProductUpdate/);
   assert.match(firestoreRules, /allow delete: if false;/);

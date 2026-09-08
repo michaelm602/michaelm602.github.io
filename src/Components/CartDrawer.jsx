@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "./CartContext";
 import { X } from "lucide-react";
-import {
-    getProductSizeOptions,
-    resolveCartItemProduct,
-} from "../data/products";
+import { resolveCartItemProduct } from "../data/products";
+import { getCartItemSizeOptions } from "../utils/cartProduct";
+import { buildStripeCheckoutItems } from "../utils/stripeCheckout";
 import usePayPalScript from "../utils/usePayPalScript";
 import { buildOrderItems, saveOrderToFirestore } from "../utils/orderUtils";
 import {
@@ -68,6 +67,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                 price: item.price,
                 quantity: item.quantity,
                 image: item.image,
+                sizeOptions: item.sizeOptions || null,
             }))
         );
     }, [cartItems]);
@@ -272,12 +272,7 @@ export default function CartDrawer({ isOpen, onClose }) {
 
     const startStripeCheckout = async () => {
         try {
-            const items = cartItems.map((item) => ({
-                productId:
-                    item.productId || resolveCartItemProduct(item)?.id || null,
-                size: item.size,
-                quantity: item.quantity,
-            }));
+            const items = buildStripeCheckoutItems(cartItems, resolveCartItemProduct);
 
             const baseUrl = import.meta.env.PROD
                 ? "https://www.likwitblvd.com"
@@ -355,7 +350,10 @@ export default function CartDrawer({ isOpen, onClose }) {
             <div className="p-4 overflow-y-auto flex-1">
                 {cartItems.map((item, index) => {
                     const product = resolveCartItemProduct(item);
-                    const sizeOptions = getProductSizeOptions(product);
+                    const sizeOptions = getCartItemSizeOptions(item, product);
+                    const editableSizeOptions = sizeOptions.length
+                        ? sizeOptions
+                        : [{ label: item.size }];
 
                     return (
                         <div
@@ -408,12 +406,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                                                     }
                                                     className="w-full px-2 py-1 rounded text-black"
                                                 >
-                                                    {(sizeOptions.length ? sizeOptions : [
-                                                        { label: "16x20" },
-                                                        { label: "18x24" },
-                                                        { label: "24x36" },
-                                                        { label: "30x40" },
-                                                    ]).map((size) => (
+                                                    {editableSizeOptions.map((size) => (
                                                         <option key={size.label} value={size.label}>
                                                             {size.label}
                                                         </option>

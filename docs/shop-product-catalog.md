@@ -1,6 +1,6 @@
 # Shop product catalog foundation
 
-Phase 2A defines a dark `shopProducts` collection while the live storefront continues to read `src/data/products.js` and trusted Stripe checkout continues to read `functions/stripeCatalog.js`. Neither customer path imports the new repository.
+Phase 2A defined the `shopProducts` collection. Phase 2C adds an optional whole-catalog Firestore display adapter while trusted Stripe checkout continues to read `functions/stripeCatalog.js`.
 
 ## Document schema
 
@@ -56,4 +56,12 @@ Before an actual batch write, the CLI saves the existing collection to a timesta
 
 `functions/shopProductRepository.js` supports a whole-catalog `PRODUCT_CATALOG_MODE` of `source` or `firestore`. Missing configuration defaults to `source`. Firestore mode validates the entire fetched collection and does not fill missing products from the source catalog. The live checkout function does not use this repository in Phase 2A.
 
-Phase 2B can build claimed-admin product CRUD, image selection/upload controls, original status and contact pricing fields, print-option management, previews, validation, and an explicit publish workflow against this schema. Rules and UI should be designed and reviewed before enabling browser access or changing the active catalog mode.
+## Storefront display mode
+
+Set `VITE_STOREFRONT_CATALOG_MODE` to `source` or `firestore`. Development defaults to `source`; production defaults to `firestore`. Each shop page loads one complete catalog and never fills failed or missing Firestore products from the source catalog. A Firestore load failure is shown to the customer with a retry action. Set production to `source` for an explicit rollback.
+
+The Firestore storefront query requires `active == true`, `archivedAt == null`, and `channels.shop == true`. Public Firestore reads are limited to active, unarchived shop products. Portfolio-only documents, including any tattoo category, remain inaccessible to public Firestore clients until a separately reviewed portfolio adapter and visibility rule are introduced. Public writes and deletes remain denied.
+
+Both display adapters remove Stripe Price IDs from their browser-facing product models. A Firestore print option becomes addable only when its label, price, currency, and Stripe Price ID exactly match the retained source product catalog. The checkout request still sends only `productId`, `size`, and `quantity`; `functions/stripeCatalog.js` remains the trusted checkout catalog.
+
+Deploy the reviewed Firestore rules before releasing a production frontend that defaults to Firestore. Original artwork stays contact-to-purchase and PayPal stays disabled.

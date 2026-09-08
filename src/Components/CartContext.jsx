@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { getProductPrice, resolveCartItemProduct } from "../data/products";
+import { resolveCartItemProduct } from "../data/products";
+import { getCartItemPrice } from "../utils/cartProduct";
 
 export const CartContext = createContext();
 
@@ -54,7 +55,7 @@ export default function CartProvider({ children }) {
                 const product = resolveCartItemProduct(updatedItem);
 
                 if (updatedFields.size) {
-                    updatedItem.price = getProductPrice(product, updatedFields.size) ?? item.price;
+                    updatedItem.price = getCartItemPrice(updatedItem, updatedFields.size, product) ?? item.price;
                 }
 
                 return updatedItem;

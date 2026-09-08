@@ -3,11 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import { useCart } from "../Components/CartContext";
+import OriginalAvailability from "../Components/OriginalAvailability";
+import useStorefrontCatalog from "../hooks/useStorefrontCatalog";
 import {
-  getAllProducts,
   getPrimaryProductImage,
   getProductAvailabilityLabel,
-  getProductBySlug,
   getProductMinPrice,
   getProductPrice,
   getProductSizeOptions,
@@ -15,11 +15,18 @@ import {
 } from "../data/products";
 import { resolveProductImageUrl } from "../utils/productImageUrls";
 import { PRINT_SALES_POLICY } from "../utils/printCheckoutPolicy";
+import {
+  getCheckoutableProductSizeOptions,
+  isProductSizeCheckoutSupported,
+} from "../utils/storefrontProduct";
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
-  const product = getProductBySlug(slug);
-  const allProducts = useMemo(() => getAllProducts(), []);
+  const { products: allProducts, loading: catalogLoading, error: catalogError, retry } = useStorefrontCatalog("shop");
+  const product = useMemo(
+    () => allProducts.find((catalogProduct) => catalogProduct.slug === slug) || null,
+    [allProducts, slug]
+  );
   const relatedBaseProducts = useMemo(
     () => (product ? getRelatedProducts(product, allProducts) : []),
     [product, allProducts]
@@ -39,9 +46,22 @@ export default function ProductDetailPage() {
 
   const { addToCart } = useCart();
   const sizeOptions = getProductSizeOptions(product);
+  const checkoutableSizeOptions = getCheckoutableProductSizeOptions(product);
+  const printsAvailable = product?.printsAvailable !== false && sizeOptions.length > 0;
+  const checkoutAvailable = printsAvailable && checkoutableSizeOptions.length > 0;
+  const selectedSizeSupported = isProductSizeCheckoutSupported(product, selectedSize);
+  const hasConfigurationIssue = sizeOptions.some((size) => size.checkoutSupported === false);
   const primaryImage = getPrimaryProductImage(product);
-  const minPrice = getProductMinPrice(product);
+  const minPrice = checkoutAvailable
+    ? Math.min(...checkoutableSizeOptions.map((option) => option.price))
+    : null;
   const selectedPrice = selectedSize ? getProductPrice(product, selectedSize) : null;
+
+  useEffect(() => {
+    setSelectedSize("");
+    setSelectedQuantity(1);
+    setSizeError(false);
+  }, [slug]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -147,6 +167,21 @@ export default function ProductDetailPage() {
     };
   }, [product, primaryImage, relatedBaseProducts]);
 
+  if (catalogLoading || catalogError) {
+    return (
+      <div className="flex min-h-[80vh] flex-col items-center justify-center gap-4 bg-[#0a0a0a] px-6 text-center text-white">
+        {catalogError ? (
+          <>
+            <p role="alert" className="text-sm text-zinc-300">This product could not be loaded.</p>
+            <button type="button" onClick={retry} className="rounded border border-zinc-500 px-4 py-2 text-sm hover:bg-zinc-800">Try again</button>
+          </>
+        ) : (
+          <p className="text-sm text-zinc-400">Loading product...</p>
+        )}
+      </div>
+    );
+  }
+
   if (!product) {
     return (
       <div
@@ -181,7 +216,7 @@ export default function ProductDetailPage() {
   }
 
   const handleAddToCart = () => {
-    if (!selectedSize) {
+    if (!checkoutAvailable || !selectedSize || !selectedSizeSupported) {
       setSizeError(true);
       return;
     }
@@ -200,12 +235,13 @@ export default function ProductDetailPage() {
       quantity: Number(selectedQuantity),
       price,
       image: imageUrl,
+      sizeOptions: checkoutableSizeOptions.map(({ label, price }) => ({ label, price })),
     });
     window.dispatchEvent(new Event("open-cart"));
   };
 
   const handleStickyCta = () => {
-    if (!selectedSize) {
+    if (!selectedSize || !selectedSizeSupported) {
       setSizeError(true);
       sizeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
@@ -217,7 +253,7 @@ export default function ProductDetailPage() {
   const trustPoints = [
     "Made to order - printed after purchase",
     "Fulfilled by a professional print partner",
-    "Secure checkout with Stripe & PayPal",
+    "Secure card checkout with Stripe",
     "Production and shipping times may vary",
   ];
 
@@ -428,7 +464,7 @@ export default function ProductDetailPage() {
               {product.shortDescription}
             </div>
 
-            <div
+            {checkoutAvailable && <div
               style={{
                 display: "flex",
                 alignItems: "flex-end",
@@ -454,7 +490,7 @@ export default function ProductDetailPage() {
               <span style={{ fontSize: "14px", color: "#8f8f97", marginBottom: "2px" }}>
                 {sizeOptions.length} sizes available
               </span>
-            </div>
+            </div>}
 
             <div
               style={{
@@ -477,7 +513,9 @@ export default function ProductDetailPage() {
               {getProductAvailabilityLabel(product) || "Made-to-order print"}
             </div>
 
-            <button
+            <OriginalAvailability product={product} />
+
+            {checkoutAvailable && <button
               onClick={handleAddToCart}
               style={{
                 background: "linear-gradient(135deg, #f1f1f1 0%, #d5d5d5 100%)",
@@ -492,24 +530,31 @@ export default function ProductDetailPage() {
                 textTransform: "uppercase",
                 marginBottom: "14px",
                 boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-                cursor: "pointer",
+                cursor: selectedSizeSupported ? "pointer" : "not-allowed",
+                opacity: selectedSize && !selectedSizeSupported ? 0.55 : 1,
                 width: "100%",
               }}
+              disabled={Boolean(selectedSize) && !selectedSizeSupported}
             >
               Add Print to Cart
-            </button>
-            <p className="text-sm text-zinc-300 mb-3 leading-relaxed">
-              This listing is for a made-to-order print, not the original canvas.
-            </p>
-            <Link
+            </button>}
+            {printsAvailable && !checkoutAvailable && (
+              <p role="status" className="mb-4 text-sm text-amber-200">
+                Print checkout is temporarily unavailable while configuration is reviewed.
+              </p>
+            )}
+            {printsAvailable && <p className="text-sm text-zinc-300 mb-3 leading-relaxed">
+              Prints are made to order after purchase. Available originals are contact-to-purchase only.
+            </p>}
+            {printsAvailable && <Link
               to={product.original?.status === "sold"
                 ? `/contact?intent=print&piece=${encodeURIComponent(product.slug)}`
                 : `/contact?intent=product&product=${encodeURIComponent(product.slug)}`}
               className="text-sm text-zinc-200 underline underline-offset-4 mb-5"
             >
               Ask About This Print
-            </Link>
-            <section
+            </Link>}
+            {printsAvailable && <section
               aria-labelledby="print-sales-policy-heading"
               className="mb-5 border border-zinc-700 bg-zinc-900/70 p-4"
             >
@@ -522,10 +567,10 @@ export default function ProductDetailPage() {
               <p className="text-sm leading-relaxed text-zinc-300">
                 {PRINT_SALES_POLICY}
               </p>
-            </section>
+            </section>}
             {/* TODO(owner): Confirm print material and framing options before adding specifics. */}
 
-            <div
+            {printsAvailable && <div
               style={{
                 display: "grid",
                 gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
@@ -561,9 +606,9 @@ export default function ProductDetailPage() {
                   <span>{point}</span>
                 </div>
               ))}
-            </div>
+            </div>}
 
-            <div ref={sizeSectionRef} style={{ marginBottom: "18px", scrollMarginTop: isMobile ? "96px" : "24px" }}>
+            {printsAvailable && <div ref={sizeSectionRef} style={{ marginBottom: "18px", scrollMarginTop: isMobile ? "96px" : "24px" }}>
               <div
                 style={{
                   fontSize: "12px",
@@ -585,15 +630,18 @@ export default function ProductDetailPage() {
               >
                 {sizeOptions.map((size) => {
                   const isSelected = selectedSize === size.label;
+                  const isSupported = size.checkoutSupported !== false;
 
                   return (
                     <button
                       key={size.label}
                       type="button"
                       onClick={() => {
+                        if (!isSupported) return;
                         setSelectedSize(size.label);
                         setSizeError(false);
                       }}
+                      disabled={!isSupported}
                       style={{
                         textAlign: "left",
                         padding: isMobile ? "12px 12px" : "13px 14px",
@@ -601,28 +649,37 @@ export default function ProductDetailPage() {
                           ? "linear-gradient(180deg, rgba(58,58,58,0.96), rgba(28,28,28,0.96))"
                           : "linear-gradient(180deg, rgba(18,18,18,0.96), rgba(10,10,10,0.96))",
                         border: `1px solid ${isSelected ? "#8f8f97" : sizeError ? "#5d3434" : "#232323"}`,
-                        color: "#f4f4f5",
-                        cursor: "pointer",
+                        color: isSupported ? "#f4f4f5" : "#8a8a8f",
+                        cursor: isSupported ? "pointer" : "not-allowed",
+                        opacity: isSupported ? 1 : 0.62,
                         borderRadius: "3px",
                         boxShadow: isSelected ? "0 0 0 1px rgba(255,255,255,0.08) inset" : "none",
                       }}
                       aria-pressed={isSelected}
                     >
                       <div style={{ fontSize: "15px", fontWeight: 600, marginBottom: "4px" }}>{size.label}</div>
-                      <div style={{ fontSize: "13px", color: isSelected ? "#ffffff" : "#a1a1aa" }}>${size.price}</div>
+                      <div style={{ fontSize: "13px", color: isSelected ? "#ffffff" : "#a1a1aa" }}>
+                        ${size.price}{isSupported ? "" : " - Temporarily unavailable"}
+                      </div>
                     </button>
                   );
                 })}
               </div>
 
-              {sizeError && (
-                <div style={{ fontSize: "11px", color: "#9d5c5c", marginTop: "8px", letterSpacing: "0.4px" }}>
-                  Please select a print size
+              {hasConfigurationIssue && (
+                <div role="status" style={{ fontSize: "11px", color: "#d9b77f", marginTop: "8px", lineHeight: 1.45 }}>
+                  One or more print options are temporarily unavailable while checkout configuration is reviewed.
                 </div>
               )}
-            </div>
 
-            <div style={{ marginBottom: "22px", maxWidth: isMobile ? "100%" : "180px" }}>
+              {sizeError && (
+                <div style={{ fontSize: "11px", color: "#9d5c5c", marginTop: "8px", letterSpacing: "0.4px" }}>
+                  Please select an available print size
+                </div>
+              )}
+            </div>}
+
+            {checkoutAvailable && <div style={{ marginBottom: "22px", maxWidth: isMobile ? "100%" : "180px" }}>
               <div
                 style={{
                   fontSize: "11px",
@@ -655,7 +712,7 @@ export default function ProductDetailPage() {
                   </option>
                 ))}
               </select>
-            </div>
+            </div>}
 
             <div
               style={{
@@ -683,6 +740,15 @@ export default function ProductDetailPage() {
               >
                 {product.description}
               </div>
+              {product.tags?.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2" aria-label="Artwork tags">
+                  {product.tags.map((tag) => (
+                    <span key={tag} className="rounded-full border border-zinc-800 px-3 py-1 text-xs text-zinc-400">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -895,7 +961,7 @@ export default function ProductDetailPage() {
         />
       )}
 
-      {isMobile && (
+      {isMobile && checkoutAvailable && (
         <div
           style={{
             position: "fixed",
@@ -946,6 +1012,7 @@ export default function ProductDetailPage() {
             <button
               type="button"
               onClick={handleStickyCta}
+              disabled={Boolean(selectedSize) && !selectedSizeSupported}
               style={{
                 flexShrink: 0,
                 minWidth: "180px",
@@ -959,7 +1026,8 @@ export default function ProductDetailPage() {
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
                 boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-                cursor: "pointer",
+                cursor: selectedSize && !selectedSizeSupported ? "not-allowed" : "pointer",
+                opacity: selectedSize && !selectedSizeSupported ? 0.55 : 1,
               }}
             >
               Add Print to Cart

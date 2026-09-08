@@ -5,6 +5,13 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.admin == true;
     }
 
+    function isPublicShopProduct(data) {
+      return data.active == true
+        && data.archivedAt == null
+        && data.channels is map
+        && data.channels.shop == true;
+    }
+
     function isNullableString(value, maxLength) {
       return value == null || (value is string && value.size() <= maxLength);
     }
@@ -289,9 +296,10 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // Product management is claimed-admin only. Deletion is intentionally absent.
+    // Public catalog reads must be constrained to the active shop channel.
+    // Product writes remain claimed-admin only, and deletion is intentionally absent.
     match /shopProducts/{productId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isPublicShopProduct(resource.data);
       allow create: if isAdmin() && isValidShopProductCreate(productId);
       allow update: if isAdmin() && isValidShopProductUpdate(productId);
       allow delete: if false;

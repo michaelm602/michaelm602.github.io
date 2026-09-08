@@ -6,13 +6,18 @@ import { deleteApp as deleteAdminApp, initializeApp as initializeAdminApp } from
 import { FieldValue, getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import { deleteApp as deleteClientApp, initializeApp as initializeClientApp } from "firebase/app";
 import {
+  collection,
   connectFirestoreEmulator,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   getFirestore as getClientFirestore,
+  query,
   serverTimestamp,
+  setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 
 import {
@@ -70,6 +75,44 @@ before(async () => {
   adminDb = getAdminFirestore(adminApp);
   const batch = adminDb.batch();
   for (const product of importedProducts) {
+    const { createdAt: _createdAt, updatedAt: _updatedAt, ...catalogFields } = product;
+    batch.set(adminDb.collection("shopProducts").doc(product.id), {
+      ...catalogFields,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  const baseHiddenProduct = importedProducts[0];
+  const hiddenProducts = [
+    {
+      ...baseHiddenProduct,
+      id: "hidden-inactive",
+      slug: "hidden-inactive",
+      active: false,
+    },
+    {
+      ...baseHiddenProduct,
+      id: "hidden-archived",
+      slug: "hidden-archived",
+      active: false,
+      archivedAt: FieldValue.serverTimestamp(),
+    },
+    {
+      ...baseHiddenProduct,
+      id: "hidden-no-channel",
+      slug: "hidden-no-channel",
+      channels: { shop: false, portfolio: false },
+    },
+    {
+      ...baseHiddenProduct,
+      id: "hidden-portfolio-tattoo",
+      slug: "hidden-portfolio-tattoo",
+      category: "Tattoo",
+      channels: { shop: false, portfolio: true },
+    },
+  ];
+  for (const product of hiddenProducts) {
     const { createdAt: _createdAt, updatedAt: _updatedAt, ...catalogFields } = product;
     batch.set(adminDb.collection("shopProducts").doc(product.id), {
       ...catalogFields,
@@ -146,15 +189,83 @@ test("an admin can save valid text, prints, original, and image section changes"
   }
 });
 
-test("an unauthenticated client cannot read or write shop products", async () => {
+test("a public client can read active, unarchived shop products with the required query", async () => {
   const publicDb = createClient("public");
   const productRef = doc(publicDb, "shopProducts", importedProducts[0].id);
 
-  await assert.rejects(() => getDoc(productRef), isPermissionDenied);
+  const snapshot = await getDoc(productRef);
+  assert.equal(snapshot.exists(), true);
+
+  const publicShopQuery = query(
+    collection(publicDb, "shopProducts"),
+    where("active", "==", true),
+    where("archivedAt", "==", null),
+    where("channels.shop", "==", true)
+  );
+  const catalog = await getDocs(publicShopQuery);
+  assert.equal(catalog.size, 15);
+
+});
+
+test("public reads deny hidden products and queries missing required visibility constraints", async () => {
+  const publicDb = createClient("public-hidden");
+
+  for (const productId of [
+    "hidden-inactive",
+    "hidden-archived",
+    "hidden-no-channel",
+    "hidden-portfolio-tattoo",
+  ]) {
+    await assert.rejects(
+      () => getDoc(doc(publicDb, "shopProducts", productId)),
+      isPermissionDenied
+    );
+  }
+
+  const catalog = collection(publicDb, "shopProducts");
+  const insufficientQueries = [
+    query(catalog),
+    query(catalog, where("active", "==", true), where("archivedAt", "==", null)),
+    query(catalog, where("active", "==", true), where("channels.shop", "==", true)),
+    query(catalog, where("archivedAt", "==", null), where("channels.shop", "==", true)),
+    query(catalog, where("active", "==", false), where("archivedAt", "==", null), where("channels.shop", "==", true)),
+    query(catalog, where("active", "==", true), where("archivedAt", "==", null), where("channels.shop", "==", false)),
+    query(catalog, where("active", "==", true), where("archivedAt", "==", null), where("channels.portfolio", "==", true)),
+  ];
+  for (const insufficientQuery of insufficientQueries) {
+    await assert.rejects(() => getDocs(insufficientQuery), isPermissionDenied);
+  }
+});
+
+test("public clients cannot create, update, or delete shop products", async () => {
+  const publicDb = createClient("public-writes");
+  const productRef = doc(publicDb, "shopProducts", importedProducts[0].id);
+
   await assert.rejects(
     () => updateDoc(productRef, { title: "Blocked public edit", updatedAt: serverTimestamp() }),
     isPermissionDenied
   );
+  await assert.rejects(() => deleteDoc(productRef), isPermissionDenied);
+  await assert.rejects(
+    () => setDoc(doc(publicDb, "shopProducts", "public-create"), {
+      ...importedProducts[0],
+      id: "public-create",
+      slug: "public-create",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+    isPermissionDenied
+  );
+});
+
+test("an admin can read products hidden from public catalog channels", async () => {
+  const adminDbClient = createClient("admin-hidden-read", {
+    sub: "admin-user",
+    user_id: "admin-user",
+    admin: true,
+  });
+  const snapshot = await getDoc(doc(adminDbClient, "shopProducts", "hidden-no-channel"));
+  assert.equal(snapshot.exists(), true);
 });
 
 test("an authenticated non-admin cannot write shop products", async () => {

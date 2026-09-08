@@ -17,6 +17,10 @@ export const CONTACT_INTENTS = {
     heading: "Ask About This Print",
     helper: "Ask a question about this print before ordering, including size or shipping. Prints are made to order and fulfilled by a professional print partner.",
   },
+  original: {
+    heading: "Ask About the Original Artwork",
+    helper: "This original is available by direct inquiry. Ask about purchasing details and I’ll get back to you as soon as I can.",
+  },
   airbrush: {
     heading: "Ask About Airbrush Work",
     helper: "Describe your airbrush idea, the surface or item, approximate size, and any timing you have in mind.",
@@ -34,10 +38,18 @@ export function parseContactContext(search) {
   const readContext = (key) => (params.get(key) || "").replace(/\s+/g, " ").trim().slice(0, 200);
   const product = readContext("product");
   const piece = readContext("piece");
+  const requestedProductTitle = readContext("productName");
   const catalog = getAllProducts();
   const titleFor = (slug) => catalog.find((entry) => entry.slug === slug)?.title || "";
 
-  return { intent, product, piece, source: readContext("source"), productTitle: titleFor(product), pieceTitle: titleFor(piece) };
+  return {
+    intent,
+    product,
+    piece,
+    source: readContext("source"),
+    productTitle: requestedProductTitle || titleFor(product),
+    pieceTitle: titleFor(piece),
+  };
 }
 
 export function buildContactPayload(formData, context, time) {
