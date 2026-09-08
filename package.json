@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "test": "node --test tests/*.test.js functions/*.test.js",
     "test:admin": "node --test tests/*.test.js",
+    "catalog:dry-run": "node scripts/migrate-shop-products.mjs",
+    "catalog:import": "node scripts/import-shop-products.mjs",
     "admin:claim": "node scripts/set-admin-claim.cjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "predeploy": "npm run sitemap && npm run build",
