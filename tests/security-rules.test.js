@@ -12,6 +12,16 @@ test("Firestore keeps orders closed and scopes admin writes to homepage content"
   assert.doesNotMatch(firestoreRules, /allow write: if true/);
 });
 
+test("shopProducts stays dark to the public and only claimed admins can validate writes", () => {
+  assert.match(firestoreRules, /match \/shopProducts\/\{productId\}/);
+  assert.match(firestoreRules, /allow read: if isAdmin\(\);/);
+  assert.match(firestoreRules, /allow create: if isAdmin\(\)[\s\S]*isValidShopProductCreate/);
+  assert.match(firestoreRules, /allow update: if isAdmin\(\)[\s\S]*isValidShopProductUpdate/);
+  assert.match(firestoreRules, /allow delete: if false;/);
+  assert.match(firestoreRules, /original\.checkoutEnabled == false/);
+  assert.match(firestoreRules, /match \/shopInventory\/\{document=\*\*\}[\s\S]*allow read, write: if false;/);
+});
+
 test("Storage exposes only storefront paths and requires the admin claim for writes", () => {
   for (const path of ["site/home", "airbrush", "photoshop", "tattoos", "portfolio-videos"]) {
     assert.match(storageRules, new RegExp(`match /${path.replace("/", "\\/")}/`));

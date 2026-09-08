@@ -17,6 +17,7 @@ test("build output includes direct-entry admin routes", () => {
     "admin",
     "admin/artwork",
     "admin/home",
+    "admin/products",
     "login",
     "upload",
     "success",

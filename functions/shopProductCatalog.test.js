@@ -159,6 +159,17 @@ test("schema rejects invalid prices, missing Stripe IDs, and inconsistent states
     missingStripePrice.prints.options[0].stripePriceId = "";
     assert.throws(() => assertValidShopProductDocument(missingStripePrice), /stripePriceId/);
 
+    const originalCheckoutEnabled = clone(valid);
+    originalCheckoutEnabled.original = {
+        status: "available",
+        size: "16x20",
+        medium: "Existing source metadata",
+        price: { amountCents: 50000, currency: "usd" },
+        checkoutEnabled: true,
+        quantity: 1,
+    };
+    assert.throws(() => assertValidShopProductDocument(originalCheckoutEnabled), /checkoutEnabled/);
+
     const archivedAndActive = clone(valid);
     archivedAndActive.archivedAt = "2026-09-07T00:00:00.000Z";
     assert.throws(
@@ -186,10 +197,14 @@ test("schema supports the planned original, print, portfolio-only, inactive, and
     const inactive = clone(base);
     inactive.active = false;
 
+    const imagePendingDraft = clone(inactive);
+    imagePendingDraft.images = [];
+    imagePendingDraft.primaryImageId = null;
+
     const archived = clone(inactive);
     archived.archivedAt = "2026-09-07T00:00:00.000Z";
 
-    for (const document of [base, originalContactOnly, portfolioOnly, inactive, archived]) {
+    for (const document of [base, originalContactOnly, portfolioOnly, inactive, imagePendingDraft, archived]) {
         assert.deepEqual(validateShopProductDocument(document), []);
     }
 });

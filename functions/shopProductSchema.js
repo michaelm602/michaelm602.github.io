@@ -44,8 +44,15 @@ function validateShopProductDocument(document) {
         add("tags", "must be an array of non-empty strings");
     }
 
-    if (!Array.isArray(document.images) || document.images.length === 0) {
-        add("images", "must contain at least one image");
+    if (!Array.isArray(document.images)) {
+        add("images", "must be an array");
+    } else if (document.images.length === 0) {
+        if (document.active && document.channels?.shop) {
+            add("images", "must contain at least one image for an active shop product");
+        }
+        if (document.primaryImageId !== null) {
+            add("primaryImageId", "must be null when images are empty");
+        }
     } else {
         const imageIds = new Set();
         document.images.forEach((image, index) => {
@@ -89,8 +96,8 @@ function validateShopProductDocument(document) {
                 add("original.price.currency", "must be a lowercase three-letter currency code");
             }
         }
-        if (typeof original.checkoutEnabled !== "boolean") {
-            add("original.checkoutEnabled", "must be a boolean");
+        if (original.checkoutEnabled !== false) {
+            add("original.checkoutEnabled", "must remain false until trusted original checkout exists");
         }
         if (![0, 1].includes(original.quantity)) {
             add("original.quantity", "must be 0 or 1");
@@ -100,12 +107,6 @@ function validateShopProductDocument(document) {
         }
         if (["sold", "not_for_sale"].includes(original.status) && original.quantity !== 0) {
             add("original.quantity", "must be 0 when the original is sold or not for sale");
-        }
-        if (original.checkoutEnabled && original.status !== "available") {
-            add("original.checkoutEnabled", "requires an available original");
-        }
-        if (original.checkoutEnabled && !Number.isSafeInteger(original.price?.amountCents)) {
-            add("original.price.amountCents", "is required when original checkout is enabled");
         }
     }
 

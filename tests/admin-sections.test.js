@@ -6,12 +6,12 @@ const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 const uploader = await readFile(new URL("../src/Components/UploadImage.jsx", import.meta.url), "utf8");
 const productCatalog = await readFile(new URL("../src/data/products.js", import.meta.url), "utf8");
 
-test("admin routes expose the proven dashboard, homepage editor, and media uploader", () => {
+test("admin routes expose the dashboard, homepage editor, media uploader, and products", () => {
   assert.match(app, /path="\/admin"/);
   assert.match(app, /path="\/admin\/home"/);
   assert.match(app, /path="\/admin\/artwork"/);
   assert.match(app, /path="\/upload" element=\{<Navigate to="\/admin\/artwork" replace \/>\}/);
-  assert.doesNotMatch(app, /path="\/admin\/products"/);
+  assert.match(app, /path="\/admin\/products"/);
 });
 
 test("uploader uses the custom-claim hook and only proven Storage folders", () => {

@@ -15,6 +15,7 @@ import { Toaster } from "react-hot-toast";
 import AdminRoute from "./Components/AdminRoute";
 import AdminHomeEditor from "./pages/AdminHomeEditor";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminProducts from "./pages/AdminProducts";
 import UploadImage from "./Components/UploadImage";
 import ScrollToTop from "./Components/ScrollToTop";
 import { isPortfolioCategoryVisible } from "./config/portfolioCategories";
@@ -69,6 +70,15 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminDashboard />
+                </AdminRoute>
+              }
+            />
+
+            <Route
+              path="/admin/products"
+              element={
+                <AdminRoute>
+                  <AdminProducts />
                 </AdminRoute>
               }
             />

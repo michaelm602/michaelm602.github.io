@@ -18,6 +18,7 @@ const routes = [
   "admin",
   "admin/artwork",
   "admin/home",
+  "admin/products",
   "login",
   "upload",
   "portfolio",

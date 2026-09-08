@@ -5,6 +5,214 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.admin == true;
     }
 
+    function isNullableString(value, maxLength) {
+      return value == null || (value is string && value.size() <= maxLength);
+    }
+
+    function isProductImagePath(path) {
+      return path is string
+        && path.size() > 0
+        && path.size() <= 500
+        && path.matches('^(airbrush|photoshop)/.+$');
+    }
+
+    function isValidImage(image) {
+      return image is map
+        && image.keys().hasAll(['id', 'storagePath', 'thumbnailPath', 'alt', 'sortOrder'])
+        && image.keys().hasOnly(['id', 'storagePath', 'thumbnailPath', 'alt', 'sortOrder'])
+        && image.id is string && image.id.size() > 0 && image.id.size() <= 100
+        && image.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
+        && isProductImagePath(image.storagePath)
+        && (image.thumbnailPath == null || isProductImagePath(image.thumbnailPath))
+        && image.alt is string && image.alt.size() <= 300
+        && image.sortOrder is int && image.sortOrder >= 0;
+    }
+
+    function isValidImageList(images) {
+      return images is list && images.size() <= 8
+        && (images.size() < 1 || isValidImage(images[0]))
+        && (images.size() < 2 || isValidImage(images[1]))
+        && (images.size() < 3 || isValidImage(images[2]))
+        && (images.size() < 4 || isValidImage(images[3]))
+        && (images.size() < 5 || isValidImage(images[4]))
+        && (images.size() < 6 || isValidImage(images[5]))
+        && (images.size() < 7 || isValidImage(images[6]))
+        && (images.size() < 8 || isValidImage(images[7]));
+    }
+
+    function hasImageId(images, imageId) {
+      return (images.size() > 0 && images[0].id == imageId)
+        || (images.size() > 1 && images[1].id == imageId)
+        || (images.size() > 2 && images[2].id == imageId)
+        || (images.size() > 3 && images[3].id == imageId)
+        || (images.size() > 4 && images[4].id == imageId)
+        || (images.size() > 5 && images[5].id == imageId)
+        || (images.size() > 6 && images[6].id == imageId)
+        || (images.size() > 7 && images[7].id == imageId);
+    }
+
+    function isShortString(value) {
+      return value is string && value.size() > 0 && value.size() <= 100;
+    }
+
+    function isValidStringList(values) {
+      return values is list && values.size() <= 12
+        && (values.size() < 1 || isShortString(values[0]))
+        && (values.size() < 2 || isShortString(values[1]))
+        && (values.size() < 3 || isShortString(values[2]))
+        && (values.size() < 4 || isShortString(values[3]))
+        && (values.size() < 5 || isShortString(values[4]))
+        && (values.size() < 6 || isShortString(values[5]))
+        && (values.size() < 7 || isShortString(values[6]))
+        && (values.size() < 8 || isShortString(values[7]))
+        && (values.size() < 9 || isShortString(values[8]))
+        && (values.size() < 10 || isShortString(values[9]))
+        && (values.size() < 11 || isShortString(values[10]))
+        && (values.size() < 12 || isShortString(values[11]));
+    }
+
+    function isValidOriginal(original) {
+      return original is map
+        && original.keys().hasAll(['status', 'size', 'medium', 'price', 'checkoutEnabled', 'quantity'])
+        && original.keys().hasOnly(['status', 'size', 'medium', 'price', 'checkoutEnabled', 'quantity'])
+        && original.status in ['available', 'sold', 'not_for_sale']
+        && isNullableString(original.size, 200)
+        && isNullableString(original.medium, 300)
+        && original.price is map
+        && original.price.keys().hasAll(['amountCents', 'currency'])
+        && original.price.keys().hasOnly(['amountCents', 'currency'])
+        && (original.price.amountCents == null
+          || (original.price.amountCents is int && original.price.amountCents > 0))
+        && original.price.currency is string
+        && original.price.currency.matches('^[a-z]{3}$')
+        && original.checkoutEnabled == false
+        && ((original.status == 'available' && original.quantity == 1)
+          || (original.status != 'available' && original.quantity == 0));
+    }
+
+    function isValidPrintOption(option) {
+      return option is map
+        && option.keys().hasAll(['id', 'label', 'amountCents', 'currency', 'stripePriceId', 'active', 'sortOrder'])
+        && option.keys().hasOnly(['id', 'label', 'amountCents', 'currency', 'stripePriceId', 'active', 'sortOrder'])
+        && option.id is string && option.id.size() > 0 && option.id.size() <= 100
+        && option.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
+        && option.label is string && option.label.size() > 0 && option.label.size() <= 100
+        && option.amountCents is int && option.amountCents > 0
+        && option.currency is string && option.currency.matches('^[a-z]{3}$')
+        && (option.stripePriceId == null
+          || (option.stripePriceId is string && option.stripePriceId.size() > 0 && option.stripePriceId.size() <= 150))
+        && (!option.active || option.stripePriceId is string)
+        && option.active is bool
+        && option.sortOrder is int && option.sortOrder >= 0;
+    }
+
+    function isValidPrintOptionList(options) {
+      return options is list && options.size() <= 8
+        && (options.size() < 1 || isValidPrintOption(options[0]))
+        && (options.size() < 2 || isValidPrintOption(options[1]))
+        && (options.size() < 3 || isValidPrintOption(options[2]))
+        && (options.size() < 4 || isValidPrintOption(options[3]))
+        && (options.size() < 5 || isValidPrintOption(options[4]))
+        && (options.size() < 6 || isValidPrintOption(options[5]))
+        && (options.size() < 7 || isValidPrintOption(options[6]))
+        && (options.size() < 8 || isValidPrintOption(options[7]));
+    }
+
+    function hasActivePrintOption(options) {
+      return (options.size() > 0 && options[0].active)
+        || (options.size() > 1 && options[1].active)
+        || (options.size() > 2 && options[2].active)
+        || (options.size() > 3 && options[3].active)
+        || (options.size() > 4 && options[4].active)
+        || (options.size() > 5 && options[5].active)
+        || (options.size() > 6 && options[6].active)
+        || (options.size() > 7 && options[7].active);
+    }
+
+    function hasActivePrintOptionId(options, optionId) {
+      return (options.size() > 0 && options[0].active && options[0].id == optionId)
+        || (options.size() > 1 && options[1].active && options[1].id == optionId)
+        || (options.size() > 2 && options[2].active && options[2].id == optionId)
+        || (options.size() > 3 && options[3].active && options[3].id == optionId)
+        || (options.size() > 4 && options[4].active && options[4].id == optionId)
+        || (options.size() > 5 && options[5].active && options[5].id == optionId)
+        || (options.size() > 6 && options[6].active && options[6].id == optionId)
+        || (options.size() > 7 && options[7].active && options[7].id == optionId);
+    }
+
+    function isValidPrints(prints) {
+      return prints is map
+        && prints.keys().hasAll(['available', 'defaultOptionId', 'options'])
+        && prints.keys().hasOnly(['available', 'defaultOptionId', 'options'])
+        && prints.available is bool
+        && isValidPrintOptionList(prints.options)
+        && ((prints.available
+            && prints.defaultOptionId is string
+            && hasActivePrintOption(prints.options)
+            && hasActivePrintOptionId(prints.options, prints.defaultOptionId))
+          || (!prints.available && prints.defaultOptionId == null));
+    }
+
+    function isValidShopProduct(data, productId) {
+      return data.keys().hasAll([
+          'id', 'slug', 'title', 'shortDescription', 'longDescription', 'category',
+          'tags', 'images', 'primaryImageId', 'original', 'prints', 'channels',
+          'active', 'featured', 'sortOrder', 'relatedProductIds', 'seo',
+          'createdAt', 'updatedAt', 'archivedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'slug', 'title', 'shortDescription', 'longDescription', 'category',
+          'tags', 'images', 'primaryImageId', 'original', 'prints', 'channels',
+          'active', 'featured', 'sortOrder', 'relatedProductIds', 'seo',
+          'createdAt', 'updatedAt', 'archivedAt'
+        ])
+        && data.id == productId
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 100
+        && data.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
+        && data.slug is string && data.slug.size() > 0 && data.slug.size() <= 150
+        && data.slug.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.shortDescription is string && data.shortDescription.size() <= 500
+        && data.longDescription is string && data.longDescription.size() <= 5000
+        && data.category is string && data.category.size() > 0 && data.category.size() <= 100
+        && isValidStringList(data.tags)
+        && isValidImageList(data.images)
+        && ((!data.active || !data.channels.shop || data.images.size() > 0)
+          && ((data.images.size() == 0 && data.primaryImageId == null)
+            || (data.primaryImageId is string && hasImageId(data.images, data.primaryImageId))))
+        && isValidOriginal(data.original)
+        && isValidPrints(data.prints)
+        && data.channels is map
+        && data.channels.keys().hasAll(['shop', 'portfolio'])
+        && data.channels.keys().hasOnly(['shop', 'portfolio'])
+        && data.channels.shop is bool && data.channels.portfolio is bool
+        && data.active is bool && data.featured is bool
+        && data.sortOrder is int && data.sortOrder >= 0
+        && isValidStringList(data.relatedProductIds)
+        && data.seo is map
+        && data.seo.keys().hasAll(['title', 'description'])
+        && data.seo.keys().hasOnly(['title', 'description'])
+        && data.seo.title is string && data.seo.title.size() <= 200
+        && data.seo.description is string && data.seo.description.size() <= 500
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (data.archivedAt == null || data.archivedAt is timestamp)
+        && (data.archivedAt == null || data.active == false);
+    }
+
+    function isValidShopProductCreate(productId) {
+      return isValidShopProduct(request.resource.data, productId)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function isValidShopProductUpdate(productId) {
+      return isValidShopProduct(request.resource.data, productId)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+    }
+
     // Stripe orders are created and updated only by trusted Admin SDK functions.
     // Browser clients cannot read customer/payment data or mutate any order field.
     match /orders/{document=**} {
@@ -15,6 +223,19 @@ service cloud.firestore {
     match /siteContent/home {
       allow read: if true;
       allow create, update, delete: if isAdmin();
+    }
+
+    // Product management is claimed-admin only. Deletion is intentionally absent.
+    match /shopProducts/{productId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidShopProductCreate(productId);
+      allow update: if isAdmin() && isValidShopProductUpdate(productId);
+      allow delete: if false;
+    }
+
+    // Reserved for a future trusted one-of-one inventory flow.
+    match /shopInventory/{document=**} {
+      allow read, write: if false;
     }
 
     // No other Firestore document is browser-accessible unless explicitly added above.

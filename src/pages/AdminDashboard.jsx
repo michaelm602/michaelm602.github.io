@@ -2,6 +2,11 @@ import { Link } from "react-router-dom";
 
 const ADMIN_SECTIONS = [
   {
+    to: "/admin/products",
+    title: "Products",
+    description: "Review and edit the dark Firestore catalog, print options, and original availability.",
+  },
+  {
     to: "/admin/home",
     title: "Homepage",
     description: "Edit homepage hero images, services, copy, and service artwork.",
@@ -34,7 +39,7 @@ export default function AdminDashboard() {
         </div>
 
         <p className="mt-8 rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-white/55">
-          Shop products and Stripe Price IDs are maintained in the source catalog, not in Firebase.
+          Product edits currently update the dark Firestore catalog. The live storefront and checkout still use the reviewed source catalogs.
         </p>
       </div>
     </div>
