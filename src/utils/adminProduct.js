@@ -390,8 +390,12 @@ export function validateAdminProduct(product) {
   });
   const activeOptions = options.filter((option) => option.active);
   if (prints.available && activeOptions.length === 0) add("Prints marked available require an active print option.");
-  if (prints.available && !activeOptions.some((option) => option.id === prints.defaultOptionId)) {
+  const defaultOption = options.find((option) => option.id === prints.defaultOptionId);
+  if (prints.available && !defaultOption) {
     add("Default print option must reference an active print option.");
+  } else if (prints.available && !defaultOption.active) {
+    const optionName = stringValue(defaultOption.label).trim() || stringValue(defaultOption.id).trim() || "Unnamed option";
+    add(`Default print option "${optionName}" is inactive. Activate it or choose another default.`);
   }
   if (!prints.available && prints.defaultOptionId !== null) {
     add("Default print option must be null when " + "prints are unavailable.");

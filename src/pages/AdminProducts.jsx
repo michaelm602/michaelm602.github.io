@@ -47,17 +47,63 @@ function Field({ label, hint, children }) {
   );
 }
 
-function Toggle({ label, checked, onChange, disabled = false }) {
+function Toggle({
+  label,
+  checked,
+  onChange,
+  disabled = false,
+  checkedText = "On",
+  uncheckedText = "Off",
+}) {
+  const stateText = disabled && !checked ? "Locked off" : checked ? checkedText : uncheckedText;
+
   return (
-    <label className="flex min-h-11 items-center gap-3 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/75">
+    <label
+      className={`flex min-h-12 items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition ${
+        disabled
+          ? "cursor-not-allowed border-white/10 bg-white/[0.03] text-white/45"
+          : checked
+            ? "cursor-pointer border-emerald-400/55 bg-emerald-400/[0.08] text-white hover:border-emerald-300/75"
+            : "cursor-pointer border-white/25 bg-black/40 text-white/80 hover:border-white/45"
+      }`}
+    >
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
         disabled={disabled}
-        className="h-4 w-4 accent-white"
+        className="peer sr-only"
       />
-      <span>{label}</span>
+      <span
+        aria-hidden="true"
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border-2 transition peer-focus-visible:ring-2 peer-focus-visible:ring-white peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-black ${
+          checked
+            ? disabled
+              ? "border-white/30 bg-white/20 text-white/55"
+              : "border-emerald-300 bg-emerald-300 text-emerald-950 shadow-[0_0_0_3px_rgba(110,231,183,0.12)]"
+            : disabled
+              ? "border-white/20 bg-black/20"
+              : "border-white/55 bg-black/70"
+        }`}
+      >
+        {checked && (
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
+            <path d="m4 10 4 4 8-9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      <span className="min-w-0 flex-1 font-medium">{label}</span>
+      <span
+        className={`shrink-0 rounded-full border px-2 py-1 text-xs font-semibold ${
+          disabled
+            ? "border-white/15 bg-white/5 text-white/45"
+            : checked
+              ? "border-emerald-300/50 bg-emerald-300/15 text-emerald-200"
+              : "border-white/25 bg-white/5 text-white/60"
+        }`}
+      >
+        {stateText}
+      </span>
     </label>
   );
 }
@@ -463,12 +509,12 @@ export default function AdminProducts() {
                     <Field label="Currency"><input value={draft.original.price.currency ?? ""} onChange={(event) => mutateDraft({ ...draft, original: { ...draft.original, price: { ...draft.original.price, currency: event.target.value.toLowerCase() } } })} className={inputClass} /></Field>
                     <Field label="Quantity"><input value={deriveOriginalQuantity(draft.original.status)} disabled className={inputClass} /></Field>
                   </div>
-                  <div className="mt-4"><Toggle label="Original online checkout disabled" checked={false} onChange={() => {}} disabled /></div>
+                  <div className="mt-4"><Toggle label="Original online checkout disabled" checked={false} onChange={() => {}} uncheckedText="Locked off" disabled /></div>
                 </EditorSection>
 
                 <EditorSection title="Print options" description="Active options require a positive cent amount and a trusted Stripe Price ID.">
                   <div className="mb-4 grid gap-3 sm:grid-cols-2">
-                    <Toggle label="Prints available" checked={draft.prints.available} onChange={(checked) => mutateDraft({ ...draft, prints: { ...draft.prints, available: checked, defaultOptionId: checked ? draft.prints.defaultOptionId : null } })} />
+                    <Toggle label="Prints available" checked={draft.prints.available} checkedText="Available" uncheckedText="Unavailable" onChange={(checked) => mutateDraft({ ...draft, prints: { ...draft.prints, available: checked, defaultOptionId: checked ? draft.prints.defaultOptionId : null } })} />
                     <Field label="Default print option">
                       <select value={draft.prints.defaultOptionId || ""} disabled={!draft.prints.available} onChange={(event) => mutateDraft({ ...draft, prints: { ...draft.prints, defaultOptionId: event.target.value || null } })} className={inputClass}>
                         <option value="">Choose an active option</option>
@@ -479,13 +525,22 @@ export default function AdminProducts() {
                   <div className="space-y-3">
                     {draft.prints.options.map((option, index) => (
                       <div key={`${option.id}-${index}`} className="grid gap-3 rounded-lg border border-white/10 bg-black/25 p-4 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2 xl:col-span-4">
+                          <span className="text-sm font-semibold text-white/85">
+                            {option.label || option.id || `Print option ${index + 1}`}
+                          </span>
+                          <span className="flex flex-wrap items-center gap-2">
+                            {draft.prints.defaultOptionId === option.id && <StatusPill>Default</StatusPill>}
+                            <StatusPill tone={option.active ? "active" : "warning"}>{option.active ? "Active" : "Inactive"}</StatusPill>
+                          </span>
+                        </div>
                         <Field label="Option ID"><input value={option.id} onChange={(event) => updatePrintOption(index, "id", event.target.value)} className={inputClass} /></Field>
                         <Field label="Label"><input value={option.label} onChange={(event) => updatePrintOption(index, "label", event.target.value)} className={inputClass} /></Field>
                         <Field label="Price in cents" hint={formatProductMoney(option.amountCents, option.currency)}><input type="number" min="1" step="1" value={option.amountCents ?? ""} onChange={(event) => updatePrintOption(index, "amountCents", event.target.value === "" ? null : Number(event.target.value))} className={inputClass} /></Field>
                         <Field label="Currency"><input value={option.currency ?? ""} onChange={(event) => updatePrintOption(index, "currency", event.target.value.toLowerCase())} className={inputClass} /></Field>
                         <Field label="Stripe Price ID"><input value={option.stripePriceId || ""} onChange={(event) => updatePrintOption(index, "stripePriceId", event.target.value)} className={inputClass} /></Field>
                         <Field label="Sort order"><input type="number" min="0" step="1" value={option.sortOrder} onChange={(event) => updatePrintOption(index, "sortOrder", Number(event.target.value))} className={inputClass} /></Field>
-                        <Toggle label="Option active" checked={option.active} onChange={(checked) => updatePrintOption(index, "active", checked)} />
+                        <Toggle label="Option active" checked={option.active} checkedText="Active" uncheckedText="Inactive" onChange={(checked) => updatePrintOption(index, "active", checked)} />
                         <button type="button" onClick={() => mutateDraft({ ...draft, prints: { ...draft.prints, options: draft.prints.options.filter((_, optionIndex) => optionIndex !== index), defaultOptionId: draft.prints.defaultOptionId === option.id ? null : draft.prints.defaultOptionId } })} className={`${buttonClass} self-end border border-white/15 text-white/60 hover:bg-white/10`}>Remove option</button>
                       </div>
                     ))}

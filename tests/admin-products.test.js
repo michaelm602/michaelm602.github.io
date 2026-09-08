@@ -53,6 +53,18 @@ test("admin product summaries use encoding-safe ASCII separators", () => {
   assert.match(adminProducts, / \| /);
 });
 
+test("admin product toggles remain semantic and expose clear mobile states", () => {
+  assert.match(adminProducts, /type="checkbox"/);
+  assert.match(adminProducts, /className="peer sr-only"/);
+  assert.match(adminProducts, /min-h-12/);
+  assert.match(adminProducts, /h-6 w-6/);
+  assert.match(adminProducts, /peer-focus-visible:ring/);
+  assert.match(adminProducts, /checkedText = "On"/);
+  assert.match(adminProducts, /uncheckedText = "Off"/);
+  assert.match(adminProducts, /checkedText="Active" uncheckedText="Inactive"/);
+  assert.match(adminProducts, /<StatusPill tone=\{option\.active \? "active" : "warning"\}>/);
+});
+
 test("original state derives one-of-one quantity and stays contact-only", () => {
   assert.equal(deriveOriginalQuantity("available"), 1);
   assert.equal(deriveOriginalQuantity("sold"), 0);
@@ -87,6 +99,25 @@ test("admin validation rejects original checkout and invalid active print produc
   ];
   invalidPrints.prints.defaultOptionId = "16x20";
   assert.match(validateAdminProduct(invalidPrints).errors.join(" "), /Stripe Price ID/);
+
+  const inactiveDefault = validProduct();
+  inactiveDefault.prints.available = true;
+  inactiveDefault.prints.options = [
+    {
+      id: "small",
+      label: "Small print",
+      amountCents: 2500,
+      currency: "usd",
+      stripePriceId: null,
+      active: false,
+      sortOrder: 0,
+    },
+  ];
+  inactiveDefault.prints.defaultOptionId = "small";
+  assert.match(
+    validateAdminProduct(inactiveDefault).errors.join(" "),
+    /default print option "Small print" is inactive/i
+  );
 });
 
 test("currency editing is null-safe and save normalization always produces a valid code", () => {
