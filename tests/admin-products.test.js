@@ -48,6 +48,11 @@ test("admin products route is protected by the existing custom-claim route", () 
   assert.doesNotMatch(adminProducts, /ADMIN_EMAIL|ADMIN_UID|airbrushnink@gmail\.com/);
 });
 
+test("admin product summaries use encoding-safe ASCII separators", () => {
+  assert.doesNotMatch(adminProducts, /Â·/);
+  assert.match(adminProducts, / \| /);
+});
+
 test("original state derives one-of-one quantity and stays contact-only", () => {
   assert.equal(deriveOriginalQuantity("available"), 1);
   assert.equal(deriveOriginalQuantity("sold"), 0);

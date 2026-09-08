@@ -356,10 +356,10 @@ export default function AdminProducts() {
                       <span className="block truncate text-sm font-semibold">{product.title}</span>
                       <span className={`block truncate text-xs ${selectedId === product.id && !isNew ? "text-black/55" : "text-white/40"}`}>{product.slug}</span>
                       <span className={`mt-1 block truncate text-xs ${selectedId === product.id && !isNew ? "text-black/65" : "text-white/55"}`}>
-                        {product.category} Â· {product.prints?.available ? `${product.prints.options?.filter((option) => option.active).length || 0} print options` : "Prints unavailable"}
+                        {product.category} | {product.prints?.available ? `${product.prints.options?.filter((option) => option.active).length || 0} print options` : "Prints unavailable"}
                       </span>
                       <span className={`mt-1 block truncate text-xs ${selectedId === product.id && !isNew ? "text-black/65" : "text-white/55"}`}>
-                        Original: {product.original?.status?.replaceAll("_", " ")}{product.original?.price?.amountCents ? ` Â· ${formatProductMoney(product.original.price.amountCents, product.original.price.currency)}` : ""}{product.featured ? " Â· Featured" : ""}
+                        Original: {product.original?.status?.replaceAll("_", " ")}{product.original?.price?.amountCents ? ` | ${formatProductMoney(product.original.price.amountCents, product.original.price.currency)}` : ""}{product.featured ? " | Featured" : ""}
                       </span>
                       <span className="mt-1 flex flex-wrap gap-1">
                         {product.archivedAt ? <StatusPill tone="archived">Archived</StatusPill> : product.active ? <StatusPill tone="active">Active</StatusPill> : <StatusPill>Inactive</StatusPill>}
