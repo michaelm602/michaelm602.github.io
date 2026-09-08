@@ -337,7 +337,7 @@ export default function AdminProducts() {
     });
 
   if (adminError) return <p className="min-h-screen bg-black px-4 py-12 text-center text-red-300">{adminError}</p>;
-  if (adminLoading || loading) return <p className="min-h-screen bg-black px-4 py-12 text-center text-white/60">Loading product catalogâ€¦</p>;
+  if (adminLoading || loading) return <p className="min-h-screen bg-black px-4 py-12 text-center text-white/60">Loading product catalog...</p>;
 
   return (
     <div className="min-h-screen bg-[#080808] px-3 py-6 text-white sm:px-6 lg:px-8">
@@ -364,7 +364,7 @@ export default function AdminProducts() {
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search title, slug, categoryâ€¦"
+                placeholder="Search title, slug, category..."
                 aria-label="Search products"
                 className={inputClass}
               />
@@ -439,7 +439,7 @@ export default function AdminProducts() {
                       <button type="button" onClick={archive} disabled={saving} className={`${buttonClass} border border-rose-400/30 text-rose-200 hover:bg-rose-400/10`}>Archive</button>
                     ))}
                     <button type="submit" disabled={!dirty || saving || !isAdmin} className={`${buttonClass} bg-white text-black hover:bg-white/85`}>
-                      {saving ? "Savingâ€¦" : "Save product"}
+                      {saving ? "Saving..." : "Save product"}
                     </button>
                   </div>
                 </div>
@@ -566,7 +566,7 @@ export default function AdminProducts() {
 
                 <div className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/15 bg-black/95 p-3 shadow-2xl">
                   <span className="text-xs text-white/45">{dirty ? "Unsaved changes" : "Saved state"}</span>
-                  <button type="submit" disabled={!dirty || saving || !isAdmin} className={`${buttonClass} bg-white text-black hover:bg-white/85`}>{saving ? "Savingâ€¦" : "Save product"}</button>
+                  <button type="submit" disabled={!dirty || saving || !isAdmin} className={`${buttonClass} bg-white text-black hover:bg-white/85`}>{saving ? "Saving..." : "Save product"}</button>
                 </div>
               </form>
             )}

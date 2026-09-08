@@ -48,7 +48,7 @@ export default function ProductStoragePreview({ image, alt = "" }) {
 
   return (
     <div className="flex h-full w-full items-center justify-center bg-[#151515] px-3 text-center text-xs text-white/40">
-      {missing ? "Preview unavailable" : image?.storagePath ? "Loading preview…" : "No image path"}
+      {missing ? "Preview unavailable" : image?.storagePath ? "Loading preview..." : "No image path"}
     </div>
   );
 }

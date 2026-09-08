@@ -18,6 +18,7 @@ import {
 const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 const adminRoute = await readFile(new URL("../src/Components/AdminRoute.jsx", import.meta.url), "utf8");
 const adminProducts = await readFile(new URL("../src/pages/AdminProducts.jsx", import.meta.url), "utf8");
+const productStoragePreview = await readFile(new URL("../src/Components/ProductStoragePreview.jsx", import.meta.url), "utf8");
 const adminData = await readFile(new URL("../src/services/adminProducts.js", import.meta.url), "utf8");
 const storefront = await readFile(new URL("../src/Components/ShopGallery.jsx", import.meta.url), "utf8");
 const checkout = await readFile(new URL("../functions/index.js", import.meta.url), "utf8");
@@ -27,7 +28,7 @@ function validProduct() {
   product.id = "new-piece";
   product.slug = "new-piece";
   product.title = "New Piece";
-  product.category = "Airbrush · Print";
+  product.category = "Airbrush | Print";
   product.images = [
     {
       id: "image-1",
@@ -48,9 +49,15 @@ test("admin products route is protected by the existing custom-claim route", () 
   assert.doesNotMatch(adminProducts, /ADMIN_EMAIL|ADMIN_UID|airbrushnink@gmail\.com/);
 });
 
-test("admin product summaries use encoding-safe ASCII separators", () => {
-  assert.doesNotMatch(adminProducts, /Â·/);
+test("admin product UI copy uses encoding-safe ASCII punctuation", () => {
+  const adminProductUi = `${adminProducts}\n${productStoragePreview}`;
+
+  assert.doesNotMatch(adminProductUi, /[\u00e2\u00c2\u2026\u00b7]/);
+  assert.match(adminProducts, /Loading product catalog\.\.\./);
+  assert.match(adminProducts, /Search title, slug, category\.\.\./);
+  assert.match(adminProducts, /Saving\.\.\./);
   assert.match(adminProducts, / \| /);
+  assert.match(productStoragePreview, /Loading preview\.\.\./);
 });
 
 test("admin product toggles remain semantic and expose clear mobile states", () => {
