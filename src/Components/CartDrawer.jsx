@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "./CartContext";
 import { X } from "lucide-react";
 import {
@@ -10,6 +10,9 @@ import { buildOrderItems, saveOrderToFirestore } from "../utils/orderUtils";
 import {
     PRINT_CHECKOUT_ACKNOWLEDGEMENT,
     PRINT_SALES_CONTACT_EMAIL,
+    PRINT_SALES_POLICY,
+    getPrintPolicyDisclosureState,
+    isPrintPolicyAcknowledgedForCart,
     startAcknowledgedPrintCheckout,
 } from "../utils/printCheckoutPolicy";
 import emailjs from "@emailjs/browser";
@@ -21,6 +24,7 @@ export default function CartDrawer({ isOpen, onClose }) {
     const [isPayPalReady, setIsPayPalReady] = useState(false);
     const [acknowledgedCartSignature, setAcknowledgedCartSignature] = useState(null);
     const [acknowledgementError, setAcknowledgementError] = useState("");
+    const [isPolicyReviewOpen, setIsPolicyReviewOpen] = useState(false);
 
     const PAYPAL_CLIENT_ID =
         "AU5aAM3bPf_1lmA--7fuKSvlkyW5imXLRM4a2be_xgyiv4mYJU14v_KJviRqwy67-p5uNjchLtHurRg4";
@@ -29,6 +33,7 @@ export default function CartDrawer({ isOpen, onClose }) {
 
     const paypalRenderedRef = useRef(false);
     const acknowledgedCartSignatureRef = useRef(null);
+    const previousCartSignatureRef = useRef(null);
 
     const total = useMemo(
         () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -48,8 +53,37 @@ export default function CartDrawer({ isOpen, onClose }) {
         );
     }, [cartItems]);
 
-    const policyAcknowledged =
-        cartItems.length > 0 && acknowledgedCartSignature === cartSignature;
+    const policyAcknowledged = isPrintPolicyAcknowledgedForCart(
+        acknowledgedCartSignature,
+        cartSignature,
+        cartItems.length
+    );
+    const policyDisclosure = getPrintPolicyDisclosureState({
+        acknowledged: policyAcknowledged,
+        reviewRequested: isPolicyReviewOpen,
+    });
+    const [policyBeforeEmail, policyAfterEmail] = PRINT_SALES_POLICY.split(
+        PRINT_SALES_CONTACT_EMAIL
+    );
+
+    const resetPolicyAcknowledgement = useCallback(() => {
+        setAcknowledgedCartSignature(null);
+        acknowledgedCartSignatureRef.current = null;
+        setAcknowledgementError("");
+        setIsPolicyReviewOpen(false);
+    }, []);
+
+    useEffect(() => {
+        const cartChanged =
+            previousCartSignatureRef.current !== null &&
+            previousCartSignatureRef.current !== cartSignature;
+
+        previousCartSignatureRef.current = cartSignature;
+
+        if (cartChanged || !isOpen) {
+            resetPolicyAcknowledgement();
+        }
+    }, [cartSignature, isOpen, resetPolicyAcknowledgement]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -177,9 +211,7 @@ export default function CartDrawer({ isOpen, onClose }) {
 
                             toast.success("Payment successful! Order confirmation sent.");
                             clearCart();
-                            setAcknowledgedCartSignature(null);
-                            acknowledgedCartSignatureRef.current = null;
-                            setAcknowledgementError("");
+                            resetPolicyAcknowledgement();
                             onClose();
 
                             paypalRenderedRef.current = false;
@@ -214,6 +246,7 @@ export default function CartDrawer({ isOpen, onClose }) {
         clearCart,
         onClose,
         cartItems,
+        resetPolicyAcknowledgement,
     ]);
 
     const startStripeCheckout = async () => {
@@ -270,6 +303,7 @@ export default function CartDrawer({ isOpen, onClose }) {
         const nextSignature = event.target.checked ? cartSignature : null;
         setAcknowledgedCartSignature(nextSignature);
         acknowledgedCartSignatureRef.current = nextSignature;
+        setIsPolicyReviewOpen(false);
 
         if (event.target.checked) {
             setAcknowledgementError("");
@@ -277,9 +311,7 @@ export default function CartDrawer({ isOpen, onClose }) {
     };
 
     const handleClose = () => {
-        setAcknowledgedCartSignature(null);
-        acknowledgedCartSignatureRef.current = null;
-        setAcknowledgementError("");
+        resetPolicyAcknowledgement();
         onClose();
     };
 
@@ -400,33 +432,98 @@ export default function CartDrawer({ isOpen, onClose }) {
                 </div>
 
                 {cartItems.length > 0 && (
-                    <div className="mb-3 rounded border border-white/15 bg-white/5 p-3">
-                        <p className="text-xs leading-relaxed text-zinc-300">
-                            Prints are made to order through a professional print partner. Sales are
-                            final once submitted to production. Questions or order problems?{" "}
-                            <a
-                                href={`mailto:${PRINT_SALES_CONTACT_EMAIL}`}
-                                className="text-white underline underline-offset-2"
-                            >
-                                {PRINT_SALES_CONTACT_EMAIL}
-                            </a>
-                        </p>
-                        <div className="mt-3 flex items-start gap-2">
-                            <input
-                                id="print-checkout-acknowledgement"
-                                type="checkbox"
-                                checked={policyAcknowledged}
-                                onChange={handlePolicyAcknowledgement}
-                                aria-describedby={acknowledgementError ? "print-checkout-acknowledgement-error" : undefined}
-                                className="mt-1 h-4 w-4 shrink-0 accent-white"
-                            />
-                            <label
-                                htmlFor="print-checkout-acknowledgement"
-                                className="text-xs leading-relaxed text-zinc-200"
-                            >
-                                {PRINT_CHECKOUT_ACKNOWLEDGEMENT}
-                            </label>
-                        </div>
+                    <section
+                        aria-labelledby="print-policy-title"
+                        className={`mb-2 rounded border transition-colors ${
+                            policyDisclosure.expanded
+                                ? "border-white/15 bg-white/[0.04] p-3"
+                                : "border-white/20 bg-white/[0.07] px-3 py-2.5"
+                        }`}
+                    >
+                        {policyDisclosure.expanded ? (
+                            <div id="print-policy-details">
+                                <div className="flex items-start justify-between gap-3">
+                                    <h3
+                                        id="print-policy-title"
+                                        className="text-xs font-semibold text-white"
+                                    >
+                                        Made-to-order print policy
+                                    </h3>
+                                    {policyAcknowledged && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsPolicyReviewOpen(false)}
+                                            aria-expanded="true"
+                                            aria-controls="print-policy-details"
+                                            className="shrink-0 text-xs text-zinc-300 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                                        >
+                                            Hide details
+                                        </button>
+                                    )}
+                                </div>
+                                <p className="mt-2 text-xs leading-relaxed text-zinc-300">
+                                    {policyBeforeEmail}
+                                    <a
+                                        href={`mailto:${PRINT_SALES_CONTACT_EMAIL}`}
+                                        className="text-white underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                                    >
+                                        {PRINT_SALES_CONTACT_EMAIL}
+                                    </a>
+                                    {policyAfterEmail}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="flex items-start gap-2.5">
+                                <input
+                                    id="print-checkout-acknowledgement"
+                                    type="checkbox"
+                                    checked={policyAcknowledged}
+                                    onChange={handlePolicyAcknowledgement}
+                                    className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-white"
+                                />
+                                <div className="min-w-0 flex-1">
+                                    <label
+                                        id="print-policy-title"
+                                        htmlFor="print-checkout-acknowledgement"
+                                        className="block cursor-pointer text-xs leading-relaxed text-zinc-200"
+                                    >
+                                        <span className="font-semibold text-white">Policy acknowledged</span>
+                                        <span className="block text-zinc-400">
+                                            Made-to-order print sales are final once submitted to production.
+                                        </span>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsPolicyReviewOpen(true)}
+                                        aria-expanded="false"
+                                        aria-controls="print-policy-details"
+                                        className="mt-1 text-xs text-zinc-300 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                                    >
+                                        Review policy
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {policyDisclosure.expanded && (
+                            <div className="mt-3 flex items-start gap-2.5 border-t border-white/10 pt-3">
+                                <input
+                                    id="print-checkout-acknowledgement"
+                                    type="checkbox"
+                                    checked={policyAcknowledged}
+                                    onChange={handlePolicyAcknowledgement}
+                                    aria-describedby={acknowledgementError ? "print-checkout-acknowledgement-error" : undefined}
+                                    className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-white"
+                                />
+                                <label
+                                    htmlFor="print-checkout-acknowledgement"
+                                    className="cursor-pointer text-xs leading-relaxed text-zinc-200"
+                                >
+                                    {PRINT_CHECKOUT_ACKNOWLEDGEMENT}
+                                </label>
+                            </div>
+                        )}
+
                         {acknowledgementError && (
                             <p
                                 id="print-checkout-acknowledgement-error"
@@ -436,7 +533,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                                 {acknowledgementError}
                             </p>
                         )}
-                    </div>
+                    </section>
                 )}
 
                 <div className="flex justify-between gap-2">

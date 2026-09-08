@@ -9,6 +9,26 @@ export const PRINT_CHECKOUT_ACKNOWLEDGEMENT =
 export const PRINT_CHECKOUT_ACKNOWLEDGEMENT_ERROR =
   "Please confirm the made-to-order print policy before checkout.";
 
+export function getPrintPolicyDisclosureState({ acknowledged, reviewRequested }) {
+  if (!acknowledged) {
+    return { acknowledged: false, expanded: true };
+  }
+
+  return { acknowledged: true, expanded: Boolean(reviewRequested) };
+}
+
+export function isPrintPolicyAcknowledgedForCart(
+  acknowledgedCartSignature,
+  currentCartSignature,
+  itemCount
+) {
+  return (
+    itemCount > 0 &&
+    Boolean(acknowledgedCartSignature) &&
+    acknowledgedCartSignature === currentCartSignature
+  );
+}
+
 export async function startAcknowledgedPrintCheckout(acknowledged, startCheckout) {
   if (!acknowledged) {
     return {
