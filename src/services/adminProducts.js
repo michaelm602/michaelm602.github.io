@@ -49,15 +49,18 @@ export async function saveAdminProduct(product, { isNew = false } = {}) {
   }
 
   const { createdAt: _createdAt, updatedAt: _updatedAt, ...catalogFields } = normalized;
-  await setDoc(
-    productRef,
-    {
+  if (isNew) {
+    await setDoc(productRef, {
+      ...catalogFields,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    await updateDoc(productRef, {
       ...catalogFields,
       updatedAt: serverTimestamp(),
-      ...(isNew ? { createdAt: serverTimestamp() } : {}),
-    },
-    { merge: !isNew }
-  );
+    });
+  }
   return normalized.id;
 }
 

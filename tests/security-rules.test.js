@@ -19,6 +19,11 @@ test("shopProducts stays dark to the public and only claimed admins can validate
   assert.match(firestoreRules, /allow update: if isAdmin\(\)[\s\S]*isValidShopProductUpdate/);
   assert.match(firestoreRules, /allow delete: if false;/);
   assert.match(firestoreRules, /original\.checkoutEnabled == false/);
+  assert.match(firestoreRules, /data\.diff\(resource\.data\)\.removedKeys\(\)\.size\(\) == 0/);
+  assert.match(firestoreRules, /changed\.hasAny\(\['prints'\]\)[\s\S]*isValidPrints\(data\.prints\)/);
+  assert.match(firestoreRules, /changed\.hasAny\(\['original'\]\)[\s\S]*isValidOriginal\(data\.original\)/);
+  assert.match(firestoreRules, /changed\.hasAny\(\['images', 'primaryImageId', 'active', 'channels'\]\)[\s\S]*isValidUpdatedImageState\(data\)/);
+  assert.match(firestoreRules, /changed\.hasAny\(\['title'\]\)[\s\S]*isValidUpdatedText\(data\.title, 200, true\)/);
   assert.match(firestoreRules, /match \/shopInventory\/\{document=\*\*\}[\s\S]*allow read, write: if false;/);
 });
 

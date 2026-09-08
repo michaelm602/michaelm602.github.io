@@ -215,9 +215,10 @@ test("client text and allowlist validation matches Firestore rule boundaries", (
   assert.equal(Object.hasOwn(normalized.original, "unexpected"), false);
 });
 
-test("save service validates the normalized document before writing", () => {
+test("save service validates normalized data and separates create from update writes", () => {
   assert.match(adminData, /normalizeAdminProductForSave\(product\)[\s\S]*validateAdminProduct\(normalized\)/);
   assert.ok(adminData.indexOf("validateAdminProduct(normalized)") < adminData.indexOf("setDoc("));
+  assert.match(adminData, /if \(isNew\)[\s\S]*setDoc\([\s\S]*else[\s\S]*updateDoc\(/);
 });
 
 test("active shop products require a valid existing-media path", () => {
@@ -246,7 +247,7 @@ test("archive behavior disables active publishing without deleting the product",
   assert.equal(restored.active, false);
 });
 
-test("product manager uses Firestore upserts and archive updates without delete operations", () => {
+test("product manager uses explicit Firestore create and update operations without deletes", () => {
   assert.match(adminData, /collection\(db, SHOP_PRODUCTS_COLLECTION\)/);
   assert.match(adminData, /setDoc\(/);
   assert.match(adminData, /updateDoc\(/);

@@ -91,9 +91,7 @@ service cloud.firestore {
     }
 
     function isValidPrintOption(option) {
-      return option is map
-        && option.keys().hasAll(['id', 'label', 'amountCents', 'currency', 'stripePriceId', 'active', 'sortOrder'])
-        && option.keys().hasOnly(['id', 'label', 'amountCents', 'currency', 'stripePriceId', 'active', 'sortOrder'])
+      return option.keys().hasOnly(['id', 'label', 'amountCents', 'currency', 'stripePriceId', 'active', 'sortOrder'])
         && option.id is string && option.id.size() > 0 && option.id.size() <= 100
         && option.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
         && option.label is string && option.label.size() > 0 && option.label.size() <= 100
@@ -141,9 +139,7 @@ service cloud.firestore {
     }
 
     function isValidPrints(prints) {
-      return prints is map
-        && prints.keys().hasAll(['available', 'defaultOptionId', 'options'])
-        && prints.keys().hasOnly(['available', 'defaultOptionId', 'options'])
+      return prints.keys().hasOnly(['available', 'defaultOptionId', 'options'])
         && prints.available is bool
         && isValidPrintOptionList(prints.options)
         && ((prints.available
@@ -206,11 +202,79 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
     }
 
+    function isValidUpdatedText(value, maxLength, required) {
+      return value is string
+        && value.size() <= maxLength
+        && (!required || value.size() > 0);
+    }
+
+    function isValidUpdatedSlug(value) {
+      return isValidUpdatedText(value, 150, true)
+        && value.matches('^[a-z0-9]+(-[a-z0-9]+)*$');
+    }
+
+    function isValidUpdatedChannels(channels) {
+      return channels is map
+        && channels.keys().hasAll(['shop', 'portfolio'])
+        && channels.keys().hasOnly(['shop', 'portfolio'])
+        && channels.shop is bool
+        && channels.portfolio is bool;
+    }
+
+    function isValidUpdatedSeo(seo) {
+      return seo is map
+        && seo.keys().hasAll(['title', 'description'])
+        && seo.keys().hasOnly(['title', 'description'])
+        && isValidUpdatedText(seo.title, 200, false)
+        && isValidUpdatedText(seo.description, 500, false);
+    }
+
+    function isValidUpdatedImageState(data) {
+      return isValidImageList(data.images)
+        && ((!data.active || !data.channels.shop || data.images.size() > 0)
+          && ((data.images.size() == 0 && data.primaryImageId == null)
+            || (data.primaryImageId is string && hasImageId(data.images, data.primaryImageId))));
+    }
+
+    function isValidUpdatedArchiveState(data) {
+      return (data.archivedAt == null || data.archivedAt is timestamp)
+        && (data.archivedAt == null || data.active == false);
+    }
+
     function isValidShopProductUpdate(productId) {
-      return isValidShopProduct(request.resource.data, productId)
-        && request.resource.data.id == resource.data.id
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.updatedAt == request.time;
+      let data = request.resource.data;
+      let changed = data.diff(resource.data).affectedKeys();
+      return data.keys().hasOnly([
+          'id', 'slug', 'title', 'shortDescription', 'longDescription', 'category',
+          'tags', 'images', 'primaryImageId', 'original', 'prints', 'channels',
+          'active', 'featured', 'sortOrder', 'relatedProductIds', 'seo',
+          'createdAt', 'updatedAt', 'archivedAt'
+        ])
+        && data.diff(resource.data).removedKeys().size() == 0
+        && data.id == productId
+        && data.id == resource.data.id
+        && data.createdAt == resource.data.createdAt
+        && data.updatedAt == request.time
+        && (!changed.hasAny(['slug']) || isValidUpdatedSlug(data.slug))
+        && (!changed.hasAny(['title']) || isValidUpdatedText(data.title, 200, true))
+        && (!changed.hasAny(['shortDescription'])
+          || isValidUpdatedText(data.shortDescription, 500, false))
+        && (!changed.hasAny(['longDescription'])
+          || isValidUpdatedText(data.longDescription, 5000, false))
+        && (!changed.hasAny(['category']) || isValidUpdatedText(data.category, 100, true))
+        && (!changed.hasAny(['tags']) || isValidStringList(data.tags))
+        && (!changed.hasAny(['relatedProductIds']) || isValidStringList(data.relatedProductIds))
+        && (!changed.hasAny(['images', 'primaryImageId', 'active', 'channels'])
+          || isValidUpdatedImageState(data))
+        && (!changed.hasAny(['original']) || isValidOriginal(data.original))
+        && (!changed.hasAny(['prints']) || isValidPrints(data.prints))
+        && (!changed.hasAny(['channels']) || isValidUpdatedChannels(data.channels))
+        && (!changed.hasAny(['active']) || data.active is bool)
+        && (!changed.hasAny(['featured']) || data.featured is bool)
+        && (!changed.hasAny(['sortOrder'])
+          || (data.sortOrder is int && data.sortOrder >= 0))
+        && (!changed.hasAny(['seo']) || isValidUpdatedSeo(data.seo))
+        && (!changed.hasAny(['archivedAt', 'active']) || isValidUpdatedArchiveState(data));
     }
 
     // Stripe orders are created and updated only by trusted Admin SDK functions.
