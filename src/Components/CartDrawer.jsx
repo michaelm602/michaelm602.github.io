@@ -17,6 +17,14 @@ import {
 } from "../utils/printCheckoutPolicy";
 import emailjs from "@emailjs/browser";
 import toast from "react-hot-toast";
+import {
+    PAYPAL_CHECKOUT_UNAVAILABLE_MESSAGE,
+    getCheckoutPaymentMethods,
+} from "../utils/checkoutPaymentMethods";
+
+// TODO: Set this true only after PayPal create/capture, catalog validation,
+// and order persistence are implemented in a trusted backend.
+const PAYPAL_BACKEND_CHECKOUT_READY = false;
 
 export default function CartDrawer({ isOpen, onClose }) {
     const { cartItems, removeFromCart, clearCart, updateCartItem } = useCart();
@@ -29,7 +37,18 @@ export default function CartDrawer({ isOpen, onClose }) {
     const PAYPAL_CLIENT_ID =
         "AU5aAM3bPf_1lmA--7fuKSvlkyW5imXLRM4a2be_xgyiv4mYJU14v_KJviRqwy67-p5uNjchLtHurRg4";
 
-    usePayPalScript(PAYPAL_CLIENT_ID, () => setIsPayPalReady(true));
+    const paymentMethods = getCheckoutPaymentMethods({
+        isProduction: import.meta.env.PROD,
+        paypalRequested: true,
+        paypalBackendReady: PAYPAL_BACKEND_CHECKOUT_READY,
+    });
+    const paypalCheckoutEnabled = paymentMethods.showPayPalButtons;
+
+    usePayPalScript(
+        PAYPAL_CLIENT_ID,
+        () => setIsPayPalReady(true),
+        paypalCheckoutEnabled
+    );
 
     const paypalRenderedRef = useRef(false);
     const acknowledgedCartSignatureRef = useRef(null);
@@ -86,6 +105,7 @@ export default function CartDrawer({ isOpen, onClose }) {
     }, [cartSignature, isOpen, resetPolicyAcknowledgement]);
 
     useEffect(() => {
+        if (!paypalCheckoutEnabled) return;
         if (!isOpen) return;
         if (!isPayPalReady) return;
 
@@ -247,6 +267,7 @@ export default function CartDrawer({ isOpen, onClose }) {
         onClose,
         cartItems,
         resetPolicyAcknowledgement,
+        paypalCheckoutEnabled,
     ]);
 
     const startStripeCheckout = async () => {
@@ -549,12 +570,24 @@ export default function CartDrawer({ isOpen, onClose }) {
                         onClick={handleStripeCheckout}
                         disabled={cartItems.length === 0}
                     >
-                        Checkout
+                        Card checkout
                     </button>
                 </div>
 
                 {cartItems.length > 0 && (
-                    <div className="mt-4" id="paypal-button-container"></div>
+                    <p className="text-center text-xs leading-relaxed text-zinc-400">
+                        Shipping is collected during secure checkout. Prints are made to order after payment.
+                    </p>
+                )}
+
+                {cartItems.length > 0 && paypalCheckoutEnabled && (
+                    <div className="mt-2" id="paypal-button-container"></div>
+                )}
+
+                {cartItems.length > 0 && !paypalCheckoutEnabled && (
+                    <p className="text-center text-xs leading-relaxed text-zinc-400" role="status">
+                        {PAYPAL_CHECKOUT_UNAVAILABLE_MESSAGE}
+                    </p>
                 )}
 
                 <button

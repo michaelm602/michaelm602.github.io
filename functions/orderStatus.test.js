@@ -20,6 +20,10 @@ test("public status exposes only fixed safe confirmation fields", () => {
         status: "paid",
         paymentStatus: "paid",
         buyerInfo: { name: "Private Name", email: "private@example.com" },
+        shippingInfo: {
+            name: "Private Recipient",
+            address: { line1: "Private shipping address" },
+        },
         stripeSessionId: "private-session",
         stripePaymentIntentId: "private-intent",
         customerEmailSent: true,

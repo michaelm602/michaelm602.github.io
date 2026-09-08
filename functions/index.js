@@ -31,6 +31,11 @@ const {
     buildPublicOrderStatus,
     isValidOrderId,
 } = require("./orderStatus");
+const {
+    buildPaidStripeOrderFields,
+    buildStripeCheckoutSessionParams,
+    isPaidStripeCheckoutEvent,
+} = require("./checkoutFulfillment");
 
 const path = require("path");
 const os = require("os");
@@ -408,14 +413,14 @@ exports.createStripeCheckoutSession = onRequest(
                 });
                 const orderId = orderRef.id;
 
-                const session = await stripe.checkout.sessions.create({
-                    mode: "payment",
-                    line_items: lineItems,
-                    success_url: `${successUrl}&orderId=${orderId}`,
-                    cancel_url: `${cancelUrl}&orderId=${orderId}`,
-                    client_reference_id: orderId,
-                    metadata: { orderId },
-                });
+                const session = await stripe.checkout.sessions.create(
+                    buildStripeCheckoutSessionParams({
+                        lineItems,
+                        successUrl,
+                        cancelUrl,
+                        orderId,
+                    })
+                );
 
                 return res.status(200).json({ id: session.id, url: session.url, orderId });
             } catch (err) {
@@ -518,11 +523,14 @@ exports.handleStripeWebhook = onRequest(
             const stripe = getStripe(stripeSecret);
             const event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
 
-            if (event.type === "checkout.session.completed") {
+            if (
+                event.type === "checkout.session.completed" ||
+                event.type === "checkout.session.async_payment_succeeded"
+            ) {
                 const session = event.data.object;
                 const orderId = session.metadata?.orderId || session.client_reference_id;
 
-                if (session.payment_status !== "paid") {
+                if (!isPaidStripeCheckoutEvent({ type: event.type, session })) {
                     logger.warn(
                         "Stripe Checkout Session completed without confirmed payment; order remains pending",
                         {
@@ -540,18 +548,7 @@ exports.handleStripeWebhook = onRequest(
 
                     await orderRef.set(
                         {
-                            buyerInfo: {
-                                name: session.customer_details?.name || null,
-                                email: session.customer_details?.email || null,
-                            },
-                            status: "paid",
-                            paymentProvider: "stripe",
-                            paymentStatus: "paid",
-                            stripeSessionId: session.id,
-                            stripePaymentIntentId: session.payment_intent || null,
-                            stripeCustomerId: session.customer || null,
-                            stripeCustomerEmail: session.customer_details?.email || null,
-                            stripePaymentStatus: session.payment_status || null,
+                            ...buildPaidStripeOrderFields(session),
                             paidAt: admin.firestore.FieldValue.serverTimestamp(),
                             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         },

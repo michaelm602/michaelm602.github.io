@@ -1,7 +1,7 @@
 // src/utils/usePayPalScript.js
 import { useEffect, useRef } from "react";
 
-export default function usePayPalScript(clientId, onReady) {
+export default function usePayPalScript(clientId, onReady, enabled = true) {
     const onReadyRef = useRef(onReady);
 
     // keep latest callback without retriggering the script loader effect
@@ -10,7 +10,7 @@ export default function usePayPalScript(clientId, onReady) {
     }, [onReady]);
 
     useEffect(() => {
-        if (!clientId) return;
+        if (!enabled || !clientId) return;
 
         const scriptId = "paypal-sdk";
         const callReady = () => {
@@ -52,5 +52,5 @@ export default function usePayPalScript(clientId, onReady) {
 
         // optional cleanup (leave script in place usually)
         // return () => script.remove();
-    }, [clientId]);
+    }, [clientId, enabled]);
 }
