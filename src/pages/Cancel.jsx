@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft, ShoppingBag, XCircle } from "lucide-react";
+import CheckoutReferenceDisclosure from "../Components/CheckoutReferenceDisclosure";
 
 function clearMatchingPendingStripeOrderId(orderId) {
     try {
@@ -45,15 +46,13 @@ export default function Cancel() {
                 </h1>
 
                 <p className="mb-8 max-w-xl text-base leading-relaxed text-zinc-300 sm:text-lg">
-                    You left Stripe Checkout before completing payment. Your cart is still saved, so you can review it, make changes, or come back later.
+                    You left Stripe Checkout before completing payment. Your cart is still saved if you want to review it or finish checkout later.
                 </p>
 
-                {orderId && (
-                    <div className="mb-9 w-full border border-white/10 bg-white/[0.03] p-4 text-left">
-                        <p className="mb-1 text-xs uppercase tracking-widest text-zinc-500">Pending checkout</p>
-                        <p className="break-all text-sm text-zinc-300">{orderId}</p>
-                    </div>
-                )}
+                <CheckoutReferenceDisclosure
+                    orderId={orderId}
+                    className="mb-9 w-full max-w-xl"
+                />
 
                 <div className="flex w-full max-w-sm flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
                     <button

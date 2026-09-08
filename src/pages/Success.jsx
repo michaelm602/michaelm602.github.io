@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { CheckCircle2, Clock3, Mail, ShoppingBag } from "lucide-react";
 import { useCart } from "../Components/CartContext";
+import CheckoutReferenceDisclosure from "../Components/CheckoutReferenceDisclosure";
 
 const ORDER_STATUS_URL =
     "https://us-central1-airbrushnink-9f735.cloudfunctions.net/getOrderStatus";
@@ -130,7 +131,10 @@ export default function Success() {
                 <div className="mb-9 grid w-full gap-3 text-left sm:grid-cols-3">
                     <div className="border border-white/10 bg-white/[0.03] p-4">
                         <p className="mb-1 text-xs uppercase tracking-widest text-zinc-500">Order</p>
-                        <p className="break-all text-sm text-zinc-200">{orderId || "Processing"}</p>
+                        <p className="text-sm text-zinc-200">
+                            {isConfirmed ? "Payment confirmed" : "Confirmation processing"}
+                        </p>
+                        <CheckoutReferenceDisclosure orderId={orderId} className="mt-3" />
                     </div>
                     <div className="border border-white/10 bg-white/[0.03] p-4">
                         <p className="mb-1 text-xs uppercase tracking-widest text-zinc-500">Status</p>
