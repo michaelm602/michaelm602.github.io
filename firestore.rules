@@ -17,235 +17,344 @@ service cloud.firestore {
     }
 
     function isProductImagePath(path) {
-      return path is string
-        && path.size() > 0
-        && path.size() <= 500
-        && path.matches('^(airbrush|photoshop)/.+$');
+      return [
+        path.size() <= 500,
+        path.matches('^(airbrush|photoshop)/.+$')
+      ].hasOnly([true]);
     }
 
     function isValidImage(image) {
-      return image is map
-        && image.keys().hasAll(['id', 'storagePath', 'thumbnailPath', 'alt', 'sortOrder'])
-        && image.keys().hasOnly(['id', 'storagePath', 'thumbnailPath', 'alt', 'sortOrder'])
-        && image.id is string && image.id.size() > 0 && image.id.size() <= 100
-        && image.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
-        && isProductImagePath(image.storagePath)
-        && (image.thumbnailPath == null || isProductImagePath(image.thumbnailPath))
-        && image.alt is string && image.alt.size() <= 300
-        && image.sortOrder is int && image.sortOrder >= 0;
+      return [
+        // All five required fields are accessed below.
+        image.keys().size() == 5,
+        image.id.size() <= 100,
+        image.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$'),
+        isProductImagePath(image.storagePath),
+        (image.thumbnailPath == null || isProductImagePath(image.thumbnailPath)),
+        image.alt.matches('(?s)^.{0,300}$'),
+        image.sortOrder is int,
+        image.sortOrder >= 0
+      ].hasOnly([true]);
+    }
+
+    function isValidImageListFrom6(images, count) {
+      return (count <= 6 ? true : (isValidImage(images[6]) && (count <= 7 ? true : (isValidImage(images[7]) && true))));
+    }
+
+    function isValidImageListFrom4(images, count) {
+      return (count <= 4 ? true : (isValidImage(images[4]) && (count <= 5 ? true : (isValidImage(images[5]) && isValidImageListFrom6(images, count)))));
+    }
+
+    function isValidImageListFrom2(images, count) {
+      return (count <= 2 ? true : (isValidImage(images[2]) && (count <= 3 ? true : (isValidImage(images[3]) && isValidImageListFrom4(images, count)))));
+    }
+
+    function isValidImageListFrom0(images, count) {
+      return (count <= 0 ? true : (isValidImage(images[0]) && (count <= 1 ? true : (isValidImage(images[1]) && isValidImageListFrom2(images, count)))));
     }
 
     function isValidImageList(images) {
-      return images is list && images.size() <= 8
-        && (images.size() < 1 || isValidImage(images[0]))
-        && (images.size() < 2 || isValidImage(images[1]))
-        && (images.size() < 3 || isValidImage(images[2]))
-        && (images.size() < 4 || isValidImage(images[3]))
-        && (images.size() < 5 || isValidImage(images[4]))
-        && (images.size() < 6 || isValidImage(images[5]))
-        && (images.size() < 7 || isValidImage(images[6]))
-        && (images.size() < 8 || isValidImage(images[7]));
+      return [
+        images is list,
+        images.size() <= 8,
+        isValidImageListFrom0(images, images.size())
+      ].hasOnly([true]);
+    }
+
+    function hasImageIdFrom7(images, imageId) {
+      return images.size() <= 7 ? false
+        : (images[7].id == imageId ? true : false);
+    }
+
+    function hasImageIdFrom6(images, imageId) {
+      return images.size() <= 6 ? false
+        : (images[6].id == imageId ? true : hasImageIdFrom7(images, imageId));
+    }
+
+    function hasImageIdFrom5(images, imageId) {
+      return images.size() <= 5 ? false
+        : (images[5].id == imageId ? true : hasImageIdFrom6(images, imageId));
+    }
+
+    function hasImageIdFrom4(images, imageId) {
+      return images.size() <= 4 ? false
+        : (images[4].id == imageId ? true : hasImageIdFrom5(images, imageId));
+    }
+
+    function hasImageIdFrom3(images, imageId) {
+      return images.size() <= 3 ? false
+        : (images[3].id == imageId ? true : hasImageIdFrom4(images, imageId));
+    }
+
+    function hasImageIdFrom2(images, imageId) {
+      return images.size() <= 2 ? false
+        : (images[2].id == imageId ? true : hasImageIdFrom3(images, imageId));
+    }
+
+    function hasImageIdFrom1(images, imageId) {
+      return images.size() <= 1 ? false
+        : (images[1].id == imageId ? true : hasImageIdFrom2(images, imageId));
     }
 
     function hasImageId(images, imageId) {
-      return (images.size() > 0 && images[0].id == imageId)
-        || (images.size() > 1 && images[1].id == imageId)
-        || (images.size() > 2 && images[2].id == imageId)
-        || (images.size() > 3 && images[3].id == imageId)
-        || (images.size() > 4 && images[4].id == imageId)
-        || (images.size() > 5 && images[5].id == imageId)
-        || (images.size() > 6 && images[6].id == imageId)
-        || (images.size() > 7 && images[7].id == imageId);
+      return images.size() <= 0 ? false
+        : (images[0].id == imageId ? true : hasImageIdFrom1(images, imageId));
     }
 
     function isShortString(value) {
-      return value is string && value.size() > 0 && value.size() <= 100;
+      return value.matches('(?s)^.{1,100}$');
+    }
+
+    function isValidStringListFrom9(values, count) {
+      return (count <= 9 ? true : (isShortString(values[9]) && (count <= 10 ? true : (isShortString(values[10]) && (count <= 11 ? true : (isShortString(values[11]) && true))))));
+    }
+
+    function isValidStringListFrom6(values, count) {
+      return (count <= 6 ? true : (isShortString(values[6]) && (count <= 7 ? true : (isShortString(values[7]) && (count <= 8 ? true : (isShortString(values[8]) && isValidStringListFrom9(values, count)))))));
+    }
+
+    function isValidStringListFrom3(values, count) {
+      return (count <= 3 ? true : (isShortString(values[3]) && (count <= 4 ? true : (isShortString(values[4]) && (count <= 5 ? true : (isShortString(values[5]) && isValidStringListFrom6(values, count)))))));
+    }
+
+    function isValidStringListFrom0(values, count) {
+      return (count <= 0 ? true : (isShortString(values[0]) && (count <= 1 ? true : (isShortString(values[1]) && (count <= 2 ? true : (isShortString(values[2]) && isValidStringListFrom3(values, count)))))));
     }
 
     function isValidStringList(values) {
-      return values is list && values.size() <= 12
-        && (values.size() < 1 || isShortString(values[0]))
-        && (values.size() < 2 || isShortString(values[1]))
-        && (values.size() < 3 || isShortString(values[2]))
-        && (values.size() < 4 || isShortString(values[3]))
-        && (values.size() < 5 || isShortString(values[4]))
-        && (values.size() < 6 || isShortString(values[5]))
-        && (values.size() < 7 || isShortString(values[6]))
-        && (values.size() < 8 || isShortString(values[7]))
-        && (values.size() < 9 || isShortString(values[8]))
-        && (values.size() < 10 || isShortString(values[9]))
-        && (values.size() < 11 || isShortString(values[10]))
-        && (values.size() < 12 || isShortString(values[11]));
+      return values == [] || isValidNonemptyStringList(values);
+    }
+
+    function isValidNonemptyStringList(values) {
+      return [
+        values is list,
+        values.size() <= 12,
+        (values.size() == 0 ? true : isValidStringListFrom0(values, values.size()))
+      ].hasOnly([true]);
     }
 
     function isValidOriginal(original) {
-      return original is map
-        && original.keys().hasAll(['status', 'size', 'medium', 'price', 'checkoutEnabled', 'quantity'])
-        && original.keys().hasOnly(['status', 'size', 'medium', 'price', 'checkoutEnabled', 'quantity'])
-        && original.status in ['available', 'sold', 'not_for_sale']
-        && isNullableString(original.size, 200)
-        && isNullableString(original.medium, 300)
-        && original.price is map
-        && original.price.keys().hasAll(['amountCents', 'currency'])
-        && original.price.keys().hasOnly(['amountCents', 'currency'])
-        && (original.price.amountCents == null
-          || (original.price.amountCents is int && original.price.amountCents > 0))
-        && original.price.currency is string
-        && original.price.currency.matches('^[a-z]{3}$')
-        && original.checkoutEnabled == false
-        && ((original.status == 'available' && original.quantity == 1)
-          || (original.status != 'available' && original.quantity == 0));
+      return original == {"status": "not_for_sale", "size": null, "medium": null, "price": {"amountCents": null, "currency": "usd"}, "checkoutEnabled": false, "quantity": 0}
+        || original == {"status": "available", "size": null, "medium": null, "price": {"amountCents": null, "currency": "usd"}, "checkoutEnabled": false, "quantity": 1}
+        || original == {"status": "sold", "size": null, "medium": null, "price": {"amountCents": null, "currency": "usd"}, "checkoutEnabled": false, "quantity": 0}
+        || isValidCustomOriginal(original);
+    }
+
+    function isValidCustomOriginal(original) {
+      return [
+        // Direct access to all required fields makes exact key counts safe.
+        original.keys().size() == 6,
+        original.status in ['available', 'sold', 'not_for_sale'],
+        isNullableString(original.size, 200),
+        isNullableString(original.medium, 300),
+        original.price.keys().size() == 2,
+        (original.price.amountCents == null
+          || (original.price.amountCents is int && original.price.amountCents > 0)),
+        original.price.currency.matches('^[a-z]{3}$'),
+        original.checkoutEnabled == false,
+        ((original.status == 'available' && original.quantity == 1)
+          || (original.status != 'available' && original.quantity == 0))
+      ].hasOnly([true]);
     }
 
     function isValidPrintOption(option) {
-      return option.keys().hasOnly(['id', 'label', 'amountCents', 'currency', 'stripePriceId', 'active', 'sortOrder'])
-        && option.id is string && option.id.size() > 0 && option.id.size() <= 100
-        && option.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
-        && option.label is string && option.label.size() > 0 && option.label.size() <= 100
-        && option.amountCents is int && option.amountCents > 0
-        && option.currency is string && option.currency.matches('^[a-z]{3}$')
-        && (option.stripePriceId == null
-          || (option.stripePriceId is string && option.stripePriceId.size() > 0 && option.stripePriceId.size() <= 150))
-        && (!option.active || option.stripePriceId is string)
-        && option.active is bool
-        && option.sortOrder is int && option.sortOrder >= 0;
+      return [
+        // Every one of the seven fields is accessed below.
+        option.keys().size() == 7,
+        option.id.size() <= 100,
+        option.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$'),
+        option.label.matches('(?s)^.{1,100}$'),
+        option.amountCents is int,
+        option.amountCents > 0,
+        option.currency.matches('^[a-z]{3}$'),
+        option.active ? option.stripePriceId.matches('(?s)^.{1,150}$') : (option.stripePriceId == null || option.stripePriceId.matches('(?s)^.{1,150}$')),
+        option.sortOrder is int,
+        option.sortOrder >= 0
+      ].hasOnly([true]);
+    }
+
+    function isValidPrintOptionListFrom6(options, count) {
+      return (count <= 6 ? true : (isValidPrintOption(options[6]) && (count <= 7 ? true : (isValidPrintOption(options[7]) && true))));
+    }
+
+    function isValidPrintOptionListFrom4(options, count) {
+      return (count <= 4 ? true : (isValidPrintOption(options[4]) && (count <= 5 ? true : (isValidPrintOption(options[5]) && isValidPrintOptionListFrom6(options, count)))));
+    }
+
+    function isValidPrintOptionListFrom2(options, count) {
+      return (count <= 2 ? true : (isValidPrintOption(options[2]) && (count <= 3 ? true : (isValidPrintOption(options[3]) && isValidPrintOptionListFrom4(options, count)))));
+    }
+
+    function isValidPrintOptionListFrom0(options, count) {
+      return (count <= 0 ? true : (isValidPrintOption(options[0]) && (count <= 1 ? true : (isValidPrintOption(options[1]) && isValidPrintOptionListFrom2(options, count)))));
     }
 
     function isValidPrintOptionList(options) {
-      return options is list && options.size() <= 8
-        && (options.size() < 1 || isValidPrintOption(options[0]))
-        && (options.size() < 2 || isValidPrintOption(options[1]))
-        && (options.size() < 3 || isValidPrintOption(options[2]))
-        && (options.size() < 4 || isValidPrintOption(options[3]))
-        && (options.size() < 5 || isValidPrintOption(options[4]))
-        && (options.size() < 6 || isValidPrintOption(options[5]))
-        && (options.size() < 7 || isValidPrintOption(options[6]))
-        && (options.size() < 8 || isValidPrintOption(options[7]));
+      return [
+        options is list,
+        options.size() <= 8,
+        isValidPrintOptionListFrom0(options, options.size())
+      ].hasOnly([true]);
     }
 
-    function hasActivePrintOption(options) {
-      return (options.size() > 0 && options[0].active)
-        || (options.size() > 1 && options[1].active)
-        || (options.size() > 2 && options[2].active)
-        || (options.size() > 3 && options[3].active)
-        || (options.size() > 4 && options[4].active)
-        || (options.size() > 5 && options[5].active)
-        || (options.size() > 6 && options[6].active)
-        || (options.size() > 7 && options[7].active);
+    function hasActivePrintOptionIdFrom7(options, optionId) {
+      return options.size() <= 7 ? false
+        : (options[7].id == optionId && options[7].active ? true : false);
+    }
+
+    function hasActivePrintOptionIdFrom6(options, optionId) {
+      return options.size() <= 6 ? false
+        : (options[6].id == optionId && options[6].active ? true : hasActivePrintOptionIdFrom7(options, optionId));
+    }
+
+    function hasActivePrintOptionIdFrom5(options, optionId) {
+      return options.size() <= 5 ? false
+        : (options[5].id == optionId && options[5].active ? true : hasActivePrintOptionIdFrom6(options, optionId));
+    }
+
+    function hasActivePrintOptionIdFrom4(options, optionId) {
+      return options.size() <= 4 ? false
+        : (options[4].id == optionId && options[4].active ? true : hasActivePrintOptionIdFrom5(options, optionId));
+    }
+
+    function hasActivePrintOptionIdFrom3(options, optionId) {
+      return options.size() <= 3 ? false
+        : (options[3].id == optionId && options[3].active ? true : hasActivePrintOptionIdFrom4(options, optionId));
+    }
+
+    function hasActivePrintOptionIdFrom2(options, optionId) {
+      return options.size() <= 2 ? false
+        : (options[2].id == optionId && options[2].active ? true : hasActivePrintOptionIdFrom3(options, optionId));
+    }
+
+    function hasActivePrintOptionIdFrom1(options, optionId) {
+      return options.size() <= 1 ? false
+        : (options[1].id == optionId && options[1].active ? true : hasActivePrintOptionIdFrom2(options, optionId));
     }
 
     function hasActivePrintOptionId(options, optionId) {
-      return (options.size() > 0 && options[0].active && options[0].id == optionId)
-        || (options.size() > 1 && options[1].active && options[1].id == optionId)
-        || (options.size() > 2 && options[2].active && options[2].id == optionId)
-        || (options.size() > 3 && options[3].active && options[3].id == optionId)
-        || (options.size() > 4 && options[4].active && options[4].id == optionId)
-        || (options.size() > 5 && options[5].active && options[5].id == optionId)
-        || (options.size() > 6 && options[6].active && options[6].id == optionId)
-        || (options.size() > 7 && options[7].active && options[7].id == optionId);
+      return options.size() <= 0 ? false
+        : (options[0].id == optionId && options[0].active ? true : hasActivePrintOptionIdFrom1(options, optionId));
     }
 
     function isValidPrints(prints) {
-      return prints.keys().hasOnly(['available', 'defaultOptionId', 'options'])
-        && prints.available is bool
-        && isValidPrintOptionList(prints.options)
-        && ((prints.available
-            && prints.defaultOptionId is string
-            && hasActivePrintOption(prints.options)
-            && hasActivePrintOptionId(prints.options, prints.defaultOptionId))
-          || (!prints.available && prints.defaultOptionId == null));
+      return [prints.keys().size() == 3, isValidPrintOptionList(prints.options), prints.available ? hasActivePrintOptionId(prints.options, prints.defaultOptionId) : prints.defaultOptionId == null].hasOnly([true]);
     }
 
-    function isValidShopProduct(data, productId) {
-      return data.keys().hasAll([
-          'id', 'slug', 'title', 'shortDescription', 'longDescription', 'category',
-          'tags', 'images', 'primaryImageId', 'original', 'prints', 'channels',
-          'active', 'featured', 'sortOrder', 'relatedProductIds', 'seo',
-          'createdAt', 'updatedAt', 'archivedAt'
-        ])
-        && data.keys().hasOnly([
-          'id', 'slug', 'title', 'shortDescription', 'longDescription', 'category',
-          'tags', 'images', 'primaryImageId', 'original', 'prints', 'channels',
-          'active', 'featured', 'sortOrder', 'relatedProductIds', 'seo',
-          'createdAt', 'updatedAt', 'archivedAt'
-        ])
-        && data.id == productId
-        && data.id is string && data.id.size() > 0 && data.id.size() <= 100
-        && data.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
-        && data.slug is string && data.slug.size() > 0 && data.slug.size() <= 150
-        && data.slug.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
-        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
-        && data.shortDescription is string && data.shortDescription.size() <= 500
-        && data.longDescription is string && data.longDescription.size() <= 5000
-        && data.category is string && data.category.size() > 0 && data.category.size() <= 100
-        && isValidStringList(data.tags)
-        && isValidImageList(data.images)
-        && ((!data.active || !data.channels.shop || data.images.size() > 0)
-          && ((data.images.size() == 0 && data.primaryImageId == null)
-            || (data.primaryImageId is string && hasImageId(data.images, data.primaryImageId))))
-        && isValidOriginal(data.original)
-        && isValidPrints(data.prints)
-        && data.channels is map
-        && data.channels.keys().hasAll(['shop', 'portfolio'])
-        && data.channels.keys().hasOnly(['shop', 'portfolio'])
-        && data.channels.shop is bool && data.channels.portfolio is bool
-        && data.active is bool && data.featured is bool
-        && data.sortOrder is int && data.sortOrder >= 0
-        && isValidStringList(data.relatedProductIds)
-        && data.seo is map
-        && data.seo.keys().hasAll(['title', 'description'])
-        && data.seo.keys().hasOnly(['title', 'description'])
-        && data.seo.title is string && data.seo.title.size() <= 200
-        && data.seo.description is string && data.seo.description.size() <= 500
-        && data.createdAt is timestamp
-        && data.updatedAt is timestamp
-        && (data.archivedAt == null || data.archivedAt is timestamp)
-        && (data.archivedAt == null || data.active == false);
+    function isValidPrintsCreate(prints) {
+      return [
+        prints.keys().size() == 3,
+        isValidPrintOptionList(prints.options),
+        prints.available
+          ? (prints.options.size() == 0
+            ? false
+            : [prints.options[0].active, prints.defaultOptionId == prints.options[0].id].hasOnly([true]))
+          : prints.defaultOptionId == null
+      ].hasOnly([true]);
     }
 
+    function hasValidProductKeys(data) {
+      // All 20 required fields are read by the create validators below.
+      // A missing field fails validation, so an extra field cannot replace it.
+      return data.keys().size() == 20;
+    }
+
+    function isValidProductIdentity(data, productId) {
+      return [
+        data.id == productId,
+        data.id.size() <= 100,
+        data.id.matches('^[a-z0-9]+(-[a-z0-9]+)*$'),
+        data.slug.size() <= 150,
+        data.slug.matches('^[a-z0-9]+(-[a-z0-9]+)*$'),
+        data.title.matches('(?s)^.{1,200}$'),
+        data.shortDescription.matches('(?s)^.{0,500}$'),
+        data.longDescription is string,
+        data.longDescription.size() <= 5000,
+        data.category.matches('(?s)^.{1,100}$')
+      ].hasOnly([true]);
+    }
+
+    function isValidProductPublishing(data) {
+      return [
+        isValidUpdatedChannels(data.channels),
+        data.active is bool,
+        data.featured is bool,
+        data.sortOrder is int,
+        data.sortOrder >= 0,
+        data.createdAt is timestamp,
+        data.updatedAt is timestamp,
+        isValidUpdatedArchiveState(data)
+      ].hasOnly([true]);
+    }
+
+    // These small validators and exact-default fast paths keep full creates
+    // within Firestore's 1,000-expression budget. Boolean lists require every
+    // condition to be true, without the cost of long conjunction chains.
+    // String matches fail closed for non-strings. Exact key counts are safe
+    // only because validation directly reads every required field.
     function isValidShopProductCreate(productId) {
-      return isValidShopProduct(request.resource.data, productId)
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+      return request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && hasValidProductKeys(request.resource.data)
+        && isValidProductIdentity(request.resource.data, productId)
+        && isValidUpdatedImageState(request.resource.data)
+        && isValidOriginal(request.resource.data.original)
+        && isValidPrintsCreate(request.resource.data.prints)
+        && isValidProductPublishing(request.resource.data)
+        && isValidStringList(request.resource.data.tags)
+        && isValidStringList(request.resource.data.relatedProductIds)
+        && isValidUpdatedSeo(request.resource.data.seo);
     }
 
     function isValidUpdatedText(value, maxLength, required) {
-      return value is string
-        && value.size() <= maxLength
-        && (!required || value.size() > 0);
+      return [
+        value is string,
+        value.size() <= maxLength,
+        (!required || value.size() > 0)
+      ].hasOnly([true]);
     }
 
     function isValidUpdatedSlug(value) {
-      return isValidUpdatedText(value, 150, true)
-        && value.matches('^[a-z0-9]+(-[a-z0-9]+)*$');
+      return [
+        isValidUpdatedText(value, 150, true),
+        value.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
+      ].hasOnly([true]);
     }
 
     function isValidUpdatedChannels(channels) {
-      return channels is map
-        && channels.keys().hasAll(['shop', 'portfolio'])
-        && channels.keys().hasOnly(['shop', 'portfolio'])
-        && channels.shop is bool
-        && channels.portfolio is bool;
+      return channels in [
+        {"shop": false, "portfolio": false},
+        {"shop": false, "portfolio": true},
+        {"shop": true, "portfolio": false},
+        {"shop": true, "portfolio": true}
+      ];
     }
 
     function isValidUpdatedSeo(seo) {
-      return seo is map
-        && seo.keys().hasAll(['title', 'description'])
-        && seo.keys().hasOnly(['title', 'description'])
-        && isValidUpdatedText(seo.title, 200, false)
-        && isValidUpdatedText(seo.description, 500, false);
+      return seo == {"title": "", "description": ""} || isValidNonemptySeo(seo);
+    }
+
+    function isValidNonemptySeo(seo) {
+      return [
+        seo.keys().size() == 2,
+        seo.title.matches('(?s)^.{0,200}$'),
+        seo.description.matches('(?s)^.{0,500}$')
+      ].hasOnly([true]);
     }
 
     function isValidUpdatedImageState(data) {
-      return isValidImageList(data.images)
-        && ((!data.active || !data.channels.shop || data.images.size() > 0)
+      return [
+        isValidImageList(data.images),
+        ((!data.active || !data.channels.shop || data.images.size() > 0)
           && ((data.images.size() == 0 && data.primaryImageId == null)
-            || (data.primaryImageId is string && hasImageId(data.images, data.primaryImageId))));
+            || (data.primaryImageId is string && hasImageId(data.images, data.primaryImageId))))
+      ].hasOnly([true]);
     }
 
     function isValidUpdatedArchiveState(data) {
-      return (data.archivedAt == null || data.archivedAt is timestamp)
-        && (data.archivedAt == null || data.active == false);
+      return data.archivedAt == null
+        ? true
+        : [data.archivedAt is timestamp, data.active == false].hasOnly([true]);
     }
 
     function isValidShopProductUpdate(productId) {
@@ -301,7 +410,7 @@ service cloud.firestore {
     match /shopProducts/{productId} {
       allow read: if isAdmin() || isPublicShopProduct(resource.data);
       allow create: if isAdmin() && isValidShopProductCreate(productId);
-      allow update: if isAdmin() && isValidShopProductUpdate(productId);
+      allow update: if isAdmin() && resource != null && isValidShopProductUpdate(productId);
       allow delete: if false;
     }
 

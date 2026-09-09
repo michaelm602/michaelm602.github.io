@@ -14,6 +14,7 @@ import {
   createUniquePrintOptionId,
   deriveOriginalQuantity,
   formatProductMoney,
+  formatAdminProductSaveError,
   validateAdminProduct,
 } from "../utils/adminProduct";
 
@@ -231,7 +232,7 @@ export default function AdminProducts() {
     setMessage("");
     setError("");
     if (validation.errors.length) {
-      setError("Fix the validation items before saving.");
+      setError(validation.errors.join(" "));
       return;
     }
     if (
@@ -249,11 +250,7 @@ export default function AdminProducts() {
       await loadProducts(savedId);
     } catch (saveError) {
       console.error("Unable to save product:", saveError);
-      setError(
-        saveError?.code === "permission-denied"
-          ? "Save was denied. Confirm the admin claim and deploy the reviewed product rules."
-          : saveError?.message || "Unable to save this product."
-      );
+      setError(formatAdminProductSaveError(saveError));
     } finally {
       setSaving(false);
     }
@@ -512,7 +509,7 @@ export default function AdminProducts() {
                   <div className="mt-4"><Toggle label="Original online checkout disabled" checked={false} onChange={() => {}} uncheckedText="Locked off" disabled /></div>
                 </EditorSection>
 
-                <EditorSection title="Print options" description="Active options require a positive cent amount and a trusted Stripe Price ID.">
+                <EditorSection title="Print options" description="For original-only contact-to-purchase, leave Prints available off and omit print options. Active options require a label, positive cent amount, currency, and a trusted Stripe Price ID. Saving a Price ID here does not authorize checkout; the product and option must also be in the trusted server catalog.">
                   <div className="mb-4 grid gap-3 sm:grid-cols-2">
                     <Toggle label="Prints available" checked={draft.prints.available} checkedText="Available" uncheckedText="Unavailable" onChange={(checked) => mutateDraft({ ...draft, prints: { ...draft.prints, available: checked, defaultOptionId: checked ? draft.prints.defaultOptionId : null } })} />
                     <Field label="Default print option">

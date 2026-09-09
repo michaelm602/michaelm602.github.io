@@ -9,7 +9,9 @@ import {
   createBlankAdminProduct,
   deriveOriginalQuantity,
   formatProductMoney,
+  formatAdminProductSaveError,
   normalizeCurrency,
+  normalizeAdminProductForCreate,
   normalizeAdminProductForSave,
   restoreProductDraft,
   validateAdminProduct,
@@ -106,6 +108,7 @@ test("admin validation rejects original checkout and invalid active print produc
   ];
   invalidPrints.prints.defaultOptionId = "16x20";
   assert.match(validateAdminProduct(invalidPrints).errors.join(" "), /Stripe Price ID/);
+  assert.match(validateAdminProduct(invalidPrints).errors.join(" "), /deactivate.*option/i);
 
   const inactiveDefault = validProduct();
   inactiveDefault.prints.available = true;
@@ -125,6 +128,64 @@ test("admin validation rejects original checkout and invalid active print produc
     validateAdminProduct(inactiveDefault).errors.join(" "),
     /default print option "Small print" is inactive/i
   );
+});
+
+test("original-only new drafts validate without prices or print checkout", () => {
+  const product = validProduct();
+  product.original.status = "available";
+  product.original.quantity = 1;
+  product.active = true;
+  product.channels.shop = true;
+  assert.deepEqual(validateAdminProduct(product).errors, []);
+  assert.deepEqual(normalizeAdminProductForSave(product).prints, {
+    available: false, defaultOptionId: null, options: [],
+  });
+});
+
+test("available prints require complete active options and an active default before saving", () => {
+  const product = validProduct();
+  product.prints = {
+    available: true, defaultOptionId: "small",
+    options: [{ id: "small", label: "Small", amountCents: 2500, currency: "usd", stripePriceId: "price_small", active: true, sortOrder: 0 }],
+  };
+  assert.deepEqual(validateAdminProduct(product).errors, []);
+  for (const [field, value, expected] of [
+    ["stripePriceId", null, /Stripe Price ID.*deactivate/i],
+    ["stripePriceId", "   ", /Stripe Price ID.*deactivate/i],
+    ["amountCents", 0, /positive whole-cent/],
+    ["amountCents", 12.5, /positive whole-cent/],
+    ["label", "", /label.*required/],
+    ["currency", "dollars", /currency/],
+    ["active", false, /inactive/],
+  ]) {
+    const invalid = structuredClone(product);
+    invalid.prints.options[0][field] = value;
+    assert.match(validateAdminProduct(invalid).errors.join(" "), expected);
+  }
+  product.prints.defaultOptionId = "missing";
+  assert.match(validateAdminProduct(product).errors.join(" "), /Default print option must reference/);
+});
+
+test("create normalization places the active default first and preserves sort-order values", () => {
+  const product = validProduct();
+  product.prints = {
+    available: true,
+    defaultOptionId: "large",
+    options: [
+      { id: "small", label: "Small", amountCents: 2500, currency: "usd", stripePriceId: "price_small", active: true, sortOrder: 0 },
+      { id: "large", label: "Large", amountCents: 5000, currency: "usd", stripePriceId: "price_large", active: true, sortOrder: 1 },
+    ],
+  };
+  const normalized = normalizeAdminProductForCreate(product);
+  assert.deepEqual(normalized.prints.options.map((option) => option.id), ["large", "small"]);
+  assert.deepEqual(normalized.prints.options.map((option) => option.sortOrder), [1, 0]);
+});
+
+test("save errors preserve actionable validation and distinguish rules evaluation failure", () => {
+  assert.match(formatAdminProductSaveError({ code: "invalid-product", message: "Print option 1 needs a Stripe Price ID." }), /Print option 1.*Stripe Price ID/);
+  assert.match(formatAdminProductSaveError({ code: "permission-denied", message: "maximum of 1000 expressions to evaluate has been reached" }), /rules.*evaluation limit/i);
+  assert.match(formatAdminProductSaveError({ code: "permission-denied" }), /passed client validation.*Firestore denied/i);
+  assert.match(formatAdminProductSaveError({ code: "already-exists", message: 'A product with ID "new-piece" already exists.' }), /already exists/);
 });
 
 test("currency editing is null-safe and save normalization always produces a valid code", () => {

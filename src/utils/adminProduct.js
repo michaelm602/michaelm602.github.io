@@ -221,6 +221,21 @@ export function normalizeAdminProductForSave(product) {
   };
 }
 
+export function normalizeAdminProductForCreate(product) {
+  const normalized = normalizeAdminProductForSave(product);
+  if (!normalized.prints.available || !normalized.prints.defaultOptionId) return normalized;
+
+  const defaultIndex = normalized.prints.options.findIndex(
+    (option) => option.id === normalized.prints.defaultOptionId && option.active
+  );
+  if (defaultIndex <= 0) return normalized;
+
+  const options = [...normalized.prints.options];
+  const [defaultOption] = options.splice(defaultIndex, 1);
+  options.unshift(defaultOption);
+  return { ...normalized, prints: { ...normalized.prints, options } };
+}
+
 function validateObjectShape(value, allowedKeys, label, add) {
   if (!isPlainObject(value)) {
     add(`${label} must be an object.`);
@@ -384,7 +399,9 @@ export function validateAdminProduct(product) {
     }
     if (!CURRENCY_PATTERN.test(currencyForValidation(option.currency))) add(`${label} currency must be a lowercase three-letter code.`);
     validateText(option.stripePriceId, `${label} Stripe Price ID`, 150, add, { nullable: true });
-    if (option.active && !stringValue(option.stripePriceId).trim()) add(`${label} requires a Stripe Price ID while active.`);
+    if (option.active && !stringValue(option.stripePriceId).trim()) {
+      add(`${label} requires a trusted Stripe Price ID while active. Add the ID or deactivate this option. For an original-only product, turn Prints available off and remove or deactivate print options.`);
+    }
     if (typeof option.active !== "boolean") add(`${label} active must be true or false.`);
     if (!Number.isSafeInteger(Number(option.sortOrder)) || Number(option.sortOrder) < 0) add(`${label} sort order must be a non-negative integer.`);
   });
@@ -418,6 +435,16 @@ export function validateAdminProduct(product) {
   }
   if (product.archivedAt && product.active) add("Archived products cannot be active.");
   return { errors, warnings };
+}
+
+export function formatAdminProductSaveError(error) {
+  if (error?.code === "permission-denied") {
+    if (/maximum of 1000 expressions|evaluation limit/i.test(error.message || "")) {
+      return "Save was denied because the Firestore rules exceeded their evaluation limit. The product rules need to be updated before retrying.";
+    }
+    return "The product passed client validation, but Firestore denied the save. Firestore did not identify a field; verify the admin claim and deployed product rules (including create validation).";
+  }
+  return error?.message || "Unable to save this product.";
 }
 
 export function archiveProductDraft(product, archivedAt) {

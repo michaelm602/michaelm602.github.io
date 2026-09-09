@@ -21,11 +21,16 @@ import {
 } from "firebase/firestore";
 
 import {
+  createBlankAdminProduct,
+  normalizeAdminProductForCreate,
   normalizeAdminProductForSave,
   validateAdminProduct,
 } from "../src/utils/adminProduct.js";
 
 const projectId = "demo-shop-product-rules";
+if (!process.env.FIRESTORE_EMULATOR_HOST) {
+  throw new Error("Run with npm run test:firestore-rules; emulator host is required.");
+}
 const [emulatorHost, emulatorPortText] = (
   process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080"
 ).split(":");
@@ -69,6 +74,30 @@ function isPermissionDenied(error) {
   assert.equal(error?.code, "permission-denied");
   return true;
 }
+
+function newProductPayload(id, optionCount = 0) {
+  const draft = createBlankAdminProduct();
+  Object.assign(draft, {
+    id, slug: id, title: "New original", category: "Airbrush",
+    active: true, channels: { shop: true, portfolio: false },
+    images: [{ id: "image-1", storagePath: "airbrush/New.webp", thumbnailPath: null, alt: "New original", sortOrder: 0 }],
+    primaryImageId: "image-1",
+  });
+  draft.original.status = "available";
+  draft.original.quantity = 1;
+  draft.prints = {
+    available: optionCount > 0,
+    defaultOptionId: optionCount ? "option-1" : null,
+    options: Array.from({ length: optionCount }, (_, index) => ({
+      id: `option-${index + 1}`, label: `Print ${index + 1}`, amountCents: 2500,
+      currency: "usd", stripePriceId: `price_emulator${index + 1}`, active: true, sortOrder: index,
+    })),
+  };
+  const normalized = normalizeAdminProductForCreate(draft);
+  assert.deepEqual(validateAdminProduct(normalized).errors, []);
+  return { ...normalized, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+}
+
 
 before(async () => {
   adminApp = initializeAdminApp({ projectId }, `rules-seed-${Date.now()}`);
@@ -349,4 +378,120 @@ test("an admin cannot delete a shop product", async () => {
   const productRef = doc(adminDbClient, "shopProducts", importedProducts[0].id);
 
   await assert.rejects(() => deleteDoc(productRef), isPermissionDenied);
+});
+
+test("admin creates original-only contact products and valid print products", async (context) => {
+  const client = createClient("admin-create", { sub: "admin-user", admin: true });
+  for (const count of [0, 1, 4, 8]) {
+    await context.test(`${count} print options`, async () => {
+      const payload = newProductPayload(`new-product-${count}`, count);
+      context.diagnostic(`Normalized create payload: ${JSON.stringify(payload)}`);
+      const ref = doc(client, "shopProducts", payload.id);
+      assert.equal((await getDoc(ref)).exists(), false);
+      await setDoc(ref, payload);
+      const saved = (await getDoc(ref)).data();
+      assert.equal(saved.original.status, "available");
+      assert.equal(saved.original.checkoutEnabled, false);
+      assert.equal(saved.prints.options.length, count);
+      assert.ok(saved.createdAt.toMillis() > 0);
+      assert.equal(saved.createdAt.toMillis(), saved.updatedAt.toMillis());
+    });
+  }
+});
+
+test("admin creates valid products with default and custom metadata at print boundaries", async (context) => {
+  const client = createClient("admin-create-boundaries", { sub: "admin-user", admin: true });
+  const cases = [
+    ["eight-options-default-original", 8, (payload) => {
+      payload.original.status = "not_for_sale";
+      payload.original.quantity = 0;
+    }],
+    ["eight-options-last-default", 8, (payload) => {
+      payload.prints.defaultOptionId = "option-8";
+      payload.prints.options = normalizeAdminProductForCreate(payload).prints.options;
+    }],
+    ["four-options-custom-metadata", 4, (payload) => {
+      payload.original.size = "24 x 36 inches";
+      payload.original.medium = "Airbrush on canvas";
+      payload.original.price.amountCents = 125000;
+      payload.tags = ["portrait", "airbrush"];
+      payload.relatedProductIds = ["related-piece"];
+      payload.seo = { title: "New original artwork", description: "An original airbrush artwork." };
+    }],
+  ];
+  for (const [name, count, customize] of cases) {
+    await context.test(name, async () => {
+      const payload = newProductPayload(name, count);
+      customize(payload);
+      await setDoc(doc(client, "shopProducts", name), payload);
+      assert.equal((await getDoc(doc(client, "shopProducts", name))).exists(), true);
+    });
+  }
+});
+
+test("public and non-admin clients cannot create a valid original-only product", async () => {
+  for (const [name, token] of [["public-create-valid", null], ["non-admin-create", { sub: "customer", admin: false }]]) {
+    const client = createClient(name, token);
+    await assert.rejects(() => setDoc(doc(client, "shopProducts", name), newProductPayload(name)), isPermissionDenied);
+  }
+});
+
+test("admin create rejects unsafe or malformed product fields", async (context) => {
+  const client = createClient("admin-invalid-create", { sub: "admin-user", admin: true });
+  const cases = [
+    ["original-checkout", (p) => { p.original.checkoutEnabled = true; }],
+    ["missing-stripe", (p) => { p.prints.options[0].stripePriceId = null; }],
+    ["blank-stripe", (p) => { p.prints.options[0].stripePriceId = ""; }],
+    ["zero-price", (p) => { p.prints.options[0].amountCents = 0; }],
+    ["fractional-price", (p) => { p.prints.options[0].amountCents = 1.5; }],
+    ["missing-label", (p) => { p.prints.options[0].label = ""; }],
+    ["non-string-label", (p) => { p.prints.options[0].label = 123; }],
+    ["non-string-stripe", (p) => { p.prints.options[0].stripePriceId = 123; }],
+    ["non-boolean-active", (p) => { p.prints.options[0].active = 1; }],
+    ["non-boolean-available", (p) => { p.prints.available = 1; }],
+    ["invalid-currency", (p) => { p.prints.options[0].currency = "US"; }],
+    ["inactive-default", (p) => { p.prints.options[0].active = false; }],
+    ["missing-default", (p) => { p.prints.defaultOptionId = "missing"; }],
+    ["no-active-options", (p) => { p.prints.options = []; }],
+    ["missing-primary", (p) => { p.primaryImageId = "missing"; }],
+    ["missing-images", (p) => { p.images = []; p.primaryImageId = null; }],
+    ["bad-path", (p) => { p.images[0].storagePath = "private/image.webp"; }],
+    ["bad-slug", (p) => { p.slug = "Bad Slug"; }],
+    ["oversized-title", (p) => { p.title = "x".repeat(201); }],
+    ["non-string-title", (p) => { p.title = ["Title"]; }],
+    ["oversized-tag", (p) => { p.tags = ["x".repeat(101)]; }],
+    ["non-string-tag", (p) => { p.tags = [123]; }],
+    ["too-many-tags", (p) => { p.tags = Array(13).fill("tag"); }],
+    ["mismatched-id", (p) => { p.id = "another-id"; }],
+    ["extra-field", (p) => { p.unexpected = true; }],
+    ["extra-print-field", (p) => { p.prints.options[0].unexpected = true; }],
+    ["missing-title", (p) => { delete p.title; }],
+    ["missing-archive", (p) => { delete p.archivedAt; }],
+    ["missing-print-active", (p) => { delete p.prints.options[0].active; }],
+    ["missing-created-at", (p) => { delete p.createdAt; }],
+    ["null-updated-at", (p) => { p.updatedAt = null; }],
+    ["client-timestamps", (p) => { p.createdAt = new Date(0); p.updatedAt = new Date(0); }],
+  ];
+  for (const [name, mutate] of cases) {
+    await context.test(name, async () => {
+      const id = `invalid-create-${name}`;
+      const payload = newProductPayload(id, 1);
+      mutate(payload);
+      await assert.rejects(() => setDoc(doc(client, "shopProducts", id), payload), isPermissionDenied);
+      assert.equal((await getDoc(doc(client, "shopProducts", id))).exists(), false);
+    });
+  }
+});
+
+test("orders and shopInventory stay closed for every browser role", async () => {
+  for (const [name, token] of [["public-closed", null], ["customer-closed", { sub: "customer", admin: false }], ["admin-closed", { sub: "admin", admin: true }]]) {
+    const client = createClient(name, token);
+    for (const path of ["orders", "shopInventory"]) {
+      const ref = doc(client, path, "closed-document");
+      await assert.rejects(() => getDoc(ref), isPermissionDenied);
+      await assert.rejects(() => setDoc(ref, { status: "available" }), isPermissionDenied);
+      await assert.rejects(() => updateDoc(ref, { status: "sold" }), isPermissionDenied);
+      await assert.rejects(() => deleteDoc(ref), isPermissionDenied);
+    }
+  }
 });

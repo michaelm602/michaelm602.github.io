@@ -10,6 +10,7 @@
 import { db } from "../firebase";
 import {
   archiveProductDraft,
+  normalizeAdminProductForCreate,
   normalizeAdminProductForSave,
   validateAdminProduct,
 } from "../utils/adminProduct";
@@ -32,7 +33,9 @@ export async function saveAdminProduct(product, { isNew = false } = {}) {
     throw error;
   }
 
-  const normalized = normalizeAdminProductForSave(product);
+  const normalized = isNew
+    ? normalizeAdminProductForCreate(product)
+    : normalizeAdminProductForSave(product);
   const validation = validateAdminProduct(normalized);
   if (validation.errors.length) {
     const error = new Error(validation.errors.join(" "));
