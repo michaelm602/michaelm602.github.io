@@ -393,6 +393,9 @@ export default function AdminProducts() {
     });
 
   const stripeSyncItems = stripeSync?.items || stripeSync?.results || [];
+  const conflictingStripeProducts = stripeSync?.conflictingStripeProducts || [];
+  const hasMultipleStripeProductConflict = stripeSync?.conflictCode === "multiple_stripe_products"
+    && conflictingStripeProducts.length > 1;
   const canCreateStripePrices = stripeSync?.status === "partial_failure"
     || (stripeSync?.status === "previewed"
       && stripeSyncItems.some((item) => ["missing", "recoverable"].includes(item.status)));
@@ -640,10 +643,32 @@ export default function AdminProducts() {
                       {stripeSync && (
                         <div className="mt-4 space-y-2 border-t border-sky-200/15 pt-4">
                           <p className="text-xs text-sky-100/55">Operation {stripeSync.operationId} - {stripeSync.status.replaceAll("_", " ")}</p>
+                          {hasMultipleStripeProductConflict && (
+                            <div role="alert" className="rounded-lg border border-amber-400/35 bg-amber-400/10 p-4 text-sm text-amber-100">
+                              <p className="font-semibold">
+                                Use one Stripe Product per artwork, with one Price per print size. These saved Price IDs belong to different Stripe Products.
+                              </p>
+                              <ul className="mt-2 space-y-1 text-xs text-amber-100/80">
+                                {conflictingStripeProducts.map((product) => (
+                                  <li key={product.stripeProductId}>
+                                    {product.stripeProductName || "Unnamed Stripe Product"} ({product.stripeProductId})
+                                  </li>
+                                ))}
+                              </ul>
+                              <p className="mt-3 text-xs font-medium">Keep Prints available off until the Stripe Product conflict is resolved.</p>
+                            </div>
+                          )}
                           {stripeSyncItems.map((item) => (
-                            <div key={item.optionId} className="flex flex-col gap-1 rounded border border-white/10 bg-black/20 px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
-                              <span className="font-semibold text-white/85">{item.label || item.optionId}</span>
-                              <span className="text-white/55">{item.status.replaceAll("_", " ")} - {item.message}</span>
+                            <div key={item.optionId} className="flex flex-col gap-1 rounded border border-white/10 bg-black/20 px-3 py-2 text-xs">
+                              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                <span className="font-semibold text-white/85">{item.label || item.optionId}</span>
+                                <span className="text-white/55">{item.status.replaceAll("_", " ")} - {item.message}</span>
+                              </div>
+                              {item.stripeProductId && (
+                                <span className="text-white/40">
+                                  Stripe Product: {item.stripeProductName || "Unnamed Stripe Product"} ({item.stripeProductId})
+                                </span>
+                              )}
                             </div>
                           ))}
                         </div>

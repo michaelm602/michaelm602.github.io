@@ -27,6 +27,7 @@ const productStoragePreview = await readFile(new URL("../src/Components/ProductS
 const adminData = await readFile(new URL("../src/services/adminProducts.js", import.meta.url), "utf8");
 const adminStripeSyncService = await readFile(new URL("../src/services/adminStripePriceSync.js", import.meta.url), "utf8");
 const adminStripeSyncClient = await readFile(new URL("../src/utils/adminStripePriceSync.js", import.meta.url), "utf8");
+const adminStripeSyncDocs = await readFile(new URL("../docs/admin-stripe-price-sync.md", import.meta.url), "utf8");
 const storefront = await readFile(new URL("../src/Components/ShopGallery.jsx", import.meta.url), "utf8");
 const checkout = await readFile(new URL("../functions/index.js", import.meta.url), "utf8");
 
@@ -242,6 +243,20 @@ test("admin Stripe sync frontend contains no Stripe secret or secret-key access"
   const frontendSyncSource = `${adminStripeSyncService}\n${adminStripeSyncClient}\n${adminProducts}`;
   assert.doesNotMatch(frontendSyncSource, /STRIPE_SECRET_KEY|sk_(?:live|test)_|defineSecret|process\.env/);
   assert.match(adminStripeSyncService, /httpsCallable\(cloudFunctions, "adminStripePrintPriceSync"\)/);
+});
+
+test("admin Stripe sync explains multi-Product conflicts without offering an unsafe reset", () => {
+  assert.match(
+    adminProducts,
+    /Use one Stripe Product per artwork, with one Price per print size\. These saved Price IDs belong to different Stripe Products\./
+  );
+  assert.match(adminProducts, /stripeProductName/);
+  assert.match(adminProducts, /stripeProductId/);
+  assert.match(adminProducts, /Keep Prints available off until the Stripe Product conflict is resolved\./);
+  assert.doesNotMatch(adminProducts, /Reset Stripe (?:Product|Price|sync)/i);
+  assert.match(adminStripeSyncDocs, /Manual cleanup for multiple Stripe Products/);
+  assert.match(adminStripeSyncDocs, /Keep Prints available off/);
+  assert.match(adminStripeSyncDocs, /Do not delete or automatically deactivate/);
 });
 
 test("starting Stripe creation clears the previous preview success message", () => {

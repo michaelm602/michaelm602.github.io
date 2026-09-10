@@ -335,13 +335,28 @@ test("preview reports every existing Price when options span different Stripe Pr
     product.prints.options[1].stripePriceId = "price_product_b";
     const store = fakeStore(product);
     const stripe = fakeStripe();
+    stripe.seedProduct({ id: "prod_a", name: "Echoes 16x20", active: true, metadata: {} });
+    stripe.seedProduct({ id: "prod_b", name: "Echoes 18x24", active: true, metadata: {} });
     stripe.seedPrice({ id: "price_product_a", active: true, type: "one_time", unit_amount: 10000, currency: "usd", product: "prod_a" });
     stripe.seedPrice({ id: "price_product_b", active: true, type: "one_time", unit_amount: 20000, currency: "usd", product: "prod_b" });
 
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
 
     assert.equal(preview.stripeProductId, null);
+    assert.equal(preview.conflictCode, "multiple_stripe_products");
+    assert.equal(
+        preview.conflictGuidance,
+        "Use one Stripe Product per artwork, with one Price per print size. These saved Price IDs belong to different Stripe Products."
+    );
+    assert.deepEqual(preview.conflictingStripeProducts, [
+        { stripeProductId: "prod_a", stripeProductName: "Echoes 16x20" },
+        { stripeProductId: "prod_b", stripeProductName: "Echoes 18x24" },
+    ]);
     assert.deepEqual(preview.items.map((item) => item.status), ["conflict", "conflict"]);
+    assert.deepEqual(
+        preview.items.map((item) => [item.stripeProductId, item.stripeProductName]),
+        [["prod_a", "Echoes 16x20"], ["prod_b", "Echoes 18x24"]]
+    );
     assert.deepEqual(preview.summary, { existing: 0, missing: 0, recoverable: 0, conflicts: 2, invalid: 0 });
     assert.ok(preview.items.every((item) => /different Stripe Products/i.test(item.message)));
     const execution = await createMissingStripePrices({

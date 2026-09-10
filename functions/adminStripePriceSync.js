@@ -5,6 +5,8 @@ const crypto = require("node:crypto");
 
 const OPERATION_TYPE = "stripe_print_price_sync";
 const PRODUCT_CLAIM_TTL_MS = 5 * 60 * 1000;
+const MULTIPLE_STRIPE_PRODUCTS_MESSAGE =
+    "Use one Stripe Product per artwork, with one Price per print size. These saved Price IDs belong to different Stripe Products.";
 const STANDARD_PRINT_PRICES = Object.freeze({
     "16x20": Object.freeze({ label: "16x20", amountCents: 10000, currency: "usd" }),
     "18x24": Object.freeze({ label: "18x24", amountCents: 20000, currency: "usd" }),
@@ -189,7 +191,12 @@ async function inspectStripeProduct(productValue, firestoreProductId, stripe) {
     if (mappedProductId && mappedProductId !== firestoreProductId) {
         return { conflict: "The associated Stripe Product belongs to a different Firestore product." };
     }
-    return { stripeProductId: product.id };
+    return {
+        stripeProductId: product.id,
+        stripeProductName: typeof product.name === "string" && product.name.trim()
+            ? product.name.trim()
+            : null,
+    };
 }
 
 async function inspectStripePrice(price, option, firestoreProductId, stripe) {
@@ -269,7 +276,7 @@ async function inspectProduct(product, stripe) {
     }
 
     const items = [];
-    const productIds = new Set();
+    const stripeProducts = new Map();
     for (const sourceOption of product.prints.options) {
         const option = { ...sourceOption, productId: product.id };
         const item = planItem(option);
@@ -286,8 +293,15 @@ async function inspectProduct(product, stripe) {
                 if (inspection.conflict) items.push({ ...item, status: "conflict", message: inspection.conflict });
                 else {
                     const productId = inspection.stripeProductId;
-                    productIds.add(productId);
-                    items.push({ ...item, status: "existing", stripePriceId: price.id, stripeProductId: productId, message: "Existing Stripe Price matches Firestore." });
+                    stripeProducts.set(productId, inspection.stripeProductName);
+                    items.push({
+                        ...item,
+                        status: "existing",
+                        stripePriceId: price.id,
+                        stripeProductId: productId,
+                        stripeProductName: inspection.stripeProductName,
+                        message: "Existing Stripe Price matches Firestore.",
+                    });
                 }
             } catch (error) {
                 if (error instanceof StripePriceSyncError || isTransientStripeError(error)) {
@@ -315,8 +329,15 @@ async function inspectProduct(product, stripe) {
             if (inspection.conflict) items.push({ ...item, status: "conflict", stripePriceId: price.id, message: inspection.conflict });
             else {
                 const productId = inspection.stripeProductId;
-                productIds.add(productId);
-                items.push({ ...item, status: "recoverable", stripePriceId: price.id, stripeProductId: productId, message: "A matching Stripe Price can be attached without creating another." });
+                stripeProducts.set(productId, inspection.stripeProductName);
+                items.push({
+                    ...item,
+                    status: "recoverable",
+                    stripePriceId: price.id,
+                    stripeProductId: productId,
+                    stripeProductName: inspection.stripeProductName,
+                    message: "A matching Stripe Price can be attached without creating another.",
+                });
             }
         } catch (error) {
             if (error instanceof StripePriceSyncError) throw error;
@@ -324,18 +345,27 @@ async function inspectProduct(product, stripe) {
         }
     }
 
-    if (productIds.size > 1) {
+    const hasMultipleStripeProducts = stripeProducts.size > 1;
+    if (hasMultipleStripeProducts) {
         for (const item of items) {
             if (item.status !== "invalid") {
                 item.status = "conflict";
-                item.message = "Saved or recoverable prices point to different Stripe Products; resolve them before syncing.";
+                item.message = MULTIPLE_STRIPE_PRODUCTS_MESSAGE;
             }
         }
     }
 
     return {
         fingerprint: productFingerprint(product),
-        stripeProductId: productIds.size === 1 ? [...productIds][0] : null,
+        stripeProductId: stripeProducts.size === 1 ? [...stripeProducts.keys()][0] : null,
+        conflictCode: hasMultipleStripeProducts ? "multiple_stripe_products" : null,
+        conflictGuidance: hasMultipleStripeProducts ? MULTIPLE_STRIPE_PRODUCTS_MESSAGE : null,
+        conflictingStripeProducts: hasMultipleStripeProducts
+            ? [...stripeProducts].map(([stripeProductId, stripeProductName]) => ({
+                stripeProductId,
+                stripeProductName,
+            }))
+            : [],
         items,
         summary: summarize(items),
     };
@@ -351,6 +381,9 @@ async function previewStripePrintPriceSync({ productId, requestedBy, stripe, sto
         requestedBy,
         fingerprint: inspection.fingerprint,
         stripeProductId: inspection.stripeProductId,
+        conflictCode: inspection.conflictCode,
+        conflictGuidance: inspection.conflictGuidance,
+        conflictingStripeProducts: inspection.conflictingStripeProducts,
         plan: inspection.items,
         previewSummary: inspection.summary,
     };
@@ -360,6 +393,9 @@ async function previewStripePrintPriceSync({ productId, requestedBy, stripe, sto
         productId,
         status: record.status,
         stripeProductId: record.stripeProductId,
+        conflictCode: record.conflictCode,
+        conflictGuidance: record.conflictGuidance,
+        conflictingStripeProducts: record.conflictingStripeProducts,
         items: record.plan,
         summary: record.previewSummary,
     };
