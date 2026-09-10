@@ -29,7 +29,7 @@ function stripeWithPrices(overrides = {}) {
     };
 }
 
-test("server catalog stays synchronized with the storefront catalog", async () => {
+test("server catalog preserves the static storefront products without unauthorized extras", async () => {
     const { getAllProducts } = await import("../src/data/products.js");
     const storefrontCatalog = Object.fromEntries(
         getAllProducts().map((product) => [
@@ -42,8 +42,13 @@ test("server catalog stays synchronized with the storefront catalog", async () =
             },
         ])
     );
+    const staticServerCatalog = Object.fromEntries(
+        Object.entries(STRIPE_CATALOG).filter(
+            ([productId]) => productId !== "echoes-of-the-5th-sun"
+        )
+    );
 
-    assert.deepEqual(STRIPE_CATALOG, storefrontCatalog);
+    assert.deepEqual(staticServerCatalog, storefrontCatalog);
 });
 
 test("trusted checkout ignores browser prices, totals, titles, and Stripe IDs", async () => {
@@ -80,6 +85,52 @@ test("trusted checkout ignores browser prices, totals, titles, and Stripe IDs", 
         },
     ]);
     assert.equal(result.orderTotal, 250);
+    assert.equal(result.currency, "USD");
+});
+
+test("Echoes of the 5th Sun resolves only its trusted synced print Prices", async () => {
+    const productId = "echoes-of-the-5th-sun";
+    const trustedPrices = {
+        "16x20": { id: "price_1UEGj1JEVsglohuhyvEXeQBY", unitAmount: 10000 },
+        "18x24": { id: "price_1UEGj1JEVsglohuhnWpU3t8o", unitAmount: 20000 },
+        "24x36": { id: "price_1UEGj2JEVsglohuhKglFY2SV", unitAmount: 30000 },
+        "30x40": { id: "price_1UEGj3JEVsglohuhVlFYwsc8", unitAmount: 40000 },
+    };
+
+    assert.deepEqual(STRIPE_CATALOG[productId], {
+        title: "Echoes of the 5th Sun",
+        sizes: Object.fromEntries(
+            Object.entries(trustedPrices).map(([size, price]) => [size, price.id])
+        ),
+    });
+
+    const result = await buildTrustedCheckout({
+        items: Object.keys(trustedPrices).map((size) => ({ productId, size, quantity: 1 })),
+        stripe: {
+            prices: {
+                retrieve: async (priceId) => {
+                    const trustedPrice = Object.values(trustedPrices).find(
+                        (price) => price.id === priceId
+                    );
+                    return {
+                        id: priceId,
+                        active: true,
+                        type: "one_time",
+                        currency: "usd",
+                        unit_amount: trustedPrice?.unitAmount,
+                        livemode: true,
+                    };
+                },
+            },
+        },
+        expectedLivemode: true,
+    });
+
+    assert.deepEqual(
+        result.lineItems,
+        Object.values(trustedPrices).map((price) => ({ price: price.id, quantity: 1 }))
+    );
+    assert.equal(result.orderTotal, 1000);
     assert.equal(result.currency, "USD");
 });
 

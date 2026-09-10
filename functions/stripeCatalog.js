@@ -34,6 +34,15 @@ const STRIPE_CATALOG = Object.freeze({
             "30x40": "price_1TIfosJEVsglohuhFxQ8BTq8",
         },
     },
+    "echoes-of-the-5th-sun": {
+        title: "Echoes of the 5th Sun",
+        sizes: {
+            "16x20": "price_1UEGj1JEVsglohuhyvEXeQBY",
+            "18x24": "price_1UEGj1JEVsglohuhnWpU3t8o",
+            "24x36": "price_1UEGj2JEVsglohuhKglFY2SV",
+            "30x40": "price_1UEGj3JEVsglohuhVlFYwsc8",
+        },
+    },
     "feathered-serenity": {
         title: "Feathered Serenity",
         sizes: {
