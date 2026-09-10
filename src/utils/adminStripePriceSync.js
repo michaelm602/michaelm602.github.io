@@ -4,6 +4,9 @@ export function createAdminStripePriceSyncClient(invoke) {
     preview(productId) {
       return invoke({ action: "preview", productId });
     },
+    confirm(productId, operationId, canonicalProductChoice) {
+      return invoke({ action: "confirm", productId, operationId, canonicalProductChoice });
+    },
     create(productId, operationId) {
       return invoke({ action: "create", productId, operationId });
     },

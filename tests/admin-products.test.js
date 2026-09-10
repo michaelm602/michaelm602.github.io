@@ -231,10 +231,17 @@ test("admin Stripe sync client sends only server-safe identifiers", async () => 
   });
 
   await client.preview("new-piece");
+  await client.confirm("new-piece", "operation-1", { mode: "new" });
   await client.create("new-piece", "operation-1");
 
   assert.deepEqual(requests, [
     { action: "preview", productId: "new-piece" },
+    {
+      action: "confirm",
+      productId: "new-piece",
+      operationId: "operation-1",
+      canonicalProductChoice: { mode: "new" },
+    },
     { action: "create", productId: "new-piece", operationId: "operation-1" },
   ]);
 });
@@ -262,6 +269,22 @@ test("admin Stripe sync explains multi-Product conflicts without offering an uns
 test("starting Stripe creation clears the previous preview success message", () => {
   const createHandler = adminProducts.match(/const createStripePrices = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] || "";
   assert.match(createHandler, /setMessage\(""\)/);
+});
+
+test("admin Stripe sync requires confirmation and recommends a new canonical artwork Product", () => {
+  assert.match(adminProducts, /Create a new canonical Stripe Product named after this artwork/);
+  assert.match(adminProducts, /recommendNewCanonicalProduct \? " \(recommended\)"/);
+  assert.match(adminProducts, /Confirm canonical Product/);
+  assert.match(adminProducts, /stripeSync\?\.status === "confirmed"/);
+  assert.match(adminProducts, /confirmAdminStripePriceSync/);
+});
+
+test("post-sync UI explains that trusted checkout authorization is still required", () => {
+  assert.match(
+    adminProducts,
+    /Stripe prices are synced, but print checkout still requires the trusted server checkout catalog to support this product\./
+  );
+  assert.match(adminStripeSyncDocs, /functions\/stripeCatalog\.js remains authoritative/);
 });
 
 test("available prints require complete active options and an active default before saving", () => {

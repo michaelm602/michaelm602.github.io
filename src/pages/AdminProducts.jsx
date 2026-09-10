@@ -8,6 +8,7 @@ import {
   saveAdminProduct,
 } from "../services/adminProducts";
 import {
+  confirmAdminStripePriceSync,
   createMissingAdminStripePrices,
   previewAdminStripePriceSync,
 } from "../services/adminStripePriceSync";
@@ -147,6 +148,7 @@ export default function AdminProducts() {
   const [stripeSync, setStripeSync] = useState(null);
   const [stripeSyncing, setStripeSyncing] = useState(false);
   const [stripeSyncError, setStripeSyncError] = useState("");
+  const [canonicalProductChoice, setCanonicalProductChoice] = useState({ mode: "new" });
 
   const loadProducts = useCallback(async (preferredId = "") => {
     setLoading(true);
@@ -164,6 +166,7 @@ export default function AdminProducts() {
       setAttemptedSave(false);
       setStripeSync(null);
       setStripeSyncError("");
+      setCanonicalProductChoice({ mode: "new" });
     } catch (loadError) {
       console.error("Unable to load shop products:", loadError);
       setError(
@@ -214,6 +217,7 @@ export default function AdminProducts() {
     setError("");
     setStripeSync(null);
     setStripeSyncError("");
+    setCanonicalProductChoice({ mode: "new" });
   };
 
   const selectProduct = (product) => {
@@ -228,6 +232,7 @@ export default function AdminProducts() {
     setError("");
     setStripeSync(null);
     setStripeSyncError("");
+    setCanonicalProductChoice({ mode: "new" });
   };
 
   const startNewProduct = () => {
@@ -243,6 +248,7 @@ export default function AdminProducts() {
     setError("");
     setStripeSync(null);
     setStripeSyncError("");
+    setCanonicalProductChoice({ mode: "new" });
   };
 
   const save = async () => {
@@ -284,7 +290,28 @@ export default function AdminProducts() {
     try {
       const result = await previewAdminStripePriceSync(draft.id);
       setStripeSync(result);
+      setCanonicalProductChoice(result.recommendedCanonicalProductChoice || { mode: "new" });
       setMessage("Stripe sync preview ready. No Stripe objects were created.");
+    } catch (syncError) {
+      setStripeSyncError(formatAdminStripeSyncError(syncError));
+    } finally {
+      setStripeSyncing(false);
+    }
+  };
+
+  const confirmStripeProduct = async () => {
+    if (!draft || !stripeSync?.operationId || stripeSync?.status !== "previewed") return;
+    setStripeSyncing(true);
+    setStripeSyncError("");
+    setMessage("");
+    try {
+      const result = await confirmAdminStripePriceSync(
+        draft.id,
+        stripeSync.operationId,
+        canonicalProductChoice
+      );
+      setStripeSync((current) => ({ ...current, ...result }));
+      setMessage("Canonical Stripe Product confirmed. No Stripe objects were created.");
     } catch (syncError) {
       setStripeSyncError(formatAdminStripeSyncError(syncError));
     } finally {
@@ -302,11 +329,14 @@ export default function AdminProducts() {
       await loadProducts(draft.id);
       setStripeSync(result);
       if (result.status === "partial_failure") {
-        setStripeSyncError("Some Stripe prices were not created. Saved progress is preserved; retry this operation.");
+        setStripeSyncError("Some Stripe prices were not created. Stripe progress is recoverable and the Firestore product stayed unchanged; retry this operation.");
       } else if (result.status === "completed_with_conflicts") {
         setStripeSyncError("Stripe sync finished with conflicts. Existing Stripe Price IDs were preserved.");
       } else {
-        setMessage("Missing Stripe prices were created and attached. Print options remain inactive until you review them.");
+        setMessage(
+          result.checkoutReadinessMessage
+          || "Stripe prices are synced, but print checkout still requires the trusted server checkout catalog to support this product."
+        );
       }
     } catch (syncError) {
       setStripeSyncError(formatAdminStripeSyncError(syncError));
@@ -394,11 +424,12 @@ export default function AdminProducts() {
 
   const stripeSyncItems = stripeSync?.items || stripeSync?.results || [];
   const conflictingStripeProducts = stripeSync?.conflictingStripeProducts || [];
+  const canonicalProductCandidates = stripeSync?.canonicalProductCandidates || [];
+  const recommendNewCanonicalProduct = stripeSync?.recommendedCanonicalProductChoice?.mode === "new";
   const hasMultipleStripeProductConflict = stripeSync?.conflictCode === "multiple_stripe_products"
     && conflictingStripeProducts.length > 1;
   const canCreateStripePrices = stripeSync?.status === "partial_failure"
-    || (stripeSync?.status === "previewed"
-      && stripeSyncItems.some((item) => ["missing", "recoverable"].includes(item.status)));
+    || stripeSync?.status === "confirmed";
 
   if (adminError) return <p className="min-h-screen bg-black px-4 py-12 text-center text-red-300">{adminError}</p>;
   if (adminLoading || loading) return <p className="min-h-screen bg-black px-4 py-12 text-center text-white/60">Loading product catalog...</p>;
@@ -622,13 +653,18 @@ export default function AdminProducts() {
                         <div>
                           <h3 className="text-sm font-semibold text-sky-100">Stripe print-price sync</h3>
                           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-sky-100/65">
-                            Save product changes first. Preview checks Stripe without creating objects. Creation fills only blank Stripe Price IDs and leaves print options inactive for review.
+                            Save product changes first. Preview and confirmation make no Stripe changes. Create resolves one Product and atomically saves the confirmed Price set without changing print availability or active options.
                           </p>
                         </div>
                         <div className="flex shrink-0 flex-wrap gap-2">
                           <button type="button" disabled={stripeSyncing || saving || isNew || dirty} onClick={previewStripePrices} className={`${buttonClass} border border-sky-300/35 text-sky-100 hover:bg-sky-300/10`}>
                             {stripeSyncing ? "Checking Stripe..." : "Preview Stripe sync"}
                           </button>
+                          {stripeSync?.status === "previewed" && (
+                            <button type="button" disabled={stripeSyncing || saving || isNew || dirty || stripeSync.canConfirm !== true} onClick={confirmStripeProduct} className={`${buttonClass} border border-amber-300/40 text-amber-100 hover:bg-amber-300/10`}>
+                              Confirm canonical Product
+                            </button>
+                          )}
                           {canCreateStripePrices && (
                             <button type="button" disabled={stripeSyncing || saving || isNew || dirty} onClick={createStripePrices} className={`${buttonClass} bg-sky-200 text-sky-950 hover:bg-sky-100`}>
                               {stripeSync?.status === "partial_failure" ? "Retry missing Stripe prices" : "Create missing Stripe prices"}
@@ -657,6 +693,44 @@ export default function AdminProducts() {
                               </ul>
                               <p className="mt-3 text-xs font-medium">Keep Prints available off until the Stripe Product conflict is resolved.</p>
                             </div>
+                          )}
+                          {stripeSync.status === "previewed" && (
+                            <fieldset className="rounded-lg border border-white/10 bg-black/20 p-4">
+                              <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-white/65">Canonical Stripe Product</legend>
+                              <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm text-white/80">
+                                <input
+                                  type="radio"
+                                  name="canonical-stripe-product"
+                                  checked={canonicalProductChoice.mode === "new"}
+                                  onChange={() => setCanonicalProductChoice({ mode: "new" })}
+                                  className="mt-1"
+                                />
+                                <span>
+                                  Create a new canonical Stripe Product named after this artwork{recommendNewCanonicalProduct ? " (recommended)" : ""}
+                                  <span className="mt-1 block text-xs text-white/45">Creates or recovers one server-owned Product; existing Stripe objects remain untouched.</span>
+                                </span>
+                              </label>
+                              {canonicalProductCandidates.map((product) => (
+                                <label key={product.stripeProductId} className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-white/70">
+                                  <input
+                                    type="radio"
+                                    name="canonical-stripe-product"
+                                    checked={canonicalProductChoice.mode === "existing" && canonicalProductChoice.stripeProductId === product.stripeProductId}
+                                    onChange={() => setCanonicalProductChoice({ mode: "existing", stripeProductId: product.stripeProductId })}
+                                    className="mt-1"
+                                  />
+                                  <span>Use {product.stripeProductName || "Unnamed Stripe Product"} ({product.stripeProductId})</span>
+                                </label>
+                              ))}
+                              {stripeSync.canConfirm !== true && (
+                                <p className="mt-3 text-xs font-medium text-amber-200">Resolve invalid pricing first. For multiple Product conflicts, turn Prints available off, save, and preview again.</p>
+                              )}
+                            </fieldset>
+                          )}
+                          {stripeSync.checkoutReadinessMessage && (
+                            <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.08] px-3 py-2 text-xs text-amber-100">
+                              {stripeSync.checkoutReadinessMessage}
+                            </p>
                           )}
                           {stripeSyncItems.map((item) => (
                             <div key={item.optionId} className="flex flex-col gap-1 rounded border border-white/10 bg-black/20 px-3 py-2 text-xs">

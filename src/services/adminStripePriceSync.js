@@ -9,4 +9,5 @@ const client = createAdminStripePriceSyncClient(async (request) => {
 });
 
 export const previewAdminStripePriceSync = client.preview;
+export const confirmAdminStripePriceSync = client.confirm;
 export const createMissingAdminStripePrices = client.create;

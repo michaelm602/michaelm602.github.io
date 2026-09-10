@@ -7,6 +7,8 @@ const OPERATION_TYPE = "stripe_print_price_sync";
 const PRODUCT_CLAIM_TTL_MS = 5 * 60 * 1000;
 const MULTIPLE_STRIPE_PRODUCTS_MESSAGE =
     "Use one Stripe Product per artwork, with one Price per print size. These saved Price IDs belong to different Stripe Products.";
+const CHECKOUT_READINESS_MESSAGE =
+    "Stripe prices are synced, but print checkout still requires the trusted server checkout catalog to support this product.";
 const STANDARD_PRINT_PRICES = Object.freeze({
     "16x20": Object.freeze({ label: "16x20", amountCents: 10000, currency: "usd" }),
     "18x24": Object.freeze({ label: "18x24", amountCents: 20000, currency: "usd" }),
@@ -37,21 +39,39 @@ function validateHandlerInput(data) {
         throw new StripePriceSyncError("invalid-argument", "Stripe sync input must be an object.");
     }
     const action = data.action;
-    const allowedKeys = action === "create"
-        ? ["action", "productId", "operationId"]
-        : ["action", "productId"];
-    if (!["preview", "create"].includes(action)
+    const allowedKeys = action === "preview"
+        ? ["action", "productId"]
+        : action === "confirm"
+            ? ["action", "productId", "operationId", "canonicalProductChoice"]
+            : ["action", "productId", "operationId"];
+    if (!["preview", "confirm", "create"].includes(action)
         || Object.keys(data).some((key) => !allowedKeys.includes(key))) {
-        throw new StripePriceSyncError("invalid-argument", "Use preview or create with only the supported fields.");
+        throw new StripePriceSyncError("invalid-argument", "Use preview, confirm, or create with only the supported fields.");
     }
     if (typeof data.productId !== "string"
         || data.productId.length > 100
         || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.productId)) {
         throw new StripePriceSyncError("invalid-argument", "A valid saved product ID is required.");
     }
-    if (action === "create" && (typeof data.operationId !== "string"
+    if (["confirm", "create"].includes(action) && (typeof data.operationId !== "string"
         || !/^[A-Za-z0-9_-]{1,150}$/.test(data.operationId))) {
         throw new StripePriceSyncError("invalid-argument", "Preview Stripe sync before creating prices.");
+    }
+    if (action === "confirm") {
+        const choice = data.canonicalProductChoice;
+        if (!choice || typeof choice !== "object" || Array.isArray(choice)) {
+            throw new StripePriceSyncError("invalid-argument", "Choose a canonical Stripe Product before confirming.");
+        }
+        const allowedChoiceKeys = choice.mode === "existing"
+            ? ["mode", "stripeProductId"]
+            : ["mode"];
+        if (!["new", "existing"].includes(choice.mode)
+            || Object.keys(choice).some((key) => !allowedChoiceKeys.includes(key))
+            || (choice.mode === "existing"
+                && (typeof choice.stripeProductId !== "string"
+                    || !/^prod_[A-Za-z0-9]+$/.test(choice.stripeProductId)))) {
+            throw new StripePriceSyncError("invalid-argument", "Choose a verified existing Product or a new canonical Product.");
+        }
     }
 }
 
@@ -59,12 +79,16 @@ function relevantProductSnapshot(product) {
     return {
         id: product?.id,
         title: product?.title,
+        printsAvailable: product?.prints?.available === true,
         options: Array.isArray(product?.prints?.options)
             ? product.prints.options.map((option) => ({
                 id: option?.id,
                 label: option?.label,
                 amountCents: option?.amountCents,
                 currency: option?.currency,
+                stripePriceId: typeof option?.stripePriceId === "string" && option.stripePriceId.trim()
+                    ? option.stripePriceId.trim()
+                    : null,
             }))
             : null,
     };
@@ -221,11 +245,20 @@ function stableProductIdempotencyKey(productId) {
     return `likwit-admin-print-product:${productId}`;
 }
 
+function canonicalLookupKeyFor(productId, optionId, stripeProductId) {
+    const productSuffix = crypto.createHash("sha256").update(stripeProductId).digest("hex").slice(0, 10);
+    return `${lookupKeyFor(productId, optionId)}-${productSuffix}`;
+}
+
+function stablePriceIdempotencyKey(productId, optionId, stripeProductId) {
+    return `likwit-admin-print-price:${productId}:${optionId}:${stripeProductId}`;
+}
+
 async function findRecoverableStripeProduct(stripe, firestoreProductId) {
     let response;
     try {
         response = await stripe.products.search({
-            query: `metadata['source']:'likwit_admin_price_sync' AND metadata['firestore_product_id']:'${firestoreProductId}'`,
+            query: `metadata['source']:'likwit_admin_price_sync' AND metadata['firestore_product_id']:'${firestoreProductId}' AND metadata['canonical_product']:'true'`,
             limit: 3,
         });
     } catch (error) {
@@ -345,6 +378,7 @@ async function inspectProduct(product, stripe) {
         }
     }
 
+    const hasBlockingItem = items.some((item) => ["invalid", "conflict"].includes(item.status));
     const hasMultipleStripeProducts = stripeProducts.size > 1;
     if (hasMultipleStripeProducts) {
         for (const item of items) {
@@ -355,17 +389,25 @@ async function inspectProduct(product, stripe) {
         }
     }
 
+    const canonicalProductCandidates = [...stripeProducts].map(([stripeProductId, stripeProductName]) => ({
+        stripeProductId,
+        stripeProductName,
+    }));
+    const recommendedCanonicalProductChoice = hasMultipleStripeProducts || stripeProducts.size === 0
+        ? { mode: "new" }
+        : { mode: "existing", stripeProductId: canonicalProductCandidates[0].stripeProductId };
     return {
         fingerprint: productFingerprint(product),
         stripeProductId: stripeProducts.size === 1 ? [...stripeProducts.keys()][0] : null,
         conflictCode: hasMultipleStripeProducts ? "multiple_stripe_products" : null,
         conflictGuidance: hasMultipleStripeProducts ? MULTIPLE_STRIPE_PRODUCTS_MESSAGE : null,
         conflictingStripeProducts: hasMultipleStripeProducts
-            ? [...stripeProducts].map(([stripeProductId, stripeProductName]) => ({
-                stripeProductId,
-                stripeProductName,
-            }))
+            ? canonicalProductCandidates
             : [],
+        canonicalProductCandidates,
+        recommendedCanonicalProductChoice,
+        canConfirm: !hasBlockingItem
+            && (!hasMultipleStripeProducts || product.prints?.available !== true),
         items,
         summary: summarize(items),
     };
@@ -380,10 +422,14 @@ async function previewStripePrintPriceSync({ productId, requestedBy, stripe, sto
         productId,
         requestedBy,
         fingerprint: inspection.fingerprint,
+        expectedOptions: mappingOptionSnapshot(product),
         stripeProductId: inspection.stripeProductId,
         conflictCode: inspection.conflictCode,
         conflictGuidance: inspection.conflictGuidance,
         conflictingStripeProducts: inspection.conflictingStripeProducts,
+        canonicalProductCandidates: inspection.canonicalProductCandidates,
+        recommendedCanonicalProductChoice: inspection.recommendedCanonicalProductChoice,
+        canConfirm: inspection.canConfirm,
         plan: inspection.items,
         previewSummary: inspection.summary,
     };
@@ -396,9 +442,100 @@ async function previewStripePrintPriceSync({ productId, requestedBy, stripe, sto
         conflictCode: record.conflictCode,
         conflictGuidance: record.conflictGuidance,
         conflictingStripeProducts: record.conflictingStripeProducts,
+        canonicalProductCandidates: record.canonicalProductCandidates,
+        recommendedCanonicalProductChoice: record.recommendedCanonicalProductChoice,
+        canConfirm: record.canConfirm,
         items: record.plan,
         summary: record.previewSummary,
     };
+}
+
+function sameCanonicalProductChoice(left, right) {
+    return left?.mode === right?.mode
+        && (left?.mode !== "existing" || left.stripeProductId === right.stripeProductId);
+}
+
+function confirmedPlanFor(items, choice) {
+    return items.map((item) => {
+        const keepsExisting = choice.mode === "existing"
+            && item.stripeProductId === choice.stripeProductId
+            && Boolean(item.stripePriceId);
+        return {
+            ...item,
+            action: keepsExisting
+                ? item.currentStripePriceId ? "keep" : "attach_existing"
+                : item.currentStripePriceId ? "replace_firestore_reference" : "create",
+        };
+    });
+}
+
+async function confirmStripePrintPriceSync({
+    productId,
+    operationId,
+    canonicalProductChoice,
+    requestedBy,
+    stripe,
+    store,
+}) {
+    const operation = await store.getOperation(operationId);
+    if (!operation || operation.type !== OPERATION_TYPE || operation.productId !== productId) {
+        throw new StripePriceSyncError("not-found", "The Stripe sync preview operation was not found.");
+    }
+    if (operation.requestedBy !== requestedBy) {
+        throw new StripePriceSyncError("permission-denied", "This Stripe sync preview belongs to another admin session.");
+    }
+    if (operation.status === "confirmed") {
+        if (!sameCanonicalProductChoice(operation.canonicalProductChoice, canonicalProductChoice)) {
+            throw new StripePriceSyncError("failed-precondition", "This operation was already confirmed with a different canonical Product.");
+        }
+        return operation.confirmationResponse;
+    }
+    if (operation.status !== "previewed") {
+        throw new StripePriceSyncError("failed-precondition", "Preview Stripe sync again before confirming.");
+    }
+    if (operation.canConfirm !== true) {
+        throw new StripePriceSyncError(
+            "failed-precondition",
+            operation.conflictCode === "multiple_stripe_products"
+                ? "Turn Prints available off before resolving multiple Stripe Products."
+                : "Resolve the blocking Stripe conflicts before confirming."
+        );
+    }
+
+    const product = await store.getProduct(productId);
+    if (!product || productFingerprint(product) !== operation.fingerprint) {
+        await store.updateOperation(operationId, { status: "stale", message: "Product pricing changed after preview." });
+        throw new StripePriceSyncError("failed-precondition", "Product pricing changed after preview. Preview Stripe sync again.");
+    }
+
+    if (canonicalProductChoice.mode === "existing") {
+        const verifiedCandidate = (operation.canonicalProductCandidates || [])
+            .some((candidate) => candidate.stripeProductId === canonicalProductChoice.stripeProductId);
+        if (!verifiedCandidate) {
+            throw new StripePriceSyncError("failed-precondition", "The selected Stripe Product was not verified by this preview.");
+        }
+        const inspection = await inspectStripeProduct(canonicalProductChoice.stripeProductId, productId, stripe);
+        if (inspection.conflict) {
+            throw new StripePriceSyncError("failed-precondition", inspection.conflict);
+        }
+    }
+
+    const confirmedPlan = confirmedPlanFor(operation.plan, canonicalProductChoice);
+    const response = {
+        operationId,
+        productId,
+        status: "confirmed",
+        canonicalProductChoice,
+        items: confirmedPlan,
+        checkoutReadinessMessage: CHECKOUT_READINESS_MESSAGE,
+    };
+    await store.updateOperation(operationId, {
+        status: "confirmed",
+        canonicalProductChoice,
+        confirmedPlan,
+        confirmationResponse: response,
+    });
+    return response;
 }
 
 function priceCreateParams(product, item, productId) {
@@ -437,6 +574,11 @@ async function createMissingStripePrices({ productId, operationId, requestedBy, 
         throw new StripePriceSyncError("permission-denied", "This Stripe sync preview belongs to another admin session.");
     }
     if (operation.status === "completed" && operation.response) return operation.response;
+    if (!["confirmed", "running", "partial_failure"].includes(operation.status)
+        || !operation.canonicalProductChoice
+        || !Array.isArray(operation.confirmedPlan)) {
+        throw new StripePriceSyncError("failed-precondition", "Confirm the canonical Stripe Product before creating prices.");
+    }
 
     const product = await store.getProduct(productId);
     if (!product) throw new StripePriceSyncError("not-found", "The saved product was not found.");
@@ -446,271 +588,194 @@ async function createMissingStripePrices({ productId, operationId, requestedBy, 
     }
 
     await store.updateOperation(operationId, { status: "running" });
-    const currentOptions = new Map(product.prints.options.map((option) => [option.id, option]));
-    const expectedMappingOptions = mappingOptionSnapshot(product);
+    const expectedMappingOptions = operation.expectedOptions;
     const results = [];
-    const pending = [];
-    const productIds = new Set();
-
-    for (const item of operation.plan) {
-        if (["invalid", "conflict"].includes(item.status)) {
-            results.push({ ...item, status: "skipped", message: item.message });
-            continue;
-        }
-        const current = currentOptions.get(item.optionId);
-        if (!current) {
-            results.push({ ...item, status: "conflict", message: "The print option no longer exists." });
-            continue;
-        }
-        const currentPriceId = typeof current.stripePriceId === "string" && current.stripePriceId.trim()
-            ? current.stripePriceId.trim()
-            : null;
-        if (!currentPriceId) {
-            pending.push(item);
-            continue;
-        }
-        try {
-            const price = await stripe.prices.retrieve(currentPriceId);
-            const inspection = await inspectStripePrice(price, current, product.id, stripe);
-            if (inspection.conflict) results.push({ ...item, status: "conflict", stripePriceId: currentPriceId, message: inspection.conflict });
-            else {
-                productIds.add(inspection.stripeProductId);
-                results.push({ ...item, status: "existing", stripePriceId: currentPriceId, stripeProductId: inspection.stripeProductId, message: "Existing Stripe Price ID was preserved." });
-            }
-        } catch (error) {
-            if (error instanceof StripePriceSyncError || isTransientStripeError(error)) {
-                results.push({ ...item, status: "failed", stripePriceId: currentPriceId, message: "Stripe verification is temporarily unavailable. Retry this operation.", errorCode: error?.code || null });
-            } else {
-                results.push({ ...item, status: "conflict", stripePriceId: currentPriceId, message: "The existing Stripe Price ID could not be verified.", errorCode: error?.code || null });
-            }
-        }
+    let targetProductId = null;
+    const proposedProductId = operation.canonicalProductChoice.mode === "existing"
+        ? operation.canonicalProductChoice.stripeProductId
+        : null;
+    const mapping = await store.claimProductMapping(productId, operationId, proposedProductId, expectedMappingOptions);
+    if (["busy", "stale", "conflict"].includes(mapping.status)) {
+        const message = mapping.status === "busy"
+            ? "Another Stripe sync is establishing the canonical Product. Retry this operation."
+            : mapping.status === "stale"
+                ? "Product print options changed during Stripe sync. Preview again."
+                : "A different canonical Stripe Product is already mapped.";
+        const status = mapping.status === "busy" ? "partial_failure" : "completed_with_conflicts";
+        const blocked = operation.confirmedPlan.map((item) => ({
+            ...item,
+            status: mapping.status === "busy" ? "failed" : "conflict",
+            message,
+        }));
+        const summary = executionSummary(blocked);
+        const response = {
+            operationId,
+            productId,
+            status,
+            stripeProductId: mapping.stripeProductId || null,
+            results: blocked,
+            summary,
+            checkoutReadinessMessage: CHECKOUT_READINESS_MESSAGE,
+        };
+        await store.updateOperation(operationId, { ...response, response });
+        return response;
     }
 
-    const savedPriceVerificationFailed = results.some((result) => result.status === "failed");
-    if (savedPriceVerificationFailed) {
-        for (const item of pending) {
-            results.push({
-                ...item,
-                status: "failed",
-                message: "A saved Stripe Price could not be verified, so no Stripe objects were created. Retry this operation.",
-            });
+    try {
+        if (mapping.status === "mapped") {
+            targetProductId = mapping.stripeProductId;
+        } else if (mapping.status === "claimed") {
+            const recoverable = await findRecoverableStripeProduct(stripe, product.id);
+            if (recoverable.conflict) throw new StripePriceSyncError("failed-precondition", recoverable.conflict);
+            let productInspection = recoverable;
+            if (!productInspection.stripeProductId) {
+                const stripeProduct = await stripe.products.create(
+                    {
+                        name: product.title,
+                        active: true,
+                        metadata: {
+                            source: "likwit_admin_price_sync",
+                            canonical_product: "true",
+                            firestore_product_id: product.id,
+                        },
+                    },
+                    { idempotencyKey: stableProductIdempotencyKey(product.id) }
+                );
+                productInspection = await inspectStripeProduct(stripeProduct, product.id, stripe);
+            }
+            if (productInspection.conflict) throw new StripePriceSyncError("failed-precondition", productInspection.conflict);
+            const finalized = await store.finalizeProductMapping(
+                productId,
+                operationId,
+                productInspection.stripeProductId,
+                expectedMappingOptions
+            );
+            if (finalized.status !== "mapped" || finalized.stripeProductId !== productInspection.stripeProductId) {
+                throw new StripePriceSyncError(
+                    "failed-precondition",
+                    finalized.status === "stale"
+                        ? "Product print options changed during Stripe sync. Preview again."
+                        : "The canonical Stripe Product mapping changed during creation."
+                );
+            }
+            targetProductId = finalized.stripeProductId;
         }
-        pending.length = 0;
-        productIds.clear();
-    } else {
-        const verifiedPending = [];
-        for (const item of pending) {
-            try {
-                const matches = await listPricesByLookupKey(stripe, item.lookupKey);
+
+        const productInspection = await inspectStripeProduct(targetProductId, product.id, stripe);
+        if (productInspection.conflict) {
+            throw new StripePriceSyncError("failed-precondition", productInspection.conflict);
+        }
+    } catch (error) {
+        if (!targetProductId) await store.releaseProductClaim(productId, operationId);
+        const failed = operation.confirmedPlan.map((item) => ({
+            ...item,
+            status: error instanceof StripePriceSyncError && error.code === "failed-precondition" ? "conflict" : "failed",
+            message: error?.message || "Stripe Product creation or mapping failed. Retry this operation.",
+            errorCode: error?.code || null,
+        }));
+        const summary = executionSummary(failed);
+        const status = summary.failed ? "partial_failure" : "completed_with_conflicts";
+        const response = { operationId, productId, status, stripeProductId: targetProductId, results: failed, summary, checkoutReadinessMessage: CHECKOUT_READINESS_MESSAGE };
+        await store.updateOperation(operationId, { ...response, response });
+        return response;
+    }
+
+    const replacements = [];
+    for (const item of operation.confirmedPlan) {
+        const currentExpectedPriceId = item.currentStripePriceId
+            || (item.stripeProductId === targetProductId ? item.stripePriceId : null);
+        try {
+            let price = null;
+            let reusedSavedPrice = false;
+            let recovered = false;
+            if (currentExpectedPriceId) {
+                try {
+                    const savedPrice = await stripe.prices.retrieve(currentExpectedPriceId);
+                    const savedInspection = await inspectStripePrice(savedPrice, item, product.id, stripe);
+                    if (!savedInspection.conflict && savedInspection.stripeProductId === targetProductId) {
+                        price = savedPrice;
+                        reusedSavedPrice = Boolean(item.currentStripePriceId);
+                        recovered = !reusedSavedPrice;
+                    }
+                } catch (error) {
+                    if (isTransientStripeError(error)) throw error;
+                }
+            }
+
+            const canonicalLookupKey = canonicalLookupKeyFor(product.id, item.optionId, targetProductId);
+            if (!price) {
+                const matches = await listPricesByLookupKey(stripe, canonicalLookupKey);
                 if (matches.length > 1) {
-                    results.push({ ...item, status: "conflict", message: "Multiple Stripe Prices use this sync lookup key." });
-                    continue;
+                    throw new StripePriceSyncError("failed-precondition", "Multiple Stripe Prices use this canonical sync lookup key.");
                 }
                 if (matches.length === 1) {
                     const inspection = await inspectStripePrice(matches[0], item, product.id, stripe);
-                    if (inspection.conflict) {
-                        results.push({ ...item, status: "conflict", stripePriceId: matches[0].id, message: inspection.conflict });
-                        continue;
+                    if (inspection.conflict) throw new StripePriceSyncError("failed-precondition", inspection.conflict);
+                    if (inspection.stripeProductId !== targetProductId) {
+                        throw new StripePriceSyncError("failed-precondition", "The canonical lookup Price belongs to another Stripe Product.");
                     }
-                    productIds.add(inspection.stripeProductId);
-                }
-                verifiedPending.push(item);
-            } catch (error) {
-                const temporary = error instanceof StripePriceSyncError || isTransientStripeError(error);
-                results.push({
-                    ...item,
-                    status: temporary ? "failed" : "conflict",
-                    message: temporary
-                        ? "Stripe verification is temporarily unavailable. Retry this operation."
-                        : "The matching Stripe Price could not be verified.",
-                    errorCode: error?.code || null,
-                });
-            }
-        }
-        if (results.some((result) => result.status === "failed")) {
-            for (const item of verifiedPending) {
-                results.push({
-                    ...item,
-                    status: "failed",
-                    message: "Another Stripe Price lookup could not be verified, so no Stripe objects were created. Retry this operation.",
-                });
-            }
-            pending.length = 0;
-            productIds.clear();
-        } else {
-            pending.splice(0, pending.length, ...verifiedPending);
-        }
-    }
-
-    let targetProductId = productIds.size === 1 ? [...productIds][0] : null;
-    if (productIds.size > 1) {
-        for (const result of results) {
-            if (result.status === "existing") {
-                result.status = "conflict";
-                result.message = "Existing prices point to different Stripe Products.";
-            }
-        }
-        for (const item of pending) {
-            results.push({ ...item, status: "conflict", message: "Existing prices point to different Stripe Products." });
-        }
-        pending.length = 0;
-    }
-
-    if (pending.length || targetProductId) {
-        const mapping = await store.claimProductMapping(productId, operationId, targetProductId, expectedMappingOptions);
-        if (mapping.status === "conflict") {
-            for (const result of results) {
-                if (result.status === "existing") {
-                    result.status = "conflict";
-                    result.message = "Existing prices do not match the canonical Stripe Product mapping.";
+                    price = matches[0];
+                    recovered = true;
                 }
             }
-            for (const item of pending) {
-                results.push({ ...item, status: "conflict", message: "A different canonical Stripe Product is already mapped." });
-            }
-            pending.length = 0;
-            targetProductId = mapping.stripeProductId || null;
-        } else if (mapping.status === "busy") {
-            for (const result of results) {
-                if (result.status === "existing") {
-                    result.status = "failed";
-                    result.message = "Another Stripe sync is establishing the canonical Product. Retry this operation.";
-                }
-            }
-            for (const item of pending) {
-                results.push({ ...item, status: "failed", message: "Another Stripe sync is creating this product. Retry this operation." });
-            }
-            pending.length = 0;
-            targetProductId = null;
-        } else if (mapping.status === "stale") {
-            for (const result of results) {
-                if (result.status === "existing") {
-                    result.status = "conflict";
-                    result.message = "Product print options changed during Stripe sync.";
-                }
-            }
-            for (const item of pending) {
-                results.push({ ...item, status: "conflict", message: "Product print options changed during Stripe sync." });
-            }
-            pending.length = 0;
-            targetProductId = null;
-        } else if (mapping.status === "mapped") {
-            targetProductId = mapping.stripeProductId;
-            const mappedProduct = await inspectStripeProduct(targetProductId, product.id, stripe);
-            if (mappedProduct.conflict) {
-                for (const item of pending) {
-                    results.push({ ...item, status: "conflict", message: mappedProduct.conflict });
-                }
-                pending.length = 0;
-            }
-        } else if (mapping.status === "claimed") {
-            try {
-                const recoverable = await findRecoverableStripeProduct(stripe, product.id);
-                if (recoverable.conflict) {
-                    await store.releaseProductClaim(productId, operationId);
-                    for (const item of pending) {
-                        results.push({ ...item, status: "conflict", message: recoverable.conflict });
-                    }
-                    pending.length = 0;
-                    targetProductId = null;
-                } else {
-                    let productInspection = recoverable;
-                    if (!productInspection.stripeProductId) {
-                        const stripeProduct = await stripe.products.create(
-                            {
-                                name: product.title,
-                                active: true,
-                                metadata: { source: "likwit_admin_price_sync", firestore_product_id: product.id },
-                            },
-                            { idempotencyKey: stableProductIdempotencyKey(product.id) }
-                        );
-                        productInspection = await inspectStripeProduct(stripeProduct, product.id, stripe);
-                    }
-                    if (productInspection.conflict) throw new Error(productInspection.conflict);
-                    const finalized = await store.finalizeProductMapping(
-                        productId,
-                        operationId,
-                        productInspection.stripeProductId,
-                        expectedMappingOptions
-                    );
-                    if (finalized.status === "stale") {
-                        await store.releaseProductClaim(productId, operationId);
-                        for (const result of results) {
-                            if (result.status === "existing") {
-                                result.status = "conflict";
-                                result.message = "Product print options changed during Stripe sync.";
-                            }
-                        }
-                        for (const item of pending) {
-                            results.push({ ...item, status: "conflict", message: "Product print options changed during Stripe sync." });
-                        }
-                        pending.length = 0;
-                        targetProductId = null;
-                    } else if (finalized.status !== "mapped" || finalized.stripeProductId !== productInspection.stripeProductId) {
-                        throw new Error("The canonical Stripe Product mapping changed during creation.");
-                    } else {
-                        targetProductId = finalized.stripeProductId;
-                        await store.updateOperation(operationId, { stripeProductId: targetProductId, results });
-                    }
-                }
-            } catch (error) {
-                await store.releaseProductClaim(productId, operationId);
-                for (const item of pending) {
-                    results.push({ ...item, status: "failed", message: "Stripe Product creation or mapping failed. Retry this operation.", errorCode: error?.code || null });
-                }
-                pending.length = 0;
-            }
-        }
-    }
-
-    for (const item of pending) {
-        try {
-            const matches = await listPricesByLookupKey(stripe, item.lookupKey);
-            let price = matches.length === 1 ? matches[0] : null;
-            if (matches.length > 1) {
-                results.push({ ...item, status: "conflict", message: "Multiple Stripe Prices use this sync lookup key." });
-                await store.updateOperation(operationId, { status: "running", stripeProductId: targetProductId, results });
-                continue;
-            }
-            if (price) {
-                const inspection = await inspectStripePrice(price, item, product.id, stripe);
-                if (inspection.conflict || inspection.stripeProductId !== targetProductId) {
-                    results.push({ ...item, status: "conflict", stripePriceId: price.id, message: inspection.conflict || "The recovered Stripe Price belongs to another Product." });
-                    await store.updateOperation(operationId, { status: "running", stripeProductId: targetProductId, results });
-                    continue;
-                }
-            } else {
+            if (!price) {
                 price = await stripe.prices.create(
-                    priceCreateParams(product, item, targetProductId),
-                    { idempotencyKey: `likwit-admin-price-sync:${operationId}:${item.optionId}` }
+                    priceCreateParams(product, { ...item, lookupKey: canonicalLookupKey }, targetProductId),
+                    { idempotencyKey: stablePriceIdempotencyKey(product.id, item.optionId, targetProductId) }
                 );
             }
 
-            const attached = await store.attachPriceId(productId, item, price.id);
-            if (attached.status === "conflict") {
-                results.push({ ...item, status: "conflict", stripePriceId: attached.stripePriceId || price.id, message: attached.message });
-            } else if (attached.status === "unchanged") {
-                results.push({ ...item, status: "existing", stripePriceId: price.id, message: "The Stripe Price ID was already attached by another operation." });
-            } else {
-                results.push({
-                    ...item,
-                    status: matches.length ? "attached" : "created",
-                    stripePriceId: price.id,
-                    message: matches.length ? "Matching Stripe Price attached." : "Stripe Price created and attached.",
-                });
-            }
-        } catch (error) {
-            const temporary = error instanceof StripePriceSyncError || isTransientStripeError(error);
+            replacements.push({ optionId: item.optionId, stripePriceId: price.id });
             results.push({
                 ...item,
-                status: "failed",
-                message: temporary
-                    ? "Stripe verification is temporarily unavailable. Retry this operation."
-                    : "Stripe Price creation or attachment failed. Retry this operation.",
+                status: reusedSavedPrice ? "existing" : recovered ? "attached" : "created",
+                stripePriceId: price.id,
+                stripeProductId: targetProductId,
+                message: reusedSavedPrice
+                    ? "Existing Price already belongs to the confirmed canonical Product."
+                    : recovered
+                        ? "Canonical Stripe Price recovered for atomic Firestore update."
+                        : "Stripe Price created; Firestore will update after every Price succeeds.",
+            });
+        } catch (error) {
+            const isConflict = error instanceof StripePriceSyncError && error.code === "failed-precondition";
+            results.push({
+                ...item,
+                status: isConflict ? "conflict" : "failed",
+                message: isConflict
+                    ? error.message
+                    : "Stripe Price creation or verification failed. Firestore was not changed; retry this operation.",
                 errorCode: error?.code || null,
             });
         }
         await store.updateOperation(operationId, { status: "running", stripeProductId: targetProductId, results });
+    }
+
+    if (results.every((result) => ["created", "attached", "existing"].includes(result.status))) {
+        let update;
+        try {
+            update = await store.replacePriceIdsAtomically(productId, expectedMappingOptions, replacements);
+        } catch {
+            update = { status: "failed", message: "The atomic Firestore update failed. Retry this operation." };
+        }
+        if (!["updated", "unchanged"].includes(update.status)) {
+            for (const result of results) {
+                result.status = update.status === "failed" ? "failed" : "conflict";
+                result.message = update.message;
+            }
+        } else {
+            for (const result of results) {
+                result.message = result.status === "existing"
+                    ? "Existing canonical Stripe Price ID was preserved."
+                    : "Canonical Stripe Price ID saved to Firestore.";
+            }
+        }
+    } else {
+        for (const result of results) {
+            if (["created", "attached", "existing"].includes(result.status)) {
+                result.message = "Stripe Price is ready, but Firestore was left unchanged because another Price failed.";
+            }
+        }
     }
 
     const summary = executionSummary(results);
@@ -719,7 +784,15 @@ async function createMissingStripePrices({ productId, operationId, requestedBy, 
         : summary.conflicts > 0 || summary.skipped > 0
             ? "completed_with_conflicts"
             : "completed";
-    const response = { operationId, productId, status, stripeProductId: targetProductId, results, summary };
+    const response = {
+        operationId,
+        productId,
+        status,
+        stripeProductId: targetProductId,
+        results,
+        summary,
+        checkoutReadinessMessage: CHECKOUT_READINESS_MESSAGE,
+    };
     await store.updateOperation(operationId, { status, stripeProductId: targetProductId, results, summary, response });
     return response;
 }
@@ -730,6 +803,16 @@ async function handleAdminStripePrintPriceSync(request, { getStripe, store }) {
     const stripe = getStripe();
     if (request.data.action === "preview") {
         return previewStripePrintPriceSync({ productId: request.data.productId, requestedBy, stripe, store });
+    }
+    if (request.data.action === "confirm") {
+        return confirmStripePrintPriceSync({
+            productId: request.data.productId,
+            operationId: request.data.operationId,
+            canonicalProductChoice: request.data.canonicalProductChoice,
+            requestedBy,
+            stripe,
+            store,
+        });
     }
     return createMissingStripePrices({
         productId: request.data.productId,
@@ -853,7 +936,7 @@ function createFirestoreStripeSyncStore({ firestore, serverTimestamp }) {
                 return true;
             });
         },
-        async attachPriceId(productId, expectedOption, newStripePriceId) {
+        async replacePriceIdsAtomically(productId, expectedOptions, replacements) {
             const productRef = products.doc(productId);
             return firestore.runTransaction(async (transaction) => {
                 const snapshot = await transaction.get(productRef);
@@ -861,38 +944,29 @@ function createFirestoreStripeSyncStore({ firestore, serverTimestamp }) {
                     return { status: "conflict", message: "The product no longer exists." };
                 }
                 const product = snapshot.data();
-                const options = Array.isArray(product.prints?.options)
-                    ? product.prints.options.map((option) => ({ ...option }))
-                    : [];
-                const optionIndex = options.findIndex((option) => option.id === expectedOption.optionId);
-                if (optionIndex < 0) {
-                    return { status: "conflict", message: "The print option no longer exists." };
-                }
-                const latestOption = options[optionIndex];
-                if (latestOption.label !== expectedOption.label
-                    || latestOption.amountCents !== expectedOption.amountCents
-                    || latestOption.currency !== expectedOption.currency) {
-                    return { status: "conflict", message: "The print option changed after preview." };
-                }
-                const currentStripePriceId = typeof options[optionIndex].stripePriceId === "string"
-                    ? options[optionIndex].stripePriceId.trim()
-                    : "";
-                if (currentStripePriceId && currentStripePriceId !== newStripePriceId) {
+                if (!matchesMappingOptionSnapshot(product, expectedOptions)) {
                     return {
                         status: "conflict",
-                        stripePriceId: currentStripePriceId,
-                        message: "A different Stripe Price ID is already saved.",
+                        message: "Product print options or Stripe Price IDs changed after confirmation. Preview again.",
                     };
                 }
-                if (currentStripePriceId === newStripePriceId) {
-                    return { status: "unchanged", stripePriceId: newStripePriceId };
+                const replacementById = new Map(
+                    replacements.map((replacement) => [replacement.optionId, replacement.stripePriceId])
+                );
+                if (replacementById.size !== replacements.length
+                    || replacementById.size !== expectedOptions.length
+                    || expectedOptions.some((option) => !replacementById.has(option.optionId))) {
+                    return { status: "conflict", message: "The confirmed Stripe Price set is incomplete." };
                 }
-                options[optionIndex].stripePriceId = newStripePriceId;
+                const options = product.prints.options.map((option) => ({
+                    ...option,
+                    stripePriceId: replacementById.get(option.id),
+                }));
                 transaction.update(productRef, {
                     "prints.options": options,
                     updatedAt: serverTimestamp(),
                 });
-                return { status: "attached", stripePriceId: newStripePriceId };
+                return { status: "updated" };
             });
         },
     };
@@ -902,6 +976,8 @@ module.exports = {
     OPERATION_TYPE,
     STANDARD_PRINT_PRICES,
     StripePriceSyncError,
+    canonicalLookupKeyFor,
+    confirmStripePrintPriceSync,
     createMissingStripePrices,
     createFirestoreStripeSyncStore,
     handleAdminStripePrintPriceSync,

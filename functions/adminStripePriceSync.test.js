@@ -6,6 +6,8 @@ const assert = require("node:assert/strict");
 
 const {
     StripePriceSyncError,
+    canonicalLookupKeyFor,
+    confirmStripePrintPriceSync,
     createMissingStripePrices,
     createFirestoreStripeSyncStore,
     handleAdminStripePrintPriceSync,
@@ -55,6 +57,7 @@ function fakeStore(product) {
     const operations = new Map();
     const productMappings = new Map();
     const store = {
+        productWrites: 0,
         products,
         operations,
         productMappings,
@@ -110,21 +113,23 @@ function fakeStore(product) {
                 productMappings.set(productId, { stripeProductId: null, claimOperationId: null });
             }
         },
-        async attachPriceId(productId, expectedOption, stripePriceId) {
+        async replacePriceIdsAtomically(productId, expectedOptions, replacements) {
             const current = products.get(productId);
-            const option = current.prints.options.find((candidate) => candidate.id === expectedOption.optionId);
-            if (!option) return { status: "conflict", message: "The print option no longer exists." };
-            if (option.label !== expectedOption.label
-                || option.amountCents !== expectedOption.amountCents
-                || option.currency !== expectedOption.currency) {
-                return { status: "conflict", message: "The print option changed after preview." };
+            if (!matchesExpectedOptions(current, expectedOptions)) {
+                return { status: "stale", message: "Product print options changed after confirmation." };
             }
-            if (option.stripePriceId && option.stripePriceId !== stripePriceId) {
-                return { status: "conflict", stripePriceId: option.stripePriceId, message: "A different Stripe Price ID is already saved." };
+            const options = current.prints.options.map((option) => ({ ...option }));
+            for (const replacement of replacements) {
+                const option = options.find((candidate) => candidate.id === replacement.optionId);
+                if (!option) return { status: "stale", message: "A print option no longer exists." };
+                option.stripePriceId = replacement.stripePriceId;
             }
-            if (option.stripePriceId === stripePriceId) return { status: "unchanged", stripePriceId };
-            option.stripePriceId = stripePriceId;
-            return { status: "attached", stripePriceId };
+            const changed = JSON.stringify(options) !== JSON.stringify(current.prints.options);
+            if (changed) {
+                current.prints.options = options;
+                store.productWrites += 1;
+            }
+            return { status: changed ? "updated" : "unchanged" };
         },
     };
     return store;
@@ -150,6 +155,7 @@ function fakeStripe({ failOnceFor = null, priceRetrieveError = null, productCrea
                 return {
                     data: [...products.values()]
                         .filter((product) => product.metadata?.source === "likwit_admin_price_sync"
+                            && product.metadata?.canonical_product === "true"
                             && product.metadata?.firestore_product_id === firestoreProductId)
                         .map(clone),
                 };
@@ -231,6 +237,17 @@ function fakeStripe({ failOnceFor = null, priceRetrieveError = null, productCrea
     stripe.setPriceRetrieveError = (error) => { currentPriceRetrieveError = error; };
     stripe.setPriceListErrorFor = (lookupKey) => { currentPriceListErrorFor = lookupKey; };
     return stripe;
+}
+
+async function confirmPreview(preview, product, stripe, store, choice = preview.recommendedCanonicalProductChoice) {
+    return confirmStripePrintPriceSync({
+        productId: product.id,
+        operationId: preview.operationId,
+        canonicalProductChoice: choice,
+        requestedBy: "admin-user",
+        stripe,
+        store,
+    });
 }
 
 test("callable handler rejects missing admin claims before accessing Stripe", async () => {
@@ -359,14 +376,6 @@ test("preview reports every existing Price when options span different Stripe Pr
     );
     assert.deepEqual(preview.summary, { existing: 0, missing: 0, recoverable: 0, conflicts: 2, invalid: 0 });
     assert.ok(preview.items.every((item) => /different Stripe Products/i.test(item.message)));
-    const execution = await createMissingStripePrices({
-        productId: product.id,
-        operationId: preview.operationId,
-        requestedBy: "admin-user",
-        stripe,
-        store,
-    });
-    assert.equal(execution.status, "completed_with_conflicts");
     assert.equal(stripe.calls.productCreates.length, 0);
     assert.equal(stripe.calls.priceCreates.length, 0);
 });
@@ -394,6 +403,172 @@ test("preview persists a server-derived plan without creating Stripe objects", a
     assert.equal(stripe.calls.priceCreates.length, 0);
     assert.equal(store.operations.get("operation-1").requestedBy, "admin-user");
     assert.equal(store.operations.get("operation-1").productId, "new-piece");
+    assert.equal(store.productWrites, 0);
+});
+
+test("confirm performs no Stripe writes and create is denied before confirmation", async () => {
+    const product = productWithOptions();
+    const store = fakeStore(product);
+    const stripe = fakeStripe();
+    const preview = await previewStripePrintPriceSync({
+        productId: product.id,
+        requestedBy: "admin-user",
+        stripe,
+        store,
+    });
+
+    await assert.rejects(
+        () => createMissingStripePrices({
+            productId: product.id,
+            operationId: preview.operationId,
+            requestedBy: "admin-user",
+            stripe,
+            store,
+        }),
+        (error) => error instanceof StripePriceSyncError && error.code === "failed-precondition"
+    );
+
+    const confirmed = await confirmStripePrintPriceSync({
+        productId: product.id,
+        operationId: preview.operationId,
+        canonicalProductChoice: { mode: "new" },
+        requestedBy: "admin-user",
+        stripe,
+        store,
+    });
+
+    assert.equal(confirmed.status, "confirmed");
+    assert.deepEqual(confirmed.canonicalProductChoice, { mode: "new" });
+    assert.equal(stripe.calls.productCreates.length, 0);
+    assert.equal(stripe.calls.priceCreates.length, 0);
+    assert.equal(store.productWrites, 0);
+});
+
+test("multi-Product conflicts recommend and create a new canonical artwork Product", async () => {
+    const product = productWithOptions("echoes-of-the-5th-sun");
+    product.title = "Echoes of the 5th Sun";
+    product.prints.options[0].stripePriceId = "price_old_16";
+    product.prints.options[1].stripePriceId = "price_old_18";
+    const store = fakeStore(product);
+    const stripe = fakeStripe();
+    stripe.seedProduct({ id: "prod_size_16", name: "Echoes 16x20", active: true, metadata: {} });
+    stripe.seedProduct({ id: "prod_size_18", name: "Echoes 18x24", active: true, metadata: {} });
+    stripe.seedPrice({ id: "price_old_16", active: true, type: "one_time", unit_amount: 10000, currency: "usd", product: "prod_size_16" });
+    stripe.seedPrice({ id: "price_old_18", active: true, type: "one_time", unit_amount: 20000, currency: "usd", product: "prod_size_18" });
+
+    const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    assert.deepEqual(preview.recommendedCanonicalProductChoice, { mode: "new" });
+    assert.equal(preview.canConfirm, true);
+
+    await confirmStripePrintPriceSync({
+        productId: product.id,
+        operationId: preview.operationId,
+        canonicalProductChoice: { mode: "new" },
+        requestedBy: "admin-user",
+        stripe,
+        store,
+    });
+    const result = await createMissingStripePrices({
+        productId: product.id,
+        operationId: preview.operationId,
+        requestedBy: "admin-user",
+        stripe,
+        store,
+    });
+
+    const canonicalProductId = result.stripeProductId;
+    assert.equal(result.status, "completed");
+    assert.equal(stripe.calls.productCreates.length, 1);
+    assert.equal(stripe.calls.productCreates[0].params.name, "Echoes of the 5th Sun");
+    assert.deepEqual(stripe.calls.priceCreates.map((call) => call.params.product), [canonicalProductId, canonicalProductId]);
+    assert.deepEqual(
+        store.products.get(product.id).prints.options.map((option) => option.stripePriceId),
+        ["price_1", "price_2"]
+    );
+    assert.equal(store.productWrites, 1);
+    assert.equal(stripe.pricesById.has("price_old_16"), true);
+    assert.equal(stripe.pricesById.has("price_old_18"), true);
+    assert.match(result.checkoutReadinessMessage, /trusted server checkout catalog/i);
+});
+
+test("an explicitly selected existing Product preserves its Price and replaces only other Firestore references", async () => {
+    const product = productWithOptions("echoes-of-the-5th-sun");
+    product.prints.options[0].stripePriceId = "price_keep";
+    product.prints.options[1].stripePriceId = "price_replace";
+    const store = fakeStore(product);
+    const stripe = fakeStripe();
+    stripe.seedPrice({ id: "price_keep", active: true, type: "one_time", unit_amount: 10000, currency: "usd", product: "prod_selected" });
+    stripe.seedPrice({ id: "price_replace", active: true, type: "one_time", unit_amount: 20000, currency: "usd", product: "prod_mistaken" });
+
+    const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store, { mode: "existing", stripeProductId: "prod_selected" });
+    const result = await createMissingStripePrices({
+        productId: product.id,
+        operationId: preview.operationId,
+        requestedBy: "admin-user",
+        stripe,
+        store,
+    });
+
+    assert.equal(result.status, "completed");
+    assert.equal(result.stripeProductId, "prod_selected");
+    assert.equal(stripe.calls.productCreates.length, 0);
+    assert.equal(stripe.calls.priceCreates.length, 1);
+    assert.equal(stripe.calls.priceCreates[0].params.product, "prod_selected");
+    assert.deepEqual(
+        store.products.get(product.id).prints.options.map((option) => option.stripePriceId),
+        ["price_keep", "price_1"]
+    );
+    assert.equal(stripe.pricesById.has("price_replace"), true);
+    assert.deepEqual(store.products.get(product.id).prints.options.map((option) => option.active), [false, false]);
+    assert.equal(store.products.get(product.id).prints.available, false);
+});
+
+test("create rejects a stale product after confirmation before Stripe writes", async () => {
+    const product = productWithOptions();
+    const store = fakeStore(product);
+    const stripe = fakeStripe();
+    const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
+    store.products.get(product.id).prints.options[0].amountCents = 9999;
+
+    await assert.rejects(
+        () => createMissingStripePrices({
+            productId: product.id,
+            operationId: preview.operationId,
+            requestedBy: "admin-user",
+            stripe,
+            store,
+        }),
+        (error) => error instanceof StripePriceSyncError && error.code === "failed-precondition"
+    );
+    assert.equal(stripe.calls.productCreates.length, 0);
+    assert.equal(stripe.calls.priceCreates.length, 0);
+    assert.equal(store.productWrites, 0);
+});
+
+test("confirm rejects an existing canonical Product that preview did not verify", async () => {
+    const product = productWithOptions();
+    product.prints.options[0].stripePriceId = "price_existing";
+    product.prints.options = [product.prints.options[0]];
+    const store = fakeStore(product);
+    const stripe = fakeStripe();
+    stripe.seedPrice({ id: "price_existing", active: true, type: "one_time", unit_amount: 10000, currency: "usd", product: "prod_verified" });
+    const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+
+    await assert.rejects(
+        () => confirmStripePrintPriceSync({
+            productId: product.id,
+            operationId: preview.operationId,
+            canonicalProductChoice: { mode: "existing", stripeProductId: "prod_unverified" },
+            requestedBy: "admin-user",
+            stripe,
+            store,
+        }),
+        (error) => error instanceof StripePriceSyncError && error.code === "failed-precondition"
+    );
+    assert.equal(stripe.calls.productCreates.length, 0);
+    assert.equal(stripe.calls.priceCreates.length, 0);
 });
 
 test("preview rejects print options that differ from the server-owned standard prices", async () => {
@@ -458,6 +633,7 @@ test("create attaches missing IDs once while preserving inactive checkout state"
     const store = fakeStore(product);
     const stripe = fakeStripe();
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
 
     const created = await createMissingStripePrices({
         productId: product.id,
@@ -480,7 +656,7 @@ test("create attaches missing IDs once while preserving inactive checkout state"
     assert.equal(stripe.calls.productCreates.length, 1);
     assert.equal(stripe.calls.priceCreates.length, 2);
     assert.ok(stripe.calls.productCreates[0].options.idempotencyKey.includes(product.id));
-    assert.ok(stripe.calls.priceCreates.every((call) => call.options.idempotencyKey.includes(preview.operationId)));
+    assert.ok(stripe.calls.priceCreates.every((call) => call.options.idempotencyKey.includes(product.id)));
     assert.deepEqual(saved.prints.options.map((option) => Boolean(option.stripePriceId)), [true, true]);
     assert.deepEqual(saved.prints.options.map((option) => option.active), [false, false]);
     assert.equal(saved.prints.available, false);
@@ -497,21 +673,22 @@ test("distinct concurrent operations share one canonical Stripe Product", async 
     const stripe = fakeStripe({ productCreateGate: { started: signalProductCreate, wait: productCreateWait } });
     const firstPreview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
     const secondPreview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(firstPreview, product, stripe, store);
+    await confirmPreview(secondPreview, product, stripe, store);
 
     const firstRun = createMissingStripePrices({ productId: product.id, operationId: firstPreview.operationId, requestedBy: "admin-user", stripe, store });
     await productCreateStarted;
     const secondRun = createMissingStripePrices({ productId: product.id, operationId: secondPreview.operationId, requestedBy: "admin-user", stripe, store });
     releaseProductCreate();
     const initialResults = await Promise.all([firstRun, secondRun]);
-    const blocked = initialResults.find((result) => result.status !== "completed");
-    const recovered = blocked
-        ? await createMissingStripePrices({ productId: product.id, operationId: blocked.operationId, requestedBy: "admin-user", stripe, store })
-        : initialResults[1];
+    const completed = initialResults.find((result) => result.status === "completed");
+    const blocked = initialResults.find((result) => result.status === "partial_failure");
     const savedPriceProductIds = new Set(
         store.products.get(product.id).prints.options.map((option) => stripe.pricesById.get(option.stripePriceId).product)
     );
 
-    assert.equal(recovered.status, "completed");
+    assert.ok(completed);
+    assert.ok(blocked);
     assert.equal(stripe.calls.productCreates.length, 1);
     assert.equal(savedPriceProductIds.size, 1);
     assert.equal(store.productMappings.get(product.id).stripeProductId, [...savedPriceProductIds][0]);
@@ -525,6 +702,7 @@ test("an active Product claim prevents an existing candidate from reporting succ
     const stripe = fakeStripe();
     stripe.seedPrice({ id: "price_existing", active: true, type: "one_time", unit_amount: 10000, currency: "usd", product: "prod_existing" });
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
     await store.claimProductMapping(product.id, "other-operation");
 
     const result = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
@@ -544,6 +722,7 @@ test("a concurrent saved Price change prevents a stale canonical Product mapping
     stripe.seedPrice({ id: "price_initial", active: true, type: "one_time", unit_amount: 10000, currency: "usd", product: "prod_initial" });
     stripe.seedPrice({ id: "price_concurrent", active: true, type: "one_time", unit_amount: 10000, currency: "usd", product: "prod_concurrent" });
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
     const claim = store.claimProductMapping.bind(store);
     store.claimProductMapping = async (...args) => {
         store.products.get(product.id).prints.options[0].stripePriceId = "price_concurrent";
@@ -568,16 +747,15 @@ test("a transient saved Price verification failure blocks all Stripe creation", 
     const stripe = fakeStripe();
     stripe.seedPrice({ id: "price_existing", active: true, type: "one_time", unit_amount: 10000, currency: "usd", product: "prod_existing" });
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
     stripe.setPriceRetrieveError({ type: "StripeConnectionError" });
 
     const result = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
 
     assert.equal(result.status, "partial_failure");
-    assert.deepEqual(result.results.map((item) => item.status), ["failed", "failed"]);
-    assert.match(result.results[1].message, /saved Stripe Price could not be verified/i);
-    assert.equal(store.productMappings.has(product.id), false);
-    assert.equal(stripe.calls.productCreates.length, 0);
-    assert.equal(stripe.calls.priceCreates.length, 0);
+    assert.equal(result.results[0].status, "failed");
+    assert.equal(store.productWrites, 0);
+    assert.deepEqual(store.products.get(product.id).prints.options.map((option) => option.stripePriceId), ["price_existing", null]);
 });
 
 test("a transient lookup preflight failure blocks all Stripe creation", async () => {
@@ -585,16 +763,14 @@ test("a transient lookup preflight failure blocks all Stripe creation", async ()
     const store = fakeStore(product);
     const stripe = fakeStripe();
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
-    stripe.setPriceListErrorFor(lookupKeyFor(product.id, "16x20"));
+    await confirmPreview(preview, product, stripe, store);
+    stripe.setPriceListErrorFor(canonicalLookupKeyFor(product.id, "16x20", "prod_1"));
 
     const result = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
 
     assert.equal(result.status, "partial_failure");
-    assert.deepEqual(result.results.map((item) => item.status), ["failed", "failed"]);
-    assert.match(result.results[1].message, /lookup could not be verified/i);
-    assert.equal(store.productMappings.has(product.id), false);
-    assert.equal(stripe.calls.productCreates.length, 0);
-    assert.equal(stripe.calls.priceCreates.length, 0);
+    assert.equal(result.results[0].status, "failed");
+    assert.equal(store.productWrites, 0);
 });
 
 test("create recovers an unmapped Stripe Product from sync metadata", async () => {
@@ -605,9 +781,10 @@ test("create recovers an unmapped Stripe Product from sync metadata", async () =
     stripe.seedProduct({
         id: "prod_recovered",
         active: true,
-        metadata: { source: "likwit_admin_price_sync", firestore_product_id: product.id },
+        metadata: { source: "likwit_admin_price_sync", canonical_product: "true", firestore_product_id: product.id },
     });
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
 
     const result = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
 
@@ -632,6 +809,7 @@ test("create adopts the Product from a recoverable lookup Price without sync met
         lookup_key: lookupKeyFor(product.id, "16x20"),
     });
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
 
     const result = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
 
@@ -648,39 +826,41 @@ test("a concurrent canonical option edit prevents stale Price attachment", async
     const product = productWithOptions();
     product.prints.options = [product.prints.options[0]];
     const store = fakeStore(product);
-    const attach = store.attachPriceId.bind(store);
-    store.attachPriceId = async (...args) => {
+    const replace = store.replacePriceIdsAtomically.bind(store);
+    store.replacePriceIdsAtomically = async (...args) => {
         store.products.get(product.id).prints.options[0].amountCents = 9999;
-        return attach(...args);
+        return replace(...args);
     };
     const stripe = fakeStripe();
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
 
     const result = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
 
     assert.equal(result.status, "completed_with_conflicts");
     assert.equal(result.results[0].status, "conflict");
-    assert.match(result.results[0].message, /changed after preview/i);
+    assert.match(result.results[0].message, /changed after confirmation/i);
     assert.equal(store.products.get(product.id).prints.options[0].stripePriceId, null);
 });
 
-test("a concurrently attached identical Price is reported as existing", async () => {
+test("a concurrent Stripe ID edit prevents the atomic Firestore replacement", async () => {
     const product = productWithOptions();
     product.prints.options = [product.prints.options[0]];
     const store = fakeStore(product);
-    const attach = store.attachPriceId.bind(store);
-    store.attachPriceId = async (productId, expectedOption, stripePriceId) => {
-        store.products.get(productId).prints.options[0].stripePriceId = stripePriceId;
-        return attach(productId, expectedOption, stripePriceId);
+    const replace = store.replacePriceIdsAtomically.bind(store);
+    store.replacePriceIdsAtomically = async (...args) => {
+        store.products.get(product.id).prints.options[0].stripePriceId = "price_concurrent";
+        return replace(...args);
     };
     const stripe = fakeStripe();
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
 
     const result = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
 
-    assert.equal(result.status, "completed");
-    assert.equal(result.results[0].status, "existing");
-    assert.match(result.results[0].message, /already attached/i);
+    assert.equal(result.status, "completed_with_conflicts");
+    assert.equal(result.results[0].status, "conflict");
+    assert.equal(store.products.get(product.id).prints.options[0].stripePriceId, "price_concurrent");
 });
 
 test("partial failures persist progress and retry only unfinished prices", async () => {
@@ -688,11 +868,12 @@ test("partial failures persist progress and retry only unfinished prices", async
     const store = fakeStore(product);
     const stripe = fakeStripe({ failOnceFor: "18x24" });
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
 
     const partial = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
     assert.equal(partial.status, "partial_failure");
-    assert.equal(store.products.get(product.id).prints.options[0].stripePriceId.startsWith("price_"), true);
-    assert.equal(store.products.get(product.id).prints.options[1].stripePriceId, null);
+    assert.deepEqual(store.products.get(product.id).prints.options.map((option) => option.stripePriceId), [null, null]);
+    assert.equal(store.productWrites, 0);
 
     const recovered = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
     assert.equal(recovered.status, "completed");
@@ -701,21 +882,22 @@ test("partial failures persist progress and retry only unfinished prices", async
     assert.equal(store.products.get(product.id).prints.options.every((option) => option.stripePriceId), true);
 });
 
-test("retry recovers a created Stripe Price after its Firestore attachment failed", async () => {
+test("retry recovers created Stripe Prices after the atomic Firestore update failed", async () => {
     const product = productWithOptions();
     product.prints.options = [product.prints.options[0]];
     const store = fakeStore(product);
-    const attach = store.attachPriceId.bind(store);
-    let failAttachment = true;
-    store.attachPriceId = async (...args) => {
-        if (failAttachment) {
-            failAttachment = false;
+    const replace = store.replacePriceIdsAtomically.bind(store);
+    let failUpdate = true;
+    store.replacePriceIdsAtomically = async (...args) => {
+        if (failUpdate) {
+            failUpdate = false;
             throw new Error("Temporary Firestore failure");
         }
-        return attach(...args);
+        return replace(...args);
     };
     const stripe = fakeStripe();
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
 
     const partial = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
     const recovered = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
@@ -733,17 +915,18 @@ test("a concurrent Stripe ID conflict is reported without overwriting it", async
     const store = fakeStore(product);
     const stripe = fakeStripe();
     const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
     store.products.get(product.id).prints.options[0].stripePriceId = "price_manual";
 
-    const result = await createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store });
-
-    assert.equal(result.status, "completed_with_conflicts");
-    assert.equal(result.results[0].status, "conflict");
+    await assert.rejects(
+        () => createMissingStripePrices({ productId: product.id, operationId: preview.operationId, requestedBy: "admin-user", stripe, store }),
+        (error) => error instanceof StripePriceSyncError && error.code === "failed-precondition"
+    );
     assert.equal(store.products.get(product.id).prints.options[0].stripePriceId, "price_manual");
     assert.equal(stripe.calls.priceCreates.length, 0);
 });
 
-test("Firestore adapter persists operations and only fills blank Stripe IDs", async () => {
+test("Firestore adapter persists operations and atomically replaces a confirmed Price set", async () => {
     const product = productWithOptions();
     product.prints.options = [product.prints.options[0]];
     const operationWrites = [];
@@ -789,11 +972,7 @@ test("Firestore adapter persists operations and only fills blank Stripe IDs", as
 
     const operationId = await store.createOperation({ status: "previewed", productId: product.id });
     const expectedOption = { optionId: "16x20", label: "16x20", amountCents: 10000, currency: "usd" };
-    product.prints.options[0].amountCents = 9999;
-    const stale = await store.attachPriceId(product.id, expectedOption, "price_stale");
-    product.prints.options[0].amountCents = 10000;
-    const attached = await store.attachPriceId(product.id, expectedOption, "price_created");
-    const conflict = await store.attachPriceId(product.id, expectedOption, "price_other");
+    product.prints.options[0].stripePriceId = "price_created";
     const expectedMappingOptions = [{ ...expectedOption, stripePriceId: "price_created" }];
     const staleMapping = await store.claimProductMapping(product.id, operationId, null, [
         { ...expectedOption, stripePriceId: "price_other" },
@@ -802,22 +981,22 @@ test("Firestore adapter persists operations and only fills blank Stripe IDs", as
     const blockedCandidate = await store.claimProductMapping(product.id, "operation-2", "prod_other", expectedMappingOptions);
     const finalized = await store.finalizeProductMapping(product.id, operationId, "prod_canonical", expectedMappingOptions);
     const mapped = await store.claimProductMapping(product.id, "operation-2", null, expectedMappingOptions);
+    const atomic = await store.replacePriceIdsAtomically(product.id, expectedMappingOptions, [
+        { optionId: "16x20", stripePriceId: "price_atomic" },
+    ]);
 
     assert.equal(operationId, "generated-operation");
     assert.equal(operationWrites[0].data.createdAt, "SERVER_TIMESTAMP");
     assert.equal(operationWrites[0].data.updatedAt, "SERVER_TIMESTAMP");
-    assert.equal(stale.status, "conflict");
-    assert.match(stale.message, /changed after preview/i);
-    assert.equal(attached.status, "attached");
-    assert.equal(conflict.status, "conflict");
     assert.equal(staleMapping.status, "stale");
     assert.equal(claimed.status, "claimed");
     assert.equal(blockedCandidate.status, "busy");
     assert.deepEqual(finalized, { status: "mapped", stripeProductId: "prod_canonical" });
     assert.deepEqual(mapped, { status: "mapped", stripeProductId: "prod_canonical" });
+    assert.deepEqual(atomic, { status: "updated" });
     assert.equal(mappingWrites.length, 2);
     assert.equal(productUpdates.length, 1);
-    assert.equal(productUpdates[0]["prints.options"][0].stripePriceId, "price_created");
+    assert.equal(productUpdates[0]["prints.options"][0].stripePriceId, "price_atomic");
     assert.equal(productUpdates[0]["prints.options"][0].active, false);
     assert.equal(productUpdates[0]["prints.available"], undefined);
     assert.equal(productUpdates[0]["prints.defaultOptionId"], undefined);
