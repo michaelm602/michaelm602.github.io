@@ -111,6 +111,38 @@ export const products = [
     status: "active",
   },
   {
+    id: "echoes-of-the-5th-sun",
+    slug: "echoes-of-the-5th-sun",
+    title: "Echoes of the 5th Sun",
+    description: "",
+    shortDescription: "",
+    category: "Airbrush and Acrylic",
+    original: {
+      status: "available",
+      size: "30x40",
+      medium: "Airbrush and Acrylic",
+      price: { amountCents: 100000, currency: "usd" },
+    },
+    printsAvailable: true,
+    tags: [],
+    featured: true,
+    images: buildImagePaths(
+      "airbrush/Echoes of the 5th Sun.webp",
+      "Echoes of the 5th Sun artwork by Likwit Blvd",
+      "airbrush/Echoes of the 5th Sun.webp"
+    ),
+    sizes: buildSizes({
+      "16x20": "price_1UEGj1JEVsglohuhyvEXeQBY",
+      "18x24": "price_1UEGj1JEVsglohuhnWpU3t8o",
+      "24x36": "price_1UEGj2JEVsglohuhKglFY2SV",
+      "30x40": "price_1UEGj3JEVsglohuhVlFYwsc8",
+    }),
+    defaultSize: "16x20",
+    seo: { title: "", description: "" },
+    relatedProductIds: [],
+    status: "active",
+  },
+  {
     id: "feathered-serenity",
     slug: "feathered-serenity",
     title: "Feathered Serenity",

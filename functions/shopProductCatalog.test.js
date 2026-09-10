@@ -53,7 +53,7 @@ test("all current storefront products map deterministically without catalog drif
     const sourceProducts = await loadSourceProducts();
     const mapped = mapSourceCatalog(sourceProducts);
 
-    assert.equal(mapped.length, 15);
+    assert.equal(mapped.length, 16);
     assert.deepEqual(mapSourceCatalog(sourceProducts), mapped);
 
     for (const [index, source] of sourceProducts.entries()) {
@@ -99,19 +99,19 @@ test("all current storefront products map deterministically without catalog drif
     }
 });
 
-test("parity report preserves all 60 prices, image paths, IDs, and slugs", async () => {
+test("parity report preserves all 64 prices, image paths, IDs, and slugs", async () => {
     const sourceProducts = await loadSourceProducts();
     const mapped = mapSourceCatalog(sourceProducts);
     const report = buildCatalogParityReport(sourceProducts, mapped);
 
     assert.equal(report.valid, true);
     assert.deepEqual(report.summary, {
-        productCount: 15,
-        slugCount: 15,
-        printOptionCount: 60,
-        stripePriceIdCount: 60,
-        imagePathCount: 15,
-        thumbnailPathCount: 15,
+        productCount: 16,
+        slugCount: 16,
+        printOptionCount: 64,
+        stripePriceIdCount: 64,
+        imagePathCount: 16,
+        thumbnailPathCount: 16,
     });
     assert.deepEqual(report.duplicateProductIds, []);
     assert.deepEqual(report.duplicateSlugs, []);
@@ -127,7 +127,7 @@ test("parity report preserves all 60 prices, image paths, IDs, and slugs", async
     const mappedPriceIds = mapped.flatMap((product) =>
         product.prints.options.map((option) => option.stripePriceId)
     );
-    assert.equal(new Set(mappedPriceIds).size, 60);
+    assert.equal(new Set(mappedPriceIds).size, 64);
     assert.deepEqual(mappedPriceIds, sourcePriceIds);
 });
 

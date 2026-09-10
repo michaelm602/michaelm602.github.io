@@ -29,7 +29,7 @@ function stripeWithPrices(overrides = {}) {
     };
 }
 
-test("server catalog preserves the static storefront products without unauthorized extras", async () => {
+test("server catalog stays synchronized with the storefront compatibility catalog", async () => {
     const { getAllProducts } = await import("../src/data/products.js");
     const storefrontCatalog = Object.fromEntries(
         getAllProducts().map((product) => [
@@ -42,13 +42,8 @@ test("server catalog preserves the static storefront products without unauthoriz
             },
         ])
     );
-    const staticServerCatalog = Object.fromEntries(
-        Object.entries(STRIPE_CATALOG).filter(
-            ([productId]) => productId !== "echoes-of-the-5th-sun"
-        )
-    );
 
-    assert.deepEqual(staticServerCatalog, storefrontCatalog);
+    assert.deepEqual(STRIPE_CATALOG, storefrontCatalog);
 });
 
 test("trusted checkout ignores browser prices, totals, titles, and Stripe IDs", async () => {

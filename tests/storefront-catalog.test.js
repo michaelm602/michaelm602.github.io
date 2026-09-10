@@ -112,6 +112,54 @@ function firestoreProduct(overrides = {}) {
   };
 }
 
+function echoesFirestoreProduct(overrides = {}) {
+  return {
+    id: "echoes-of-the-5th-sun",
+    slug: "echoes-of-the-5th-sun",
+    title: "Echoes of the 5th Sun",
+    shortDescription: "",
+    longDescription: "",
+    category: "Airbrush and Acrylic",
+    tags: [],
+    images: [
+      {
+        id: "image-1",
+        storagePath: "airbrush/Echoes of the 5th Sun.webp",
+        thumbnailPath: null,
+        alt: "",
+        sortOrder: 0,
+      },
+    ],
+    primaryImageId: "image-1",
+    original: {
+      status: "available",
+      size: "30x40",
+      medium: "Airbrush and Acrylic",
+      price: { amountCents: 100000, currency: "usd" },
+      checkoutEnabled: false,
+      quantity: 1,
+    },
+    prints: {
+      available: true,
+      defaultOptionId: "16x20",
+      options: [
+        { id: "16x20", label: "16x20", amountCents: 10000, currency: "usd", stripePriceId: "price_1UEGj1JEVsglohuhyvEXeQBY", active: true, sortOrder: 0 },
+        { id: "18x24", label: "18x24", amountCents: 20000, currency: "usd", stripePriceId: "price_1UEGj1JEVsglohuhnWpU3t8o", active: true, sortOrder: 1 },
+        { id: "24x36", label: "24x36", amountCents: 30000, currency: "usd", stripePriceId: "price_1UEGj2JEVsglohuhKglFY2SV", active: true, sortOrder: 2 },
+        { id: "30x40", label: "30x40", amountCents: 40000, currency: "usd", stripePriceId: "price_1UEGj3JEVsglohuhVlFYwsc8", active: true, sortOrder: 3 },
+      ],
+    },
+    channels: { shop: true, portfolio: true },
+    active: true,
+    featured: true,
+    sortOrder: 0,
+    relatedProductIds: [],
+    seo: { title: "", description: "" },
+    archivedAt: null,
+    ...overrides,
+  };
+}
+
 test("catalog mode defaults production to Firestore and keeps an explicit source rollback", () => {
   assert.equal(resolveStorefrontCatalogMode({ isProduction: true }), "firestore");
   assert.equal(resolveStorefrontCatalogMode({ isProduction: false }), "source");
@@ -152,6 +200,47 @@ test("Firestore products map to the storefront shape without exposing Stripe Pri
   );
   assert.equal(mapped.defaultSize, "16x20");
   assert.equal(JSON.stringify(mapped).includes("stripePriceId"), false);
+});
+
+test("Echoes print options enable size selection and the quantity/add-to-cart flow", () => {
+  const mapped = mapFirestoreProductForStorefront(echoesFirestoreProduct(), {
+    sourceProducts: currentSourceProducts,
+  });
+  const checkoutableOptions = getCheckoutableProductSizeOptions(mapped);
+
+  assert.deepEqual(
+    mapped.sizes.map(({ label, price, checkoutSupported }) => ({ label, price, checkoutSupported })),
+    [
+      { label: "16x20", price: 100, checkoutSupported: true },
+      { label: "18x24", price: 200, checkoutSupported: true },
+      { label: "24x36", price: 300, checkoutSupported: true },
+      { label: "30x40", price: 400, checkoutSupported: true },
+    ]
+  );
+  assert.deepEqual(checkoutableOptions, mapped.sizes);
+  assert.equal(mapped.printsAvailable && checkoutableOptions.length > 0, true);
+  for (const size of ["16x20", "18x24", "24x36", "30x40"]) {
+    assert.equal(isProductSizeCheckoutSupported(mapped, size), true);
+  }
+  assert.equal(mapped.original.checkoutEnabled, false);
+  assert.equal(JSON.stringify(mapped).includes("stripePriceId"), false);
+});
+
+test("Echoes remains unavailable when a Firestore Price ID differs from the source allowlist", () => {
+  const document = echoesFirestoreProduct();
+  document.prints.options[0].stripePriceId = "price_mismatched";
+
+  const mapped = mapFirestoreProductForStorefront(document, {
+    sourceProducts: currentSourceProducts,
+  });
+
+  assert.equal(mapped.sizes[0].checkoutSupported, false);
+  assert.match(mapped.sizes[0].configurationIssue, /temporarily unavailable/i);
+  assert.equal(isProductSizeCheckoutSupported(mapped, "16x20"), false);
+  assert.deepEqual(
+    getCheckoutableProductSizeOptions(mapped).map((option) => option.label),
+    ["18x24", "24x36", "30x40"]
+  );
 });
 
 test("source rollback products also omit Stripe Price IDs from the storefront model", () => {
@@ -326,8 +415,8 @@ test("sold originals render sold status and not-for-sale originals render nothin
 test("Stripe checkout items contain product ID, size, and quantity only", () => {
   const items = buildStripeCheckoutItems([
     {
-      productId: "sample-piece",
-      title: "Browser title",
+      productId: "echoes-of-the-5th-sun",
+      title: "Echoes of the 5th Sun",
       size: "16x20",
       quantity: 2,
       price: 1,
@@ -336,6 +425,6 @@ test("Stripe checkout items contain product ID, size, and quantity only", () => 
     },
   ]);
 
-  assert.deepEqual(items, [{ productId: "sample-piece", size: "16x20", quantity: 2 }]);
+  assert.deepEqual(items, [{ productId: "echoes-of-the-5th-sun", size: "16x20", quantity: 2 }]);
   assert.deepEqual(Object.keys(items[0]), ["productId", "size", "quantity"]);
 });
