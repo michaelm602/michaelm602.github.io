@@ -4,12 +4,14 @@ import { readFile } from "node:fs/promises";
 
 import {
   ORIGINAL_CHECKOUT_WARNING,
+  addStandardPrintSet,
   archiveProductDraft,
   createUniquePrintOptionId,
   createBlankAdminProduct,
   deriveOriginalQuantity,
   formatProductMoney,
   formatAdminProductSaveError,
+  hasMissingStandardPrintOptions,
   normalizeCurrency,
   normalizeAdminProductForCreate,
   normalizeAdminProductForSave,
@@ -140,6 +142,81 @@ test("original-only new drafts validate without prices or print checkout", () =>
   assert.deepEqual(normalizeAdminProductForSave(product).prints, {
     available: false, defaultOptionId: null, options: [],
   });
+});
+
+test("standard print helper adds a safe inactive set to a new product", () => {
+  const product = addStandardPrintSet(validProduct());
+
+  assert.equal(product.prints.available, false);
+  assert.equal(product.prints.defaultOptionId, null);
+  assert.deepEqual(product.prints.options, [
+    { id: "16x20", label: "16x20", amountCents: 10000, currency: "usd", stripePriceId: null, active: false, sortOrder: 0 },
+    { id: "18x24", label: "18x24", amountCents: 20000, currency: "usd", stripePriceId: null, active: false, sortOrder: 1 },
+    { id: "24x36", label: "24x36", amountCents: 30000, currency: "usd", stripePriceId: null, active: false, sortOrder: 2 },
+    { id: "30x40", label: "30x40", amountCents: 40000, currency: "usd", stripePriceId: null, active: false, sortOrder: 3 },
+  ]);
+  assert.equal(hasMissingStandardPrintOptions(product), false);
+});
+
+test("standard print helper preserves matching options and never duplicates their IDs", () => {
+  const product = validProduct();
+  const existing = {
+    id: "16x20",
+    label: "Custom 16 x 20",
+    amountCents: 12500,
+    currency: "usd",
+    stripePriceId: "price_existing_16x20",
+    active: true,
+    sortOrder: 7,
+  };
+  product.prints = {
+    available: true,
+    defaultOptionId: "custom",
+    options: [
+      existing,
+      { id: "custom", label: "Custom", amountCents: 5000, currency: "usd", stripePriceId: "price_custom", active: true, sortOrder: 2 },
+    ],
+  };
+
+  const merged = addStandardPrintSet(product);
+  const mergedAgain = addStandardPrintSet(merged);
+
+  assert.deepEqual(merged.prints.options[0], existing);
+  assert.deepEqual(merged.prints.options.map((option) => option.id), ["16x20", "custom", "18x24", "24x36", "30x40"]);
+  assert.equal(merged.prints.options.filter((option) => option.id === "16x20").length, 1);
+  assert.equal(merged.prints.defaultOptionId, "16x20");
+  assert.deepEqual(mergedAgain, merged);
+});
+
+test("standard print helper does not make invalid print data checkout-ready", () => {
+  const product = validProduct();
+  product.prints = {
+    available: true,
+    defaultOptionId: "16x20",
+    options: [
+      { id: "16x20", label: "16x20", amountCents: 10000, currency: "usd", stripePriceId: null, active: true, sortOrder: 0 },
+    ],
+  };
+
+  const merged = addStandardPrintSet(product);
+
+  assert.equal(merged.prints.options[0].active, true);
+  assert.equal(merged.prints.options[0].stripePriceId, null);
+  assert.equal(merged.prints.available, false);
+  assert.equal(merged.prints.defaultOptionId, null);
+  assert.match(validateAdminProduct({ ...merged, prints: { ...merged.prints, available: true } }).errors.join(" "), /Stripe Price ID/i);
+});
+
+test("standard print helper remains available until every standard ID exists", () => {
+  const product = validProduct();
+  product.prints.options = [
+    { id: "16x20" },
+    { id: "18x24" },
+    { id: "24x36" },
+  ];
+
+  assert.equal(hasMissingStandardPrintOptions(product), true);
+  assert.equal(hasMissingStandardPrintOptions(addStandardPrintSet(product)), false);
 });
 
 test("available prints require complete active options and an active default before saving", () => {

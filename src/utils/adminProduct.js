@@ -20,6 +20,12 @@ const PRINTS_KEYS = ["available", "defaultOptionId", "options"];
 const PRINT_OPTION_KEYS = ["id", "label", "amountCents", "currency", "stripePriceId", "active", "sortOrder"];
 const CHANNEL_KEYS = ["shop", "portfolio"];
 const SEO_KEYS = ["title", "description"];
+const STANDARD_PRINT_OPTIONS = [
+  { id: "16x20", label: "16x20", amountCents: 10000, currency: "usd", stripePriceId: null, active: false, sortOrder: 0 },
+  { id: "18x24", label: "18x24", amountCents: 20000, currency: "usd", stripePriceId: null, active: false, sortOrder: 1 },
+  { id: "24x36", label: "24x36", amountCents: 30000, currency: "usd", stripePriceId: null, active: false, sortOrder: 2 },
+  { id: "30x40", label: "30x40", amountCents: 40000, currency: "usd", stripePriceId: null, active: false, sortOrder: 3 },
+];
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -71,6 +77,47 @@ export function createUniquePrintOptionId(value, options = [], excludedIndex = -
   let suffix = 2;
   while (usedIds.has(`${requested}-${suffix}`)) suffix += 1;
   return `${requested}-${suffix}`;
+}
+
+export function hasMissingStandardPrintOptions(product) {
+  const options = Array.isArray(product?.prints?.options) ? product.prints.options : [];
+  const optionIds = new Set(options.map((option) => normalizedId(option?.id, "")).filter(Boolean));
+  return STANDARD_PRINT_OPTIONS.some((option) => !optionIds.has(option.id));
+}
+
+export function addStandardPrintSet(product) {
+  const draft = cloneAdminProduct(product);
+  const optionIds = new Set(
+    draft.prints.options.map((option) => normalizedId(option?.id, "")).filter(Boolean)
+  );
+  const options = [
+    ...draft.prints.options,
+    ...STANDARD_PRINT_OPTIONS
+      .filter((option) => !optionIds.has(option.id))
+      .map((option) => ({ ...option })),
+  ];
+  const validActiveOptions = options.filter(
+    (option) => option.active && typeof option.stripePriceId === "string" && option.stripePriceId.trim()
+  );
+  const printsAvailable = Boolean(draft.prints.available) && validActiveOptions.length > 0;
+  const standardDefault = validActiveOptions.find(
+    (option) => normalizedId(option.id, "") === "16x20"
+  );
+  const currentDefault = validActiveOptions.find(
+    (option) => option.id === draft.prints.defaultOptionId
+  );
+
+  return {
+    ...draft,
+    prints: {
+      ...draft.prints,
+      available: printsAvailable,
+      defaultOptionId: printsAvailable
+        ? standardDefault?.id || currentDefault?.id || validActiveOptions[0]?.id || null
+        : null,
+      options,
+    },
+  };
 }
 
 export function deriveOriginalQuantity(status) {

@@ -9,12 +9,14 @@ import {
 } from "../services/adminProducts";
 import {
   ORIGINAL_CHECKOUT_WARNING,
+  addStandardPrintSet,
   cloneAdminProduct,
   createBlankAdminProduct,
   createUniquePrintOptionId,
   deriveOriginalQuantity,
   formatProductMoney,
   formatAdminProductSaveError,
+  hasMissingStandardPrintOptions,
   validateAdminProduct,
 } from "../utils/adminProduct";
 
@@ -528,6 +530,7 @@ export default function AdminProducts() {
                           </span>
                           <span className="flex flex-wrap items-center gap-2">
                             {draft.prints.defaultOptionId === option.id && <StatusPill>Default</StatusPill>}
+                            {!String(option.stripePriceId || "").trim() && <StatusPill tone="warning">Missing Stripe Price ID</StatusPill>}
                             <StatusPill tone={option.active ? "active" : "warning"}>{option.active ? "Active" : "Inactive"}</StatusPill>
                           </span>
                         </div>
@@ -541,7 +544,14 @@ export default function AdminProducts() {
                         <button type="button" onClick={() => mutateDraft({ ...draft, prints: { ...draft.prints, options: draft.prints.options.filter((_, optionIndex) => optionIndex !== index), defaultOptionId: draft.prints.defaultOptionId === option.id ? null : draft.prints.defaultOptionId } })} className={`${buttonClass} self-end border border-white/15 text-white/60 hover:bg-white/10`}>Remove option</button>
                       </div>
                     ))}
-                    <button type="button" disabled={draft.prints.options.length >= 8} onClick={() => { const optionId = createUniquePrintOptionId("", draft.prints.options); mutateDraft({ ...draft, prints: { ...draft.prints, options: [...draft.prints.options, { id: optionId, label: "", amountCents: null, currency: "usd", stripePriceId: null, active: false, sortOrder: draft.prints.options.length }] } }); }} className={`${buttonClass} border border-white/20 text-white hover:bg-white/10`}>Add print option</button>
+                    <div className="flex flex-wrap gap-2">
+                      {hasMissingStandardPrintOptions(draft) && (
+                        <button type="button" onClick={() => mutateDraft((current) => addStandardPrintSet(current))} className={`${buttonClass} border border-emerald-400/30 text-emerald-100 hover:bg-emerald-400/10`}>
+                          Add standard print set
+                        </button>
+                      )}
+                      <button type="button" disabled={draft.prints.options.length >= 8} onClick={() => { const optionId = createUniquePrintOptionId("", draft.prints.options); mutateDraft({ ...draft, prints: { ...draft.prints, options: [...draft.prints.options, { id: optionId, label: "", amountCents: null, currency: "usd", stripePriceId: null, active: false, sortOrder: draft.prints.options.length }] } }); }} className={`${buttonClass} border border-white/20 text-white hover:bg-white/10`}>Add print option</button>
+                    </div>
                   </div>
                 </EditorSection>
 
