@@ -8,6 +8,10 @@ import {
   saveAdminProduct,
 } from "../services/adminProducts";
 import {
+  createMissingAdminStripePrices,
+  previewAdminStripePriceSync,
+} from "../services/adminStripePriceSync";
+import {
   ORIGINAL_CHECKOUT_WARNING,
   addStandardPrintSet,
   cloneAdminProduct,
@@ -19,6 +23,7 @@ import {
   hasMissingStandardPrintOptions,
   validateAdminProduct,
 } from "../utils/adminProduct";
+import { formatAdminStripeSyncError } from "../utils/adminStripePriceSync";
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-white/50 focus:ring-2 focus:ring-white/10";
@@ -139,6 +144,9 @@ export default function AdminProducts() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [originalFilter, setOriginalFilter] = useState("all");
+  const [stripeSync, setStripeSync] = useState(null);
+  const [stripeSyncing, setStripeSyncing] = useState(false);
+  const [stripeSyncError, setStripeSyncError] = useState("");
 
   const loadProducts = useCallback(async (preferredId = "") => {
     setLoading(true);
@@ -154,6 +162,8 @@ export default function AdminProducts() {
       setIsNew(false);
       setDirty(false);
       setAttemptedSave(false);
+      setStripeSync(null);
+      setStripeSyncError("");
     } catch (loadError) {
       console.error("Unable to load shop products:", loadError);
       setError(
@@ -202,6 +212,8 @@ export default function AdminProducts() {
     setDirty(true);
     setMessage("");
     setError("");
+    setStripeSync(null);
+    setStripeSyncError("");
   };
 
   const selectProduct = (product) => {
@@ -214,6 +226,8 @@ export default function AdminProducts() {
     setAttemptedSave(false);
     setMessage("");
     setError("");
+    setStripeSync(null);
+    setStripeSyncError("");
   };
 
   const startNewProduct = () => {
@@ -227,6 +241,8 @@ export default function AdminProducts() {
     setAttemptedSave(false);
     setMessage("");
     setError("");
+    setStripeSync(null);
+    setStripeSyncError("");
   };
 
   const save = async () => {
@@ -255,6 +271,47 @@ export default function AdminProducts() {
       setError(formatAdminProductSaveError(saveError));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const previewStripePrices = async () => {
+    if (!draft || isNew || dirty) {
+      setStripeSyncError("Save this product before previewing Stripe price sync.");
+      return;
+    }
+    setStripeSyncing(true);
+    setStripeSyncError("");
+    try {
+      const result = await previewAdminStripePriceSync(draft.id);
+      setStripeSync(result);
+      setMessage("Stripe sync preview ready. No Stripe objects were created.");
+    } catch (syncError) {
+      setStripeSyncError(formatAdminStripeSyncError(syncError));
+    } finally {
+      setStripeSyncing(false);
+    }
+  };
+
+  const createStripePrices = async () => {
+    if (!draft || !stripeSync?.operationId) return;
+    setStripeSyncing(true);
+    setStripeSyncError("");
+    setMessage("");
+    try {
+      const result = await createMissingAdminStripePrices(draft.id, stripeSync.operationId);
+      await loadProducts(draft.id);
+      setStripeSync(result);
+      if (result.status === "partial_failure") {
+        setStripeSyncError("Some Stripe prices were not created. Saved progress is preserved; retry this operation.");
+      } else if (result.status === "completed_with_conflicts") {
+        setStripeSyncError("Stripe sync finished with conflicts. Existing Stripe Price IDs were preserved.");
+      } else {
+        setMessage("Missing Stripe prices were created and attached. Print options remain inactive until you review them.");
+      }
+    } catch (syncError) {
+      setStripeSyncError(formatAdminStripeSyncError(syncError));
+    } finally {
+      setStripeSyncing(false);
     }
   };
 
@@ -334,6 +391,11 @@ export default function AdminProducts() {
         },
       };
     });
+
+  const stripeSyncItems = stripeSync?.items || stripeSync?.results || [];
+  const canCreateStripePrices = stripeSync?.status === "partial_failure"
+    || (stripeSync?.status === "previewed"
+      && stripeSyncItems.some((item) => ["missing", "recoverable"].includes(item.status)));
 
   if (adminError) return <p className="min-h-screen bg-black px-4 py-12 text-center text-red-300">{adminError}</p>;
   if (adminLoading || loading) return <p className="min-h-screen bg-black px-4 py-12 text-center text-white/60">Loading product catalog...</p>;
@@ -551,6 +613,41 @@ export default function AdminProducts() {
                         </button>
                       )}
                       <button type="button" disabled={draft.prints.options.length >= 8} onClick={() => { const optionId = createUniquePrintOptionId("", draft.prints.options); mutateDraft({ ...draft, prints: { ...draft.prints, options: [...draft.prints.options, { id: optionId, label: "", amountCents: null, currency: "usd", stripePriceId: null, active: false, sortOrder: draft.prints.options.length }] } }); }} className={`${buttonClass} border border-white/20 text-white hover:bg-white/10`}>Add print option</button>
+                    </div>
+                    <div className="rounded-lg border border-sky-400/25 bg-sky-400/[0.06] p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h3 className="text-sm font-semibold text-sky-100">Stripe print-price sync</h3>
+                          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-sky-100/65">
+                            Save product changes first. Preview checks Stripe without creating objects. Creation fills only blank Stripe Price IDs and leaves print options inactive for review.
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <button type="button" disabled={stripeSyncing || saving || isNew || dirty} onClick={previewStripePrices} className={`${buttonClass} border border-sky-300/35 text-sky-100 hover:bg-sky-300/10`}>
+                            {stripeSyncing ? "Checking Stripe..." : "Preview Stripe sync"}
+                          </button>
+                          {canCreateStripePrices && (
+                            <button type="button" disabled={stripeSyncing || saving || isNew || dirty} onClick={createStripePrices} className={`${buttonClass} bg-sky-200 text-sky-950 hover:bg-sky-100`}>
+                              {stripeSync?.status === "partial_failure" ? "Retry missing Stripe prices" : "Create missing Stripe prices"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {(isNew || dirty) && (
+                        <p className="mt-3 text-xs font-medium text-amber-200">Save this product before using Stripe sync.</p>
+                      )}
+                      {stripeSyncError && <p role="alert" className="mt-3 text-sm text-rose-200">{stripeSyncError}</p>}
+                      {stripeSync && (
+                        <div className="mt-4 space-y-2 border-t border-sky-200/15 pt-4">
+                          <p className="text-xs text-sky-100/55">Operation {stripeSync.operationId} - {stripeSync.status.replaceAll("_", " ")}</p>
+                          {stripeSyncItems.map((item) => (
+                            <div key={item.optionId} className="flex flex-col gap-1 rounded border border-white/10 bg-black/20 px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+                              <span className="font-semibold text-white/85">{item.label || item.optionId}</span>
+                              <span className="text-white/55">{item.status.replaceAll("_", " ")} - {item.message}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </EditorSection>

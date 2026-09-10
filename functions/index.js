@@ -11,12 +11,13 @@
  * - REMOVE runtime nodejs18
  * - REMOVE entryPoint (so both functions deploy)
  */
+/* global exports, process, require */
 
 const admin = require("firebase-admin");
 const logger = require("firebase-functions/logger");
 
 const { setGlobalOptions } = require("firebase-functions/v2");
-const { onRequest } = require("firebase-functions/v2/https");
+const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
 const { defineSecret } = require("firebase-functions/params");
 
@@ -36,6 +37,11 @@ const {
     buildStripeCheckoutSessionParams,
     isPaidStripeCheckoutEvent,
 } = require("./checkoutFulfillment");
+const {
+    StripePriceSyncError,
+    createFirestoreStripeSyncStore,
+    handleAdminStripePrintPriceSync,
+} = require("./adminStripePriceSync");
 
 const path = require("path");
 const os = require("os");
@@ -79,6 +85,25 @@ const EMAIL_SEND_CLAIM_TTL_MS = 10 * 60 * 1000;
 
 function getStripe(secret) {
     return new Stripe(secret);
+}
+
+function getAdminStripeSyncStore() {
+    return createFirestoreStripeSyncStore({
+        firestore: admin.firestore(),
+        serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    });
+}
+
+function toStripeSyncHttpsError(error) {
+    if (error instanceof StripePriceSyncError) {
+        return new HttpsError(error.code, error.message);
+    }
+    logger.error("Admin Stripe price sync failed", {
+        message: error?.message,
+        code: error?.code,
+        type: error?.type,
+    });
+    return new HttpsError("internal", "Stripe price sync failed. Retry or review the operation record.");
 }
 
 function money(value, currency = "USD") {
@@ -339,6 +364,32 @@ async function sendStripeOrderEmails({ orderRef, orderId, session, eventId }) {
         );
     }
 }
+
+// ==========================================
+// ADMIN STRIPE PRINT PRICE SYNC (Gen 2)
+// ==========================================
+exports.adminStripePrintPriceSync = onCall(
+    { secrets: [stripeSecretKey] },
+    async (request) => {
+        try {
+            return await handleAdminStripePrintPriceSync(request, {
+                getStripe: () => {
+                    const secret = stripeSecretKey.value();
+                    if (!secret) {
+                        throw new StripePriceSyncError(
+                            "failed-precondition",
+                            "Stripe is not configured for admin price sync."
+                        );
+                    }
+                    return getStripe(secret);
+                },
+                store: getAdminStripeSyncStore(),
+            });
+        } catch (error) {
+            throw toStripeSyncHttpsError(error);
+        }
+    }
+);
 
 // =============================
 // 1) STRIPE CHECKOUT (Gen 2)

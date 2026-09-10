@@ -18,12 +18,15 @@ import {
   restoreProductDraft,
   validateAdminProduct,
 } from "../src/utils/adminProduct.js";
+import { createAdminStripePriceSyncClient } from "../src/utils/adminStripePriceSync.js";
 
 const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 const adminRoute = await readFile(new URL("../src/Components/AdminRoute.jsx", import.meta.url), "utf8");
 const adminProducts = await readFile(new URL("../src/pages/AdminProducts.jsx", import.meta.url), "utf8");
 const productStoragePreview = await readFile(new URL("../src/Components/ProductStoragePreview.jsx", import.meta.url), "utf8");
 const adminData = await readFile(new URL("../src/services/adminProducts.js", import.meta.url), "utf8");
+const adminStripeSyncService = await readFile(new URL("../src/services/adminStripePriceSync.js", import.meta.url), "utf8");
+const adminStripeSyncClient = await readFile(new URL("../src/utils/adminStripePriceSync.js", import.meta.url), "utf8");
 const storefront = await readFile(new URL("../src/Components/ShopGallery.jsx", import.meta.url), "utf8");
 const checkout = await readFile(new URL("../functions/index.js", import.meta.url), "utf8");
 
@@ -217,6 +220,33 @@ test("standard print helper remains available until every standard ID exists", (
 
   assert.equal(hasMissingStandardPrintOptions(product), true);
   assert.equal(hasMissingStandardPrintOptions(addStandardPrintSet(product)), false);
+});
+
+test("admin Stripe sync client sends only server-safe identifiers", async () => {
+  const requests = [];
+  const client = createAdminStripePriceSyncClient(async (request) => {
+    requests.push(request);
+    return { operationId: "operation-1", status: "previewed" };
+  });
+
+  await client.preview("new-piece");
+  await client.create("new-piece", "operation-1");
+
+  assert.deepEqual(requests, [
+    { action: "preview", productId: "new-piece" },
+    { action: "create", productId: "new-piece", operationId: "operation-1" },
+  ]);
+});
+
+test("admin Stripe sync frontend contains no Stripe secret or secret-key access", () => {
+  const frontendSyncSource = `${adminStripeSyncService}\n${adminStripeSyncClient}\n${adminProducts}`;
+  assert.doesNotMatch(frontendSyncSource, /STRIPE_SECRET_KEY|sk_(?:live|test)_|defineSecret|process\.env/);
+  assert.match(adminStripeSyncService, /httpsCallable\(cloudFunctions, "adminStripePrintPriceSync"\)/);
+});
+
+test("starting Stripe creation clears the previous preview success message", () => {
+  const createHandler = adminProducts.match(/const createStripePrices = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] || "";
+  assert.match(createHandler, /setMessage\(""\)/);
 });
 
 test("available prints require complete active options and an active default before saving", () => {
