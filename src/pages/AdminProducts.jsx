@@ -573,7 +573,7 @@ export default function AdminProducts() {
                   <div className="space-y-4">
                     {draft.images.map((image, index) => (
                       <div key={`${image.id}-${index}`} className="grid gap-4 rounded-lg border border-white/10 bg-black/25 p-4 xl:grid-cols-[120px_1fr]">
-                        <div className="h-28 overflow-hidden rounded-lg border border-white/10 bg-black"><ProductStoragePreview image={image} alt="" /></div>
+                        <div className="flex h-56 max-h-56 min-w-0 max-w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black sm:h-64 sm:max-h-64 xl:h-32 xl:max-h-32"><ProductStoragePreview image={image} alt="" /></div>
                         <div className="grid gap-3 md:grid-cols-2">
                           <Field label="Image ID"><input value={image.id} onChange={(event) => updateImage(index, "id", event.target.value)} className={inputClass} /></Field>
                           <Field label="Sort order"><input type="number" min="0" value={image.sortOrder} onChange={(event) => updateImage(index, "sortOrder", Number(event.target.value))} className={inputClass} /></Field>

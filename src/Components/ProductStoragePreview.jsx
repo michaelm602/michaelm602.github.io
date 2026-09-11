@@ -39,7 +39,7 @@ export default function ProductStoragePreview({ image, alt = "" }) {
       <img
         src={url}
         alt={alt || image?.alt || "Product artwork"}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain object-center"
         loading="lazy"
         decoding="async"
       />

@@ -68,6 +68,12 @@ test("admin product UI copy uses encoding-safe ASCII punctuation", () => {
   assert.match(productStoragePreview, /Loading preview\.\.\./);
 });
 
+test("admin product previews keep the complete artwork visible and centered", () => {
+  assert.match(productStoragePreview, /className="h-full w-full object-contain object-center"/);
+  assert.doesNotMatch(productStoragePreview, /object-cover/);
+  assert.match(adminProducts, /h-56 max-h-56[^"]*sm:h-64 sm:max-h-64[^"]*xl:h-32 xl:max-h-32/);
+});
+
 test("admin product toggles remain semantic and expose clear mobile states", () => {
   assert.match(adminProducts, /type="checkbox"/);
   assert.match(adminProducts, /className="peer sr-only"/);
