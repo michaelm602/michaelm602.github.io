@@ -42,6 +42,21 @@ searches Stripe metadata before creation so a Product created before a failed
 mapping write can be recovered. Mapping records are durable and must not use
 the operation-record TTL policy.
 
+## Canonical Product image
+
+During the Create stage, the function resolves the saved Firestore primary
+image through Firebase Admin Storage. For public `airbrush/` and `photoshop/`
+objects, it builds the Firebase media URL and sets the canonical Stripe
+Product's `images` field to that one URL. This applies to newly created,
+selected, mapped, and recovered canonical Products. Matching image state is
+left unchanged, and the update uses a stable idempotency key.
+
+A missing primary image, missing Storage object, Storage lookup failure, or
+Stripe image update failure does not block Product/Price recovery or the atomic
+Firestore Price reference update. The callable returns a warning that the admin
+UI displays so the image path can be corrected and the sync retried. Preview
+and Confirm still perform no Stripe or product-document writes.
+
 ## Manual cleanup for multiple Stripe Products
 
 Use one Stripe Product per artwork, with one one-time Price per print size. If a

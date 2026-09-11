@@ -8,6 +8,7 @@ const {
     StripePriceSyncError,
     canonicalLookupKeyFor,
     confirmStripePrintPriceSync,
+    createFirebaseStorageProductImageResolver,
     createMissingStripePrices,
     createFirestoreStripeSyncStore,
     handleAdminStripePrintPriceSync,
@@ -144,7 +145,7 @@ function fakeStripe({ failOnceFor = null, priceRetrieveError = null, productCrea
     const products = new Map();
     const prices = new Map();
     const lookupKeys = new Map();
-    const calls = { productCreates: [], productRetrieves: [], productSearches: [], priceCreates: [], retrieves: [], lists: [] };
+    const calls = { productCreates: [], productUpdates: [], productRetrieves: [], productSearches: [], priceCreates: [], retrieves: [], lists: [] };
     const stripe = {
         calls,
         pricesById: prices,
@@ -175,6 +176,14 @@ function fakeStripe({ failOnceFor = null, priceRetrieveError = null, productCrea
                 const product = { id: `prod_${nextProduct++}`, active: true, ...clone(params) };
                 products.set(product.id, product);
                 return clone(product);
+            },
+            async update(productId, params, options) {
+                calls.productUpdates.push({ productId, params: clone(params), options: clone(options) });
+                const product = products.get(productId);
+                if (!product) throw Object.assign(new Error("No such product"), { code: "resource_missing" });
+                const updated = { ...product, ...clone(params) };
+                products.set(productId, updated);
+                return clone(updated);
             },
         },
         prices: {
@@ -234,9 +243,22 @@ function fakeStripe({ failOnceFor = null, priceRetrieveError = null, productCrea
         }
     };
     stripe.seedProduct = (product) => products.set(product.id, clone(product));
+    stripe.productsById = products;
     stripe.setPriceRetrieveError = (error) => { currentPriceRetrieveError = error; };
     stripe.setPriceListErrorFor = (lookupKey) => { currentPriceListErrorFor = lookupKey; };
     return stripe;
+}
+
+function addPrimaryImage(product) {
+    product.images = [{
+        id: "image-primary",
+        storagePath: "airbrush/New Piece.webp",
+        thumbnailPath: null,
+        alt: "New Piece",
+        sortOrder: 0,
+    }];
+    product.primaryImageId = "image-primary";
+    return product;
 }
 
 async function confirmPreview(preview, product, stripe, store, choice = preview.recommendedCanonicalProductChoice) {
@@ -489,6 +511,89 @@ test("multi-Product conflicts recommend and create a new canonical artwork Produ
     assert.equal(stripe.pricesById.has("price_old_16"), true);
     assert.equal(stripe.pricesById.has("price_old_18"), true);
     assert.match(result.checkoutReadinessMessage, /trusted server checkout catalog/i);
+});
+
+test("a newly created canonical Stripe Product receives the primary artwork image", async () => {
+    const product = addPrimaryImage(productWithOptions());
+    product.prints.options = [product.prints.options[0]];
+    const store = fakeStore(product);
+    const stripe = fakeStripe();
+    const imageUrl = "https://firebasestorage.googleapis.com/v0/b/example.firebasestorage.app/o/airbrush%2FNew%20Piece.webp?alt=media";
+    const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
+
+    const result = await createMissingStripePrices({
+        productId: product.id,
+        operationId: preview.operationId,
+        requestedBy: "admin-user",
+        stripe,
+        store,
+        resolveProductImageUrl: async (savedProduct) => {
+            assert.equal(savedProduct.primaryImageId, "image-primary");
+            return imageUrl;
+        },
+    });
+
+    assert.equal(result.status, "completed");
+    assert.deepEqual(result.warnings, []);
+    assert.equal(stripe.calls.productCreates.length, 1);
+    assert.equal(stripe.calls.productUpdates.length, 1);
+    assert.deepEqual(stripe.calls.productUpdates[0].params, { images: [imageUrl] });
+    assert.deepEqual(stripe.productsById.get(result.stripeProductId).images, [imageUrl]);
+});
+
+test("missing or unreachable primary artwork images warn without blocking price sync", async (t) => {
+    for (const scenario of [
+        { name: "missing", resolver: async () => null, warning: /no valid primary image/i },
+        { name: "unreachable", resolver: async () => { throw new Error("storage unavailable"); }, warning: /could not be reached/i },
+    ]) {
+        await t.test(scenario.name, async () => {
+            const product = productWithOptions(`${scenario.name}-image-piece`);
+            product.prints.options = [product.prints.options[0]];
+            const store = fakeStore(product);
+            const stripe = fakeStripe();
+            const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+            await confirmPreview(preview, product, stripe, store);
+
+            const result = await createMissingStripePrices({
+                productId: product.id,
+                operationId: preview.operationId,
+                requestedBy: "admin-user",
+                stripe,
+                store,
+                resolveProductImageUrl: scenario.resolver,
+            });
+
+            assert.equal(result.status, "completed");
+            assert.equal(stripe.calls.priceCreates.length, 1);
+            assert.equal(store.productWrites, 1);
+            assert.equal(stripe.calls.productUpdates.length, 0);
+            assert.equal(result.warnings.length, 1);
+            assert.match(result.warnings[0], scenario.warning);
+        });
+    }
+});
+
+test("Firebase Storage image resolver builds an encoded public URL for the saved primary image", async () => {
+    const product = addPrimaryImage(productWithOptions());
+    const calls = [];
+    const resolveProductImageUrl = createFirebaseStorageProductImageResolver({
+        bucket: {
+            name: "example.firebasestorage.app",
+            file(path) {
+                calls.push(path);
+                return { exists: async () => [true] };
+            },
+        },
+    });
+
+    const imageUrl = await resolveProductImageUrl(product);
+
+    assert.deepEqual(calls, ["airbrush/New Piece.webp"]);
+    assert.equal(
+        imageUrl,
+        "https://firebasestorage.googleapis.com/v0/b/example.firebasestorage.app/o/airbrush%2FNew%20Piece.webp?alt=media"
+    );
 });
 
 test("an explicitly selected existing Product preserves its Price and replaces only other Firestore references", async () => {
@@ -792,6 +897,37 @@ test("create recovers an unmapped Stripe Product from sync metadata", async () =
     assert.equal(result.stripeProductId, "prod_recovered");
     assert.equal(stripe.calls.productCreates.length, 0);
     assert.equal(store.productMappings.get(product.id).stripeProductId, "prod_recovered");
+});
+
+test("create adds the primary image to a recovered canonical Stripe Product without duplicating it", async () => {
+    const product = addPrimaryImage(productWithOptions("recovered-image-piece"));
+    product.prints.options = [product.prints.options[0]];
+    const store = fakeStore(product);
+    const stripe = fakeStripe();
+    stripe.seedProduct({
+        id: "prod_recovered_image",
+        active: true,
+        images: [],
+        metadata: { source: "likwit_admin_price_sync", canonical_product: "true", firestore_product_id: product.id },
+    });
+    const imageUrl = "https://firebasestorage.googleapis.com/v0/b/example.firebasestorage.app/o/airbrush%2FNew%20Piece.webp?alt=media";
+    const preview = await previewStripePrintPriceSync({ productId: product.id, requestedBy: "admin-user", stripe, store });
+    await confirmPreview(preview, product, stripe, store);
+
+    const result = await createMissingStripePrices({
+        productId: product.id,
+        operationId: preview.operationId,
+        requestedBy: "admin-user",
+        stripe,
+        store,
+        resolveProductImageUrl: async () => imageUrl,
+    });
+
+    assert.equal(result.status, "completed");
+    assert.equal(result.stripeProductId, "prod_recovered_image");
+    assert.equal(stripe.calls.productCreates.length, 0);
+    assert.equal(stripe.calls.productUpdates.length, 1);
+    assert.deepEqual(stripe.productsById.get("prod_recovered_image").images, [imageUrl]);
 });
 
 test("create adopts the Product from a recoverable lookup Price without sync metadata", async () => {

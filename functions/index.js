@@ -39,6 +39,7 @@ const {
 } = require("./checkoutFulfillment");
 const {
     StripePriceSyncError,
+    createFirebaseStorageProductImageResolver,
     createFirestoreStripeSyncStore,
     handleAdminStripePrintPriceSync,
 } = require("./adminStripePriceSync");
@@ -384,6 +385,9 @@ exports.adminStripePrintPriceSync = onCall(
                     return getStripe(secret);
                 },
                 store: getAdminStripeSyncStore(),
+                resolveProductImageUrl: createFirebaseStorageProductImageResolver({
+                    bucket: admin.storage().bucket(),
+                }),
             });
         } catch (error) {
             throw toStripeSyncHttpsError(error);

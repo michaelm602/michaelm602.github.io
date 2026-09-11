@@ -9,6 +9,13 @@ const MULTIPLE_STRIPE_PRODUCTS_MESSAGE =
     "Use one Stripe Product per artwork, with one Price per print size. These saved Price IDs belong to different Stripe Products.";
 const CHECKOUT_READINESS_MESSAGE =
     "Stripe prices are synced, but print checkout still requires the trusted server checkout catalog to support this product.";
+const PRODUCT_IMAGE_MISSING_WARNING =
+    "Stripe Product image was not updated because this product has no valid primary image. Price sync continued.";
+const PRODUCT_IMAGE_UNREACHABLE_WARNING =
+    "Stripe Product image was not updated because the primary image could not be reached. Check the saved image path and retry Stripe sync.";
+const PRODUCT_IMAGE_UPDATE_WARNING =
+    "Stripe Product image could not be updated. Price sync continued; retry Stripe sync after checking the primary image.";
+const PUBLIC_PRODUCT_IMAGE_PATH = /^(airbrush|photoshop)\/.+/;
 const STANDARD_PRINT_PRICES = Object.freeze({
     "16x20": Object.freeze({ label: "16x20", amountCents: 10000, currency: "usd" }),
     "18x24": Object.freeze({ label: "18x24", amountCents: 20000, currency: "usd" }),
@@ -220,6 +227,9 @@ async function inspectStripeProduct(productValue, firestoreProductId, stripe) {
         stripeProductName: typeof product.name === "string" && product.name.trim()
             ? product.name.trim()
             : null,
+        stripeProductImages: Array.isArray(product.images)
+            ? product.images.filter((image) => typeof image === "string")
+            : [],
     };
 }
 
@@ -243,6 +253,70 @@ async function listPricesByLookupKey(stripe, lookupKey) {
 
 function stableProductIdempotencyKey(productId) {
     return `likwit-admin-print-product:${productId}`;
+}
+
+function stableProductImageIdempotencyKey(productId, imageUrl) {
+    const imageSuffix = crypto.createHash("sha256").update(imageUrl).digest("hex").slice(0, 16);
+    return `likwit-admin-print-product-image:${productId}:${imageSuffix}`;
+}
+
+function primaryProductImage(product) {
+    if (!Array.isArray(product?.images) || typeof product?.primaryImageId !== "string") return null;
+    return product.images.find((image) => image?.id === product.primaryImageId) || null;
+}
+
+function isPublicProductImageUrl(value) {
+    if (typeof value !== "string" || !value.trim()) return false;
+    try {
+        const url = new URL(value);
+        return url.protocol === "https:" && !url.username && !url.password;
+    } catch {
+        return false;
+    }
+}
+
+function createFirebaseStorageProductImageResolver({ bucket }) {
+    return async (product) => {
+        const image = primaryProductImage(product);
+        const storagePath = typeof image?.storagePath === "string" ? image.storagePath.trim() : "";
+        if (!storagePath || !PUBLIC_PRODUCT_IMAGE_PATH.test(storagePath)) return null;
+        if (!bucket?.name || typeof bucket.file !== "function") {
+            throw new Error("Firebase Storage bucket is unavailable.");
+        }
+        const [exists] = await bucket.file(storagePath).exists();
+        if (!exists) return null;
+        const bucketName = encodeURIComponent(bucket.name);
+        const objectPath = encodeURIComponent(storagePath);
+        return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${objectPath}?alt=media`;
+    };
+}
+
+async function updateCanonicalProductImage({
+    product,
+    stripe,
+    stripeProductId,
+    stripeProductImages,
+    resolveProductImageUrl,
+}) {
+    if (typeof resolveProductImageUrl !== "function") return [];
+    let imageUrl;
+    try {
+        imageUrl = await resolveProductImageUrl(product);
+    } catch {
+        return [PRODUCT_IMAGE_UNREACHABLE_WARNING];
+    }
+    if (!isPublicProductImageUrl(imageUrl)) return [PRODUCT_IMAGE_MISSING_WARNING];
+    if (stripeProductImages.length === 1 && stripeProductImages[0] === imageUrl) return [];
+    try {
+        await stripe.products.update(
+            stripeProductId,
+            { images: [imageUrl] },
+            { idempotencyKey: stableProductImageIdempotencyKey(product.id, imageUrl) }
+        );
+        return [];
+    } catch {
+        return [PRODUCT_IMAGE_UPDATE_WARNING];
+    }
 }
 
 function canonicalLookupKeyFor(productId, optionId, stripeProductId) {
@@ -565,7 +639,14 @@ function executionSummary(results) {
     };
 }
 
-async function createMissingStripePrices({ productId, operationId, requestedBy, stripe, store }) {
+async function createMissingStripePrices({
+    productId,
+    operationId,
+    requestedBy,
+    stripe,
+    store,
+    resolveProductImageUrl,
+}) {
     const operation = await store.getOperation(operationId);
     if (!operation || operation.type !== OPERATION_TYPE || operation.productId !== productId) {
         throw new StripePriceSyncError("not-found", "The Stripe sync preview operation was not found.");
@@ -590,6 +671,7 @@ async function createMissingStripePrices({ productId, operationId, requestedBy, 
     await store.updateOperation(operationId, { status: "running" });
     const expectedMappingOptions = operation.expectedOptions;
     const results = [];
+    let warnings = [];
     let targetProductId = null;
     const proposedProductId = operation.canonicalProductChoice.mode === "existing"
         ? operation.canonicalProductChoice.stripeProductId
@@ -665,6 +747,13 @@ async function createMissingStripePrices({ productId, operationId, requestedBy, 
         if (productInspection.conflict) {
             throw new StripePriceSyncError("failed-precondition", productInspection.conflict);
         }
+        warnings = await updateCanonicalProductImage({
+            product,
+            stripe,
+            stripeProductId: targetProductId,
+            stripeProductImages: productInspection.stripeProductImages,
+            resolveProductImageUrl,
+        });
     } catch (error) {
         if (!targetProductId) await store.releaseProductClaim(productId, operationId);
         const failed = operation.confirmedPlan.map((item) => ({
@@ -791,13 +880,14 @@ async function createMissingStripePrices({ productId, operationId, requestedBy, 
         stripeProductId: targetProductId,
         results,
         summary,
+        warnings,
         checkoutReadinessMessage: CHECKOUT_READINESS_MESSAGE,
     };
-    await store.updateOperation(operationId, { status, stripeProductId: targetProductId, results, summary, response });
+    await store.updateOperation(operationId, { status, stripeProductId: targetProductId, results, summary, warnings, response });
     return response;
 }
 
-async function handleAdminStripePrintPriceSync(request, { getStripe, store }) {
+async function handleAdminStripePrintPriceSync(request, { getStripe, store, resolveProductImageUrl }) {
     const requestedBy = requireAdminUid(request?.auth);
     validateHandlerInput(request?.data);
     const stripe = getStripe();
@@ -820,6 +910,7 @@ async function handleAdminStripePrintPriceSync(request, { getStripe, store }) {
         requestedBy,
         stripe,
         store,
+        resolveProductImageUrl,
     });
 }
 
@@ -978,6 +1069,7 @@ module.exports = {
     StripePriceSyncError,
     canonicalLookupKeyFor,
     confirmStripePrintPriceSync,
+    createFirebaseStorageProductImageResolver,
     createMissingStripePrices,
     createFirestoreStripeSyncStore,
     handleAdminStripePrintPriceSync,

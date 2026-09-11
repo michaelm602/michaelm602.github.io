@@ -287,6 +287,12 @@ test("post-sync UI explains that trusted checkout authorization is still require
   assert.match(adminStripeSyncDocs, /functions\/stripeCatalog\.js remains authoritative/);
 });
 
+test("post-sync UI displays non-blocking canonical Product image warnings", () => {
+  assert.match(adminProducts, /stripeSyncWarnings/);
+  assert.match(adminProducts, /stripeSync\?\.warnings/);
+  assert.match(adminProducts, /role="alert"/);
+});
+
 test("available prints require complete active options and an active default before saving", () => {
   const product = validProduct();
   product.prints = {

@@ -423,6 +423,7 @@ export default function AdminProducts() {
     });
 
   const stripeSyncItems = stripeSync?.items || stripeSync?.results || [];
+  const stripeSyncWarnings = Array.isArray(stripeSync?.warnings) ? stripeSync.warnings : [];
   const conflictingStripeProducts = stripeSync?.conflictingStripeProducts || [];
   const canonicalProductCandidates = stripeSync?.canonicalProductCandidates || [];
   const recommendNewCanonicalProduct = stripeSync?.recommendedCanonicalProductChoice?.mode === "new";
@@ -732,6 +733,11 @@ export default function AdminProducts() {
                               {stripeSync.checkoutReadinessMessage}
                             </p>
                           )}
+                          {stripeSyncWarnings.map((warning) => (
+                            <p key={warning} role="alert" className="rounded-lg border border-amber-400/25 bg-amber-400/[0.08] px-3 py-2 text-xs text-amber-100">
+                              {warning}
+                            </p>
+                          ))}
                           {stripeSyncItems.map((item) => (
                             <div key={item.optionId} className="flex flex-col gap-1 rounded border border-white/10 bg-black/20 px-3 py-2 text-xs">
                               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
