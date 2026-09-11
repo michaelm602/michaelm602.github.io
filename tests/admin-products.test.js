@@ -458,11 +458,19 @@ test("archive behavior disables active publishing without deleting the product",
 
   assert.equal(archived.active, false);
   assert.equal(archived.channels.shop, false);
+  assert.equal(archived.channels.portfolio, false);
   assert.equal(archived.archivedAt, archivedAt);
 
   const restored = restoreProductDraft(archived);
   assert.equal(restored.archivedAt, null);
   assert.equal(restored.active, false);
+});
+
+test("archive copy explains public visibility while archived products remain manageable", () => {
+  assert.match(adminProducts, /hidden from both Shop and Portfolio/);
+  assert.match(adminProducts, /Storage media will not be deleted/);
+  assert.match(adminProducts, /statusFilter === "archived"/);
+  assert.match(adminProducts, /Portfolio channel/);
 });
 
 test("product manager uses explicit Firestore create and update operations without deletes", () => {

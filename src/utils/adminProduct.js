@@ -498,7 +498,7 @@ export function archiveProductDraft(product, archivedAt) {
   return {
     ...cloneAdminProduct(product),
     active: false,
-    channels: { ...product.channels, shop: false },
+    channels: { ...product.channels, shop: false, portfolio: false },
     archivedAt,
   };
 }

@@ -346,7 +346,7 @@ export default function AdminProducts() {
   };
 
   const archive = async () => {
-    if (!draft || isNew || !window.confirm("Archive this product? It will remain in Firestore and become inactive.")) return;
+    if (!draft || isNew || !window.confirm("Archive this product? It will remain manageable in Admin Products and be hidden from both Shop and Portfolio. Storage media will not be deleted.")) return;
     setSaving(true);
     setError("");
     try {
@@ -757,7 +757,7 @@ export default function AdminProducts() {
                   </div>
                 </EditorSection>
 
-                <EditorSection title="Publishing" description="Archive is separate from visibility. Restored products return inactive for review.">
+                <EditorSection title="Publishing" description="Archive hides this product from both Shop and Portfolio without deleting media. Restore returns it inactive; review both channel controls before activation.">
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <Toggle label="Shop channel" checked={draft.channels.shop} onChange={(checked) => mutateDraft({ ...draft, channels: { ...draft.channels, shop: checked } })} />
                     <Toggle label="Portfolio channel" checked={draft.channels.portfolio} onChange={(checked) => mutateDraft({ ...draft, channels: { ...draft.channels, portfolio: checked } })} />

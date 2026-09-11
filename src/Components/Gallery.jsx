@@ -2,6 +2,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ref, listAll, getDownloadURL } from "firebase/storage";
 import { storage } from "../firebase";
+import { products as managedProducts } from "../data/products";
+import { loadPublicFirestoreDocuments } from "../services/storefrontProducts";
+import { filterPortfolioStorageItems } from "../utils/storefrontProduct";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import "../styles/Gallery.css";
@@ -54,10 +57,19 @@ export default function Gallery({ folder, label }) {
       setLoading(true);
       try {
         const folderRef = ref(storage, folder);
-        const res = await listAll(folderRef);
+        const [res, publicProducts] = await Promise.all([
+          listAll(folderRef),
+          loadPublicFirestoreDocuments("shop").catch((error) => {
+            console.error("Unable to reconcile portfolio product visibility:", error);
+            return [];
+          }),
+        ]);
 
         // Filter only image objects
-        const items = res.items.filter((i) => isImage(i.name));
+        const items = filterPortfolioStorageItems(
+          res.items.filter((i) => isImage(i.name)),
+          { managedProducts, visibleProductDocuments: publicProducts }
+        );
 
         // Build a lookup by base name (no extension)
         // Example: "iwata" => { jpgRef, webpRef, thumbRef }

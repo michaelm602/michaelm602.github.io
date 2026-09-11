@@ -1,5 +1,45 @@
 const PUBLIC_CATALOG_CHANNELS = new Set(["shop", "portfolio"]);
 
+function portfolioMediaBasePath(path) {
+  if (typeof path !== "string") return null;
+  const normalized = path.trim().replace(/\\/g, "/").toLowerCase();
+  if (!normalized) return null;
+  return normalized.replace(/\.[^./]+$/, "").replace(/__thumb$/, "");
+}
+
+function addProductMediaPaths(target, product, firestoreShape = false) {
+  for (const image of Array.isArray(product?.images) ? product.images : []) {
+    const paths = firestoreShape
+      ? [image?.storagePath, image?.thumbnailPath]
+      : [image?.full, image?.thumb];
+    for (const path of paths) {
+      const basePath = portfolioMediaBasePath(path);
+      if (basePath) target.add(basePath);
+    }
+  }
+}
+
+export function filterPortfolioStorageItems(
+  items,
+  { managedProducts = [], visibleProductDocuments = [] } = {}
+) {
+  const managedPaths = new Set();
+  for (const product of managedProducts) addProductMediaPaths(managedPaths, product);
+
+  const visiblePaths = new Set();
+  for (const product of visibleProductDocuments) {
+    if (product?.active !== true
+      || product?.archivedAt != null
+      || product?.channels?.portfolio !== true) continue;
+    addProductMediaPaths(visiblePaths, product, true);
+  }
+
+  return (Array.isArray(items) ? items : []).filter((item) => {
+    const basePath = portfolioMediaBasePath(item?.fullPath);
+    return !basePath || !managedPaths.has(basePath) || visiblePaths.has(basePath);
+  });
+}
+
 function sortByOrder(left, right) {
   return (left?.sortOrder ?? 0) - (right?.sortOrder ?? 0);
 }
