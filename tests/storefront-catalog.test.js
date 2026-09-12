@@ -251,14 +251,17 @@ test("source rollback products also omit Stripe Price IDs from the storefront mo
   assert.equal(mapped.original.checkoutEnabled, false);
 });
 
-test("all 15 imported products and 60 print options match trusted checkout configuration", () => {
+test("all imported products and print options match trusted checkout configuration", () => {
   const mapped = importedProducts.map((product) =>
     mapFirestoreProductForStorefront(product, { sourceProducts: currentSourceProducts })
   );
   const printOptions = mapped.flatMap((product) => product.sizes);
 
-  assert.equal(mapped.length, 15);
-  assert.equal(printOptions.length, 60);
+  assert.equal(mapped.length, currentSourceProducts.length);
+  assert.equal(
+    printOptions.length,
+    currentSourceProducts.flatMap((product) => product.sizes).length
+  );
   assert.equal(printOptions.every((option) => option.checkoutSupported), true);
   assert.equal(JSON.stringify(mapped).includes("stripePriceId"), false);
   assert.equal(mapped.every((product) => product.original.checkoutEnabled === false), true);

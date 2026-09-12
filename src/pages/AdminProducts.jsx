@@ -565,7 +565,7 @@ export default function AdminProducts() {
                     <Field label="Short description"><textarea rows="3" value={draft.shortDescription} onChange={(event) => mutateDraft({ ...draft, shortDescription: event.target.value })} className={inputClass} /></Field>
                     <Field label="Long description"><textarea rows="3" value={draft.longDescription} onChange={(event) => mutateDraft({ ...draft, longDescription: event.target.value })} className={inputClass} /></Field>
                     <Field label="Tags" hint="Comma-separated."><input value={draft.tags.join(", ")} onChange={(event) => mutateDraft({ ...draft, tags: event.target.value.split(",").map((tag) => tag.trim()) })} className={inputClass} /></Field>
-                    <Field label="Sort order"><input type="number" min="0" step="1" value={draft.sortOrder} onChange={(event) => mutateDraft({ ...draft, sortOrder: Number(event.target.value) })} className={inputClass} /></Field>
+                    <Field label="Sort order" hint="Lower values appear earlier in Shop and Portfolio."><input type="number" min="0" step="1" value={draft.sortOrder} onChange={(event) => mutateDraft({ ...draft, sortOrder: Number(event.target.value) })} className={inputClass} /></Field>
                   </div>
                 </EditorSection>
 

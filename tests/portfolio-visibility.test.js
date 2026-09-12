@@ -14,6 +14,31 @@ function storageItem(fullPath) {
   return { fullPath, name: fullPath.split("/").at(-1) };
 }
 
+function portfolioMedia(fullPath, timeCreated = null) {
+  return { fullPath, timeCreated };
+}
+
+function visiblePortfolioProduct({
+  id,
+  storagePath,
+  featured = false,
+  sortOrder = 0,
+  updatedAt = null,
+  createdAt = null,
+}) {
+  return {
+    id,
+    active: true,
+    archivedAt: null,
+    channels: { portfolio: true },
+    featured,
+    sortOrder,
+    updatedAt,
+    createdAt,
+    images: [{ storagePath, thumbnailPath: null }],
+  };
+}
+
 test("public portfolio categories exclude hidden tattoo work", () => {
   assert.deepEqual(
     getVisiblePortfolioCategories().map(({ slug }) => slug),
@@ -64,6 +89,102 @@ test("portfolio Storage filtering hides every variant linked to an archived prod
       .map((item) => item.fullPath),
     ["airbrush/Alter Ego.webp", "airbrush/Family.webp"]
   );
+});
+
+test("portfolio ordering places featured managed media before non-featured media", () => {
+  const ordered = storefrontProduct.sortPortfolioMedia([
+    portfolioMedia("airbrush/Regular.webp", "2026-09-10T00:00:00.000Z"),
+    portfolioMedia("airbrush/Featured.webp", "2026-09-01T00:00:00.000Z"),
+  ], {
+    visibleProductDocuments: [
+      visiblePortfolioProduct({ id: "regular", storagePath: "airbrush/Regular.webp", sortOrder: 0 }),
+      visiblePortfolioProduct({ id: "featured", storagePath: "airbrush/Featured.webp", featured: true, sortOrder: 99 }),
+    ],
+  });
+
+  assert.deepEqual(ordered.map((item) => item.fullPath), [
+    "airbrush/Featured.webp",
+    "airbrush/Regular.webp",
+  ]);
+});
+
+test("portfolio ordering uses lower managed product sortOrder before product timestamps", () => {
+  const ordered = storefrontProduct.sortPortfolioMedia([
+    portfolioMedia("airbrush/Later.webp", "2026-09-10T00:00:00.000Z"),
+    portfolioMedia("airbrush/Earlier.webp", "2026-09-01T00:00:00.000Z"),
+  ], {
+    visibleProductDocuments: [
+      visiblePortfolioProduct({
+        id: "later",
+        storagePath: "airbrush/Later.webp",
+        sortOrder: 8,
+        updatedAt: "2026-09-10T00:00:00.000Z",
+      }),
+      visiblePortfolioProduct({
+        id: "earlier",
+        storagePath: "airbrush/Earlier.webp",
+        sortOrder: 1,
+        updatedAt: "2026-09-01T00:00:00.000Z",
+      }),
+    ],
+  });
+
+  assert.deepEqual(ordered.map((item) => item.fullPath), [
+    "airbrush/Earlier.webp",
+    "airbrush/Later.webp",
+  ]);
+});
+
+test("portfolio ordering uses updatedAt then createdAt for equally ordered managed media", () => {
+  const ordered = storefrontProduct.sortPortfolioMedia([
+    portfolioMedia("airbrush/Created.webp"),
+    portfolioMedia("airbrush/Updated.webp"),
+  ], {
+    visibleProductDocuments: [
+      visiblePortfolioProduct({
+        id: "created",
+        storagePath: "airbrush/Created.webp",
+        sortOrder: 2,
+        createdAt: "2026-09-09T00:00:00.000Z",
+      }),
+      visiblePortfolioProduct({
+        id: "updated",
+        storagePath: "airbrush/Updated.webp",
+        sortOrder: 2,
+        updatedAt: "2026-09-10T00:00:00.000Z",
+        createdAt: "2026-09-01T00:00:00.000Z",
+      }),
+    ],
+  });
+
+  assert.deepEqual(ordered.map((item) => item.fullPath), [
+    "airbrush/Updated.webp",
+    "airbrush/Created.webp",
+  ]);
+});
+
+test("portfolio ordering puts newer unmanaged Storage media first", () => {
+  const ordered = storefrontProduct.sortPortfolioMedia([
+    portfolioMedia("airbrush/Older.webp", "2026-09-01T00:00:00.000Z"),
+    portfolioMedia("airbrush/Newer.webp", "2026-09-10T00:00:00.000Z"),
+  ]);
+
+  assert.deepEqual(ordered.map((item) => item.fullPath), [
+    "airbrush/Newer.webp",
+    "airbrush/Older.webp",
+  ]);
+});
+
+test("portfolio ordering falls back to normalized filename order when metadata is missing", () => {
+  const ordered = storefrontProduct.sortPortfolioMedia([
+    portfolioMedia("airbrush/Zebra.webp"),
+    portfolioMedia("airbrush/alpha.webp"),
+  ]);
+
+  assert.deepEqual(ordered.map((item) => item.fullPath), [
+    "airbrush/alpha.webp",
+    "airbrush/Zebra.webp",
+  ]);
 });
 
 test("portfolio gallery reconciles product paths while retaining independent Storage media", () => {

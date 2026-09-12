@@ -1,6 +1,6 @@
 const PUBLIC_CATALOG_CHANNELS = new Set(["shop", "portfolio"]);
 
-function portfolioMediaBasePath(path) {
+export function normalizePortfolioStoragePath(path) {
   if (typeof path !== "string") return null;
   const normalized = path.trim().replace(/\\/g, "/").toLowerCase();
   if (!normalized) return null;
@@ -13,10 +13,101 @@ function addProductMediaPaths(target, product, firestoreShape = false) {
       ? [image?.storagePath, image?.thumbnailPath]
       : [image?.full, image?.thumb];
     for (const path of paths) {
-      const basePath = portfolioMediaBasePath(path);
+      const basePath = normalizePortfolioStoragePath(path);
       if (basePath) target.add(basePath);
     }
   }
+}
+
+function isVisiblePortfolioProduct(product) {
+  return product?.active === true
+    && product?.archivedAt == null
+    && product?.channels?.portfolio === true;
+}
+
+function timestampMillis(value) {
+  if (typeof value?.toMillis === "function") {
+    const millis = value.toMillis();
+    return Number.isFinite(millis) ? millis : null;
+  }
+  if (value instanceof Date) return Number.isFinite(value.getTime()) ? value.getTime() : null;
+  if (typeof value === "string" || typeof value === "number") {
+    const millis = new Date(value).getTime();
+    return Number.isFinite(millis) ? millis : null;
+  }
+  return null;
+}
+
+function productTimestampMillis(product) {
+  return timestampMillis(product?.updatedAt) ?? timestampMillis(product?.createdAt);
+}
+
+function productSortOrder(product) {
+  const value = Number(product?.sortOrder);
+  return Number.isSafeInteger(value) && value >= 0 ? value : Number.POSITIVE_INFINITY;
+}
+
+function compareManagedPortfolioProducts(left, right) {
+  const featuredOrder = Number(right?.featured === true) - Number(left?.featured === true);
+  if (featuredOrder) return featuredOrder;
+
+  const sortOrder = productSortOrder(left) - productSortOrder(right);
+  if (sortOrder) return sortOrder;
+
+  const timestampOrder = (productTimestampMillis(right) ?? Number.NEGATIVE_INFINITY)
+    - (productTimestampMillis(left) ?? Number.NEGATIVE_INFINITY);
+  if (timestampOrder) return timestampOrder;
+
+  return String(left?.id || "").localeCompare(String(right?.id || ""));
+}
+
+function visiblePortfolioProductsByPath(documents) {
+  const productsByPath = new Map();
+  for (const product of Array.isArray(documents) ? documents : []) {
+    if (!isVisiblePortfolioProduct(product)) continue;
+    for (const image of Array.isArray(product.images) ? product.images : []) {
+      for (const path of [image?.storagePath, image?.thumbnailPath]) {
+        const normalizedPath = normalizePortfolioStoragePath(path);
+        if (!normalizedPath) continue;
+        const existing = productsByPath.get(normalizedPath);
+        if (!existing || compareManagedPortfolioProducts(product, existing) < 0) {
+          productsByPath.set(normalizedPath, product);
+        }
+      }
+    }
+  }
+  return productsByPath;
+}
+
+export function sortPortfolioMedia(media, { visibleProductDocuments = [] } = {}) {
+  const productsByPath = visiblePortfolioProductsByPath(visibleProductDocuments);
+
+  return (Array.isArray(media) ? media : [])
+    .map((item, index) => {
+      const normalizedPath = normalizePortfolioStoragePath(item?.fullPath);
+      return {
+        item,
+        index,
+        normalizedPath: normalizedPath || "",
+        product: normalizedPath ? productsByPath.get(normalizedPath) || null : null,
+      };
+    })
+    .sort((left, right) => {
+      if (Boolean(left.product) !== Boolean(right.product)) return left.product ? -1 : 1;
+
+      if (left.product && right.product) {
+        const managedOrder = compareManagedPortfolioProducts(left.product, right.product);
+        if (managedOrder) return managedOrder;
+      } else {
+        const unmanagedOrder = (timestampMillis(right.item?.timeCreated) ?? Number.NEGATIVE_INFINITY)
+          - (timestampMillis(left.item?.timeCreated) ?? Number.NEGATIVE_INFINITY);
+        if (unmanagedOrder) return unmanagedOrder;
+      }
+
+      const filenameOrder = left.normalizedPath.localeCompare(right.normalizedPath);
+      return filenameOrder || left.index - right.index;
+    })
+    .map(({ item }) => item);
 }
 
 export function filterPortfolioStorageItems(
@@ -28,14 +119,12 @@ export function filterPortfolioStorageItems(
 
   const visiblePaths = new Set();
   for (const product of visibleProductDocuments) {
-    if (product?.active !== true
-      || product?.archivedAt != null
-      || product?.channels?.portfolio !== true) continue;
+    if (!isVisiblePortfolioProduct(product)) continue;
     addProductMediaPaths(visiblePaths, product, true);
   }
 
   return (Array.isArray(items) ? items : []).filter((item) => {
-    const basePath = portfolioMediaBasePath(item?.fullPath);
+    const basePath = normalizePortfolioStoragePath(item?.fullPath);
     return !basePath || !managedPaths.has(basePath) || visiblePaths.has(basePath);
   });
 }

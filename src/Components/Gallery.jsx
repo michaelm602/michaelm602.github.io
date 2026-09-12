@@ -1,10 +1,10 @@
 // src/components/Gallery.jsx
 import { useEffect, useMemo, useState } from "react";
-import { ref, listAll, getDownloadURL } from "firebase/storage";
+import { ref, listAll, getDownloadURL, getMetadata } from "firebase/storage";
 import { storage } from "../firebase";
 import { products as managedProducts } from "../data/products";
 import { loadPublicFirestoreDocuments } from "../services/storefrontProducts";
-import { filterPortfolioStorageItems } from "../utils/storefrontProduct";
+import { filterPortfolioStorageItems, sortPortfolioMedia } from "../utils/storefrontProduct";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import "../styles/Gallery.css";
@@ -103,12 +103,17 @@ export default function Gallery({ folder, label }) {
 
         // We will request URLs in parallel
         const formatted = await Promise.all(
-          bases.map(async (base, i) => {
+          bases.map(async (base) => {
             const entry = byBase.get(base) || {};
 
             // Best full: webp > jpg > png
             const fullRef = entry.webpRef || entry.jpgRef || entry.pngRef;
-            const full = fullRef ? await safeGetURL(fullRef) : null;
+            const [full, metadata] = fullRef
+              ? await Promise.all([
+                safeGetURL(fullRef),
+                getMetadata(fullRef).catch(() => null),
+              ])
+              : [null, null];
 
             // Best thumb (if exists): thumbRef (prefer webp) otherwise null
             // If you choose to store thumbs as foo__thumb.webp or foo__thumb.jpg,
@@ -122,13 +127,20 @@ export default function Gallery({ folder, label }) {
             return {
               src: full,            // lightbox
               gridSrc: gridSrc,     // grid
-              title: `${label} Piece #${i + 1}`,
-              alt: `${label} Piece #${i + 1}`,
+              fullPath: fullRef?.fullPath || `${folder}/${base}`,
+              timeCreated: metadata?.timeCreated || null,
             };
           })
         );
 
-        const clean = formatted.filter((p) => p.src && p.gridSrc);
+        const clean = sortPortfolioMedia(
+          formatted.filter((p) => p.src && p.gridSrc),
+          { visibleProductDocuments: publicProducts }
+        ).map((piece, index) => ({
+          ...piece,
+          title: `${label} Piece #${index + 1}`,
+          alt: `${label} Piece #${index + 1}`,
+        }));
 
         if (alive) setPieces(clean);
       } catch (err) {
