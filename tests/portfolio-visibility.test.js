@@ -30,7 +30,7 @@ function visiblePortfolioProduct({
     id,
     active: true,
     archivedAt: null,
-    channels: { portfolio: true },
+    channels: { shop: false, portfolio: true },
     featured,
     sortOrder,
     updatedAt,
@@ -105,6 +105,26 @@ test("portfolio ordering places featured managed media before non-featured media
   assert.deepEqual(ordered.map((item) => item.fullPath), [
     "airbrush/Featured.webp",
     "airbrush/Regular.webp",
+  ]);
+});
+
+test("portfolio-only products rank as managed media ahead of unmanaged Storage media", () => {
+  const ordered = storefrontProduct.sortPortfolioMedia([
+    portfolioMedia("airbrush/Unmanaged.webp", "2026-09-11T00:00:00.000Z"),
+    portfolioMedia("airbrush/Portfolio Only.webp", "2026-09-01T00:00:00.000Z"),
+  ], {
+    visibleProductDocuments: [
+      visiblePortfolioProduct({
+        id: "portfolio-only",
+        storagePath: "airbrush/Portfolio Only.webp",
+        sortOrder: 20,
+      }),
+    ],
+  });
+
+  assert.deepEqual(ordered.map((item) => item.fullPath), [
+    "airbrush/Portfolio Only.webp",
+    "airbrush/Unmanaged.webp",
   ]);
 });
 
@@ -187,7 +207,21 @@ test("portfolio ordering falls back to normalized filename order when metadata i
   ]);
 });
 
-test("portfolio gallery reconciles product paths while retaining independent Storage media", () => {
-  assert.match(gallerySource, /loadPublicFirestoreDocuments\("shop"\)/);
+test("Beautiful Chaos full and thumbnail variants share one normalized artwork path", () => {
+  const paths = [
+    "airbrush/Beautiful Chaos.jpg",
+    "airbrush/Beautiful Chaos.webp",
+    "airbrush/Beautiful Chaos__thumb.webp",
+  ];
+
+  assert.deepEqual(
+    paths.map((path) => storefrontProduct.normalizePortfolioStoragePath(path)),
+    ["airbrush/beautiful chaos", "airbrush/beautiful chaos", "airbrush/beautiful chaos"]
+  );
+});
+
+test("portfolio gallery requests the Portfolio channel while retaining independent Storage media", () => {
+  assert.match(gallerySource, /loadPublicFirestoreDocuments\("portfolio"\)/);
+  assert.doesNotMatch(gallerySource, /loadPublicFirestoreDocuments\("shop"\)/);
   assert.match(gallerySource, /filterPortfolioStorageItems/);
 });

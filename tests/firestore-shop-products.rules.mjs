@@ -135,9 +135,9 @@ before(async () => {
     },
     {
       ...baseHiddenProduct,
-      id: "hidden-portfolio-tattoo",
-      slug: "hidden-portfolio-tattoo",
-      category: "Tattoo",
+      id: "portfolio-only",
+      slug: "portfolio-only",
+      category: "Airbrush",
       channels: { shop: false, portfolio: true },
     },
   ];
@@ -157,8 +157,8 @@ after(async () => {
   await deleteAdminApp(adminApp);
 });
 
-test("an admin can save all 15 imported products unchanged", async () => {
-  assert.equal(importedProducts.length, 15);
+test("an admin can save all 16 imported products unchanged", async () => {
+  assert.equal(importedProducts.length, 16);
   const adminDbClient = createClient("admin-save", {
     sub: "admin-user",
     user_id: "admin-user",
@@ -218,7 +218,7 @@ test("an admin can save valid text, prints, original, and image section changes"
   }
 });
 
-test("a public client can read active, unarchived shop products with the required query", async () => {
+test("a public client reads Shop and Portfolio channels with their required queries", async () => {
   const publicDb = createClient("public");
   const productRef = doc(publicDb, "shopProducts", importedProducts[0].id);
 
@@ -231,8 +231,21 @@ test("a public client can read active, unarchived shop products with the require
     where("archivedAt", "==", null),
     where("channels.shop", "==", true)
   );
-  const catalog = await getDocs(publicShopQuery);
-  assert.equal(catalog.size, 15);
+  const shopCatalog = await getDocs(publicShopQuery);
+  assert.equal(shopCatalog.size, 16);
+  assert.equal(shopCatalog.docs.some((snapshot) => snapshot.id === "portfolio-only"), false);
+
+  const portfolioOnlyRef = doc(publicDb, "shopProducts", "portfolio-only");
+  assert.equal((await getDoc(portfolioOnlyRef)).exists(), true);
+
+  const publicPortfolioQuery = query(
+    collection(publicDb, "shopProducts"),
+    where("active", "==", true),
+    where("archivedAt", "==", null),
+    where("channels.portfolio", "==", true)
+  );
+  const portfolioCatalog = await getDocs(publicPortfolioQuery);
+  assert.equal(portfolioCatalog.docs.some((snapshot) => snapshot.id === "portfolio-only"), true);
 
 });
 
@@ -243,7 +256,6 @@ test("public reads deny hidden products and queries missing required visibility 
     "hidden-inactive",
     "hidden-archived",
     "hidden-no-channel",
-    "hidden-portfolio-tattoo",
   ]) {
     await assert.rejects(
       () => getDoc(doc(publicDb, "shopProducts", productId)),
@@ -259,7 +271,6 @@ test("public reads deny hidden products and queries missing required visibility 
     query(catalog, where("archivedAt", "==", null), where("channels.shop", "==", true)),
     query(catalog, where("active", "==", false), where("archivedAt", "==", null), where("channels.shop", "==", true)),
     query(catalog, where("active", "==", true), where("archivedAt", "==", null), where("channels.shop", "==", false)),
-    query(catalog, where("active", "==", true), where("archivedAt", "==", null), where("channels.portfolio", "==", true)),
   ];
   for (const insufficientQuery of insufficientQueries) {
     await assert.rejects(() => getDocs(insufficientQuery), isPermissionDenied);

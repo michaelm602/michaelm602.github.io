@@ -59,7 +59,7 @@ export default function Gallery({ folder, label }) {
         const folderRef = ref(storage, folder);
         const [res, publicProducts] = await Promise.all([
           listAll(folderRef),
-          loadPublicFirestoreDocuments("shop").catch((error) => {
+          loadPublicFirestoreDocuments("portfolio").catch((error) => {
             console.error("Unable to reconcile portfolio product visibility:", error);
             return [];
           }),
