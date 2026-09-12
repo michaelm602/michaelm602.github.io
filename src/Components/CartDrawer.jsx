@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "./CartContext";
+import PolicyAcknowledgementCheckbox from "./PolicyAcknowledgementCheckbox";
 import { X } from "lucide-react";
 import { resolveCartItemProduct } from "../data/products";
 import { getCartItemSizeOptions } from "../utils/cartProduct";
@@ -487,54 +488,36 @@ export default function CartDrawer({ isOpen, onClose }) {
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex items-start gap-2.5">
-                                <input
+                            <div>
+                                <PolicyAcknowledgementCheckbox
                                     id="print-checkout-acknowledgement"
-                                    type="checkbox"
                                     checked={policyAcknowledged}
                                     onChange={handlePolicyAcknowledgement}
-                                    className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-white"
+                                    titleId="print-policy-title"
+                                    label="Policy acknowledgment"
+                                    description="Made-to-order print sales are final once submitted to production."
                                 />
-                                <div className="min-w-0 flex-1">
-                                    <label
-                                        id="print-policy-title"
-                                        htmlFor="print-checkout-acknowledgement"
-                                        className="block cursor-pointer text-xs leading-relaxed text-zinc-200"
-                                    >
-                                        <span className="font-semibold text-white">Policy acknowledged</span>
-                                        <span className="block text-zinc-400">
-                                            Made-to-order print sales are final once submitted to production.
-                                        </span>
-                                    </label>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsPolicyReviewOpen(true)}
-                                        aria-expanded="false"
-                                        aria-controls="print-policy-details"
-                                        className="mt-1 text-xs text-zinc-300 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                                    >
-                                        Review policy
-                                    </button>
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPolicyReviewOpen(true)}
+                                    aria-expanded="false"
+                                    aria-controls="print-policy-details"
+                                    className="mt-1 text-xs text-zinc-300 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                                >
+                                    Review policy
+                                </button>
                             </div>
                         )}
 
                         {policyDisclosure.expanded && (
-                            <div className="mt-3 flex items-start gap-2.5 border-t border-white/10 pt-3">
-                                <input
+                            <div className="mt-3 border-t border-white/10 pt-3">
+                                <PolicyAcknowledgementCheckbox
                                     id="print-checkout-acknowledgement"
-                                    type="checkbox"
                                     checked={policyAcknowledged}
                                     onChange={handlePolicyAcknowledgement}
-                                    aria-describedby={acknowledgementError ? "print-checkout-acknowledgement-error" : undefined}
-                                    className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-white"
+                                    describedBy={acknowledgementError ? "print-checkout-acknowledgement-error" : undefined}
+                                    label={PRINT_CHECKOUT_ACKNOWLEDGEMENT}
                                 />
-                                <label
-                                    htmlFor="print-checkout-acknowledgement"
-                                    className="cursor-pointer text-xs leading-relaxed text-zinc-200"
-                                >
-                                    {PRINT_CHECKOUT_ACKNOWLEDGEMENT}
-                                </label>
                             </div>
                         )}
 
@@ -558,11 +541,11 @@ export default function CartDrawer({ isOpen, onClose }) {
                     >
                         {isEditing ? "Done" : "Edit Cart"}
                     </button>
-                    <button
-                        className="w-1/2 bg-white text-black font-semibold py-2 rounded hover:bg-gray-100 transition-colors duration-200 disabled:opacity-40"
-                        onClick={handleStripeCheckout}
-                        disabled={cartItems.length === 0}
-                    >
+                        <button
+                            className="w-1/2 bg-white text-black font-semibold py-2 rounded hover:bg-gray-100 transition-colors duration-200 disabled:opacity-40"
+                            onClick={handleStripeCheckout}
+                            disabled={cartItems.length === 0 || !policyAcknowledged}
+                        >
                         Card checkout
                     </button>
                 </div>
