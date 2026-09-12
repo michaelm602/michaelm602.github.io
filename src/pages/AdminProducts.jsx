@@ -565,7 +565,7 @@ export default function AdminProducts() {
                     <Field label="Short description"><textarea rows="3" value={draft.shortDescription} onChange={(event) => mutateDraft({ ...draft, shortDescription: event.target.value })} className={inputClass} /></Field>
                     <Field label="Long description"><textarea rows="3" value={draft.longDescription} onChange={(event) => mutateDraft({ ...draft, longDescription: event.target.value })} className={inputClass} /></Field>
                     <Field label="Tags" hint="Comma-separated."><input value={draft.tags.join(", ")} onChange={(event) => mutateDraft({ ...draft, tags: event.target.value.split(",").map((tag) => tag.trim()) })} className={inputClass} /></Field>
-                    <Field label="Sort order" hint="Lower values appear earlier in Shop and Portfolio."><input type="number" min="0" step="1" value={draft.sortOrder} onChange={(event) => mutateDraft({ ...draft, sortOrder: Number(event.target.value) })} className={inputClass} /></Field>
+                    <Field label="Product sort order" hint="Lower numbers appear earlier in Shop and Portfolio."><input type="number" min="0" step="1" value={draft.sortOrder} onChange={(event) => mutateDraft({ ...draft, sortOrder: Number(event.target.value) })} className={inputClass} /></Field>
                   </div>
                 </EditorSection>
 
@@ -576,7 +576,7 @@ export default function AdminProducts() {
                         <div className="flex h-56 max-h-56 min-w-0 max-w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black sm:h-64 sm:max-h-64 xl:h-32 xl:max-h-32"><ProductStoragePreview image={image} alt="" /></div>
                         <div className="grid gap-3 md:grid-cols-2">
                           <Field label="Image ID"><input value={image.id} onChange={(event) => updateImage(index, "id", event.target.value)} className={inputClass} /></Field>
-                          <Field label="Sort order"><input type="number" min="0" value={image.sortOrder} onChange={(event) => updateImage(index, "sortOrder", Number(event.target.value))} className={inputClass} /></Field>
+                          <Field label="Image order" hint="Only affects the order of multiple images inside this product. It does not control Shop or Portfolio placement."><input type="number" min="0" value={image.sortOrder} onChange={(event) => updateImage(index, "sortOrder", Number(event.target.value))} className={inputClass} /></Field>
                           <Field label="Storage path"><input value={image.storagePath} onChange={(event) => updateImage(index, "storagePath", event.target.value)} placeholder="airbrush/Piece.webp" className={inputClass} /></Field>
                           <Field label="Thumbnail path"><input value={image.thumbnailPath || ""} onChange={(event) => updateImage(index, "thumbnailPath", event.target.value || null)} placeholder="airbrush/Piece__thumb.webp" className={inputClass} /></Field>
                           <Field label="Alt text"><input value={image.alt} onChange={(event) => updateImage(index, "alt", event.target.value)} className={inputClass} /></Field>

@@ -68,6 +68,28 @@ test("admin product UI copy uses encoding-safe ASCII punctuation", () => {
   assert.match(productStoragePreview, /Loading preview\.\.\./);
 });
 
+test("admin product UI distinguishes product placement from image ordering", () => {
+  assert.match(
+    adminProducts,
+    /<Field label="Product sort order" hint="Lower numbers appear earlier in Shop and Portfolio\.">/
+  );
+  assert.match(
+    adminProducts,
+    /<Field label="Image order" hint="Only affects the order of multiple images inside this product\. It does not control Shop or Portfolio placement\.">/
+  );
+});
+
+test("admin save normalization preserves product and image sort-order values", () => {
+  const product = validProduct();
+  product.sortOrder = 17;
+  product.images[0].sortOrder = 4;
+
+  const normalized = normalizeAdminProductForSave(product);
+
+  assert.equal(normalized.sortOrder, 17);
+  assert.equal(normalized.images[0].sortOrder, 4);
+});
+
 test("admin product previews keep the complete artwork visible and centered", () => {
   assert.match(productStoragePreview, /className="h-full w-full object-contain object-center"/);
   assert.doesNotMatch(productStoragePreview, /object-cover/);
