@@ -31,6 +31,17 @@ test("shopProducts permits constrained Shop and Portfolio reads while keeping wr
   assert.match(firestoreRules, /match \/shopInventory\/\{document=\*\*\}[\s\S]*allow read, write: if false;/);
 });
 
+test("catalog ordering documents are public read-only except for strictly validated admin writes", () => {
+  assert.match(firestoreRules, /match \/catalogOrdering\/\{channel\}/);
+  assert.match(firestoreRules, /channel in \['shop', 'portfolio'\]/);
+  assert.match(firestoreRules, /data\.keys\(\)\.hasOnly\(\['productIds'\]\)/);
+  assert.match(firestoreRules, /data\.productIds is list/);
+  assert.match(firestoreRules, /data\.productIds\.size\(\) <= 100/);
+  assert.match(firestoreRules, /allow read: if isCatalogOrderingChannel\(channel\);/);
+  assert.match(firestoreRules, /allow create, update: if isAdmin\(\)[\s\S]*isValidCatalogOrdering/);
+  assert.match(firestoreRules, /allow delete: if false;/);
+});
+
 test("Storage exposes only storefront paths and requires the admin claim for writes", () => {
   for (const path of ["site/home", "airbrush", "photoshop", "tattoos", "portfolio-videos"]) {
     assert.match(storageRules, new RegExp(`match /${path.replace("/", "\\/")}/`));

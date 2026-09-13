@@ -3,7 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ref, listAll, getDownloadURL, getMetadata } from "firebase/storage";
 import { storage } from "../firebase";
 import { products as managedProducts } from "../data/products";
-import { loadPublicFirestoreDocuments } from "../services/storefrontProducts";
+import {
+  loadPublicCatalogOrdering,
+  loadPublicFirestoreDocuments,
+} from "../services/storefrontProducts";
 import { filterPortfolioStorageItems, sortPortfolioMedia } from "../utils/storefrontProduct";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
@@ -57,10 +60,14 @@ export default function Gallery({ folder, label }) {
       setLoading(true);
       try {
         const folderRef = ref(storage, folder);
-        const [res, publicProducts] = await Promise.all([
+        const [res, publicProducts, portfolioProductIds] = await Promise.all([
           listAll(folderRef),
           loadPublicFirestoreDocuments("portfolio").catch((error) => {
             console.error("Unable to reconcile portfolio product visibility:", error);
+            return [];
+          }),
+          loadPublicCatalogOrdering("portfolio").catch((error) => {
+            console.error("Unable to load portfolio ordering:", error);
             return [];
           }),
         ]);
@@ -135,7 +142,7 @@ export default function Gallery({ folder, label }) {
 
         const clean = sortPortfolioMedia(
           formatted.filter((p) => p.src && p.gridSrc),
-          { visibleProductDocuments: publicProducts }
+          { visibleProductDocuments: publicProducts, productIds: portfolioProductIds }
         ).map((piece, index) => ({
           ...piece,
           title: `${label} Piece #${index + 1}`,

@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import ProductStoragePreview from "../Components/ProductStoragePreview";
+import CatalogOrderingPanel from "../Components/CatalogOrderingPanel";
 import useAdminAuth from "../hooks/useAdminAuth";
 import {
   archiveAdminProduct,
@@ -453,6 +454,8 @@ export default function AdminProducts() {
         {error && <p role="alert" className="mb-4 rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</p>}
         {message && <p role="status" className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">{message}</p>}
 
+        <CatalogOrderingPanel products={products} />
+
         <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
           <aside className="self-start rounded-xl border border-white/10 bg-[#101010] lg:sticky lg:top-4">
             <div className="space-y-3 border-b border-white/10 p-4">
@@ -565,7 +568,7 @@ export default function AdminProducts() {
                     <Field label="Short description"><textarea rows="3" value={draft.shortDescription} onChange={(event) => mutateDraft({ ...draft, shortDescription: event.target.value })} className={inputClass} /></Field>
                     <Field label="Long description"><textarea rows="3" value={draft.longDescription} onChange={(event) => mutateDraft({ ...draft, longDescription: event.target.value })} className={inputClass} /></Field>
                     <Field label="Tags" hint="Comma-separated."><input value={draft.tags.join(", ")} onChange={(event) => mutateDraft({ ...draft, tags: event.target.value.split(",").map((tag) => tag.trim()) })} className={inputClass} /></Field>
-                    <Field label="Product sort order" hint="Lower numbers appear earlier in Shop and Portfolio."><input type="number" min="0" step="1" value={draft.sortOrder} onChange={(event) => mutateDraft({ ...draft, sortOrder: Number(event.target.value) })} className={inputClass} /></Field>
+                    <Field label="Legacy fallback order" hint="Used when a Shop or Portfolio ordering document does not list this product."><input type="number" min="0" step="1" value={draft.sortOrder} onChange={(event) => mutateDraft({ ...draft, sortOrder: Number(event.target.value) })} className={inputClass} /></Field>
                   </div>
                 </EditorSection>
 

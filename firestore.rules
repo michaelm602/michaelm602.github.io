@@ -12,6 +12,17 @@ service cloud.firestore {
         && (data.channels.shop == true || data.channels.portfolio == true);
     }
 
+    function isCatalogOrderingChannel(channel) {
+      return channel in ['shop', 'portfolio'];
+    }
+
+    function isValidCatalogOrdering(data) {
+      return data.keys().hasAll(['productIds'])
+        && data.keys().hasOnly(['productIds'])
+        && data.productIds is list
+        && data.productIds.size() <= 100;
+    }
+
     function isNullableString(value, maxLength) {
       return value == null || (value is string && value.size() <= maxLength);
     }
@@ -411,6 +422,16 @@ service cloud.firestore {
       allow read: if isAdmin() || isPublicStorefrontProduct(resource.data);
       allow create: if isAdmin() && isValidShopProductCreate(productId);
       allow update: if isAdmin() && resource != null && isValidShopProductUpdate(productId);
+      allow delete: if false;
+    }
+
+    // Public clients may read only the two small channel-order documents.
+    // Claimed admins may replace their exact, bounded list shape; deletion is disabled.
+    match /catalogOrdering/{channel} {
+      allow read: if isCatalogOrderingChannel(channel);
+      allow create, update: if isAdmin()
+        && isCatalogOrderingChannel(channel)
+        && isValidCatalogOrdering(request.resource.data);
       allow delete: if false;
     }
 

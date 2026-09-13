@@ -326,6 +326,61 @@ test("public catalog filtering excludes inactive, archived, and non-shop product
   );
 });
 
+test("Shop applies its explicit ordering after visibility filtering", () => {
+  const documents = [
+    firestoreProduct({ id: "first-legacy", slug: "first-legacy", sortOrder: 0 }),
+    firestoreProduct({ id: "first-explicit", slug: "first-explicit", sortOrder: 99 }),
+    firestoreProduct({ id: "last-legacy", slug: "last-legacy", sortOrder: 5 }),
+    firestoreProduct({ id: "inactive", slug: "inactive", active: false, sortOrder: 0 }),
+    firestoreProduct({ id: "archived", slug: "archived", archivedAt: new Date(), sortOrder: 0 }),
+    firestoreProduct({
+      id: "portfolio-only",
+      slug: "portfolio-only",
+      sortOrder: 1,
+      channels: { shop: false, portfolio: true },
+    }),
+  ];
+
+  assert.deepEqual(
+    filterPublicCatalog(documents, "shop", {
+      productIds: ["inactive", "portfolio-only", "archived", "stale", "first-explicit"],
+    }).map((product) => product.id),
+    ["first-explicit", "first-legacy", "last-legacy"]
+  );
+});
+
+test("Firestore catalog loading uses the channel ordering document and falls back on read failure", async () => {
+  const documents = [
+    firestoreProduct({ id: "legacy-first", slug: "legacy-first", sortOrder: 0 }),
+    firestoreProduct({ id: "explicit-first", slug: "explicit-first", sortOrder: 9 }),
+  ];
+  const requestedChannels = [];
+
+  const explicitlyOrdered = await loadSelectedStorefrontCatalog({
+    mode: "firestore",
+    channel: "shop",
+    loadFirestoreDocuments: async () => documents,
+    loadCatalogOrdering: async (channel) => {
+      requestedChannels.push(channel);
+      return { productIds: ["explicit-first"] };
+    },
+    loadSourceProducts: async () => [],
+    sourceProducts: [],
+  });
+  assert.deepEqual(requestedChannels, ["shop"]);
+  assert.deepEqual(explicitlyOrdered.map((product) => product.id), ["explicit-first", "legacy-first"]);
+
+  const fallback = await loadSelectedStorefrontCatalog({
+    mode: "firestore",
+    channel: "shop",
+    loadFirestoreDocuments: async () => documents,
+    loadCatalogOrdering: async () => { throw new Error("ordering unavailable"); },
+    loadSourceProducts: async () => [],
+    sourceProducts: [],
+  });
+  assert.deepEqual(fallback.map((product) => product.id), ["legacy-first", "explicit-first"]);
+});
+
 test("whole-catalog loading selects exactly one source and never falls back after failure", async () => {
   let sourceLoads = 0;
   const loadSource = async () => {

@@ -308,6 +308,63 @@ test("an admin can read products hidden from public catalog channels", async () 
   assert.equal(snapshot.exists(), true);
 });
 
+test("an admin creates strict Shop and Portfolio ordering documents that are publicly readable", async () => {
+  const adminClient = createClient("admin-ordering-create", { sub: "admin-user", admin: true });
+  const publicClient = createClient("public-ordering-read");
+
+  await setDoc(doc(adminClient, "catalogOrdering", "shop"), {
+    productIds: [importedProducts[1].id, importedProducts[0].id],
+  });
+  await setDoc(doc(adminClient, "catalogOrdering", "portfolio"), {
+    productIds: ["portfolio-only", importedProducts[0].id],
+  });
+
+  assert.deepEqual((await getDoc(doc(publicClient, "catalogOrdering", "shop"))).data(), {
+    productIds: [importedProducts[1].id, importedProducts[0].id],
+  });
+  assert.deepEqual((await getDoc(doc(publicClient, "catalogOrdering", "portfolio"))).data(), {
+    productIds: ["portfolio-only", importedProducts[0].id],
+  });
+  await assert.rejects(
+    () => getDoc(doc(publicClient, "catalogOrdering", "unknown")),
+    isPermissionDenied
+  );
+});
+
+test("catalog ordering writes stay admin-only and fail closed on malformed document shapes", async (context) => {
+  const publicClient = createClient("public-ordering-write");
+  const nonAdminClient = createClient("non-admin-ordering-write", { sub: "customer", admin: false });
+  const adminClient = createClient("admin-ordering-validation", { sub: "admin-user", admin: true });
+
+  await assert.rejects(
+    () => setDoc(doc(publicClient, "catalogOrdering", "shop"), { productIds: ["blocked"] }),
+    isPermissionDenied
+  );
+  await assert.rejects(
+    () => setDoc(doc(nonAdminClient, "catalogOrdering", "portfolio"), { productIds: ["blocked"] }),
+    isPermissionDenied
+  );
+  await assert.rejects(
+    () => deleteDoc(doc(adminClient, "catalogOrdering", "shop")),
+    isPermissionDenied
+  );
+
+  const invalidValues = [
+    ["missing-key", {}],
+    ["extra-key", { productIds: [], unexpected: true }],
+    ["wrong-type", { productIds: "not-a-list" }],
+    ["too-many-ids", { productIds: Array.from({ length: 101 }, (_, index) => `product-${index}`) }],
+  ];
+  for (const [name, value] of invalidValues) {
+    await context.test(name, async () => {
+      await assert.rejects(
+        () => setDoc(doc(adminClient, "catalogOrdering", "shop"), value),
+        isPermissionDenied
+      );
+    });
+  }
+});
+
 test("an authenticated non-admin cannot write shop products", async () => {
   const nonAdminDb = createClient("non-admin", {
     sub: "customer-user",

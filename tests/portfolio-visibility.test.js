@@ -108,6 +108,47 @@ test("portfolio ordering places featured managed media before non-featured media
   ]);
 });
 
+test("explicit Portfolio order is authoritative over Featured and legacy sortOrder", () => {
+  const ordered = storefrontProduct.sortPortfolioMedia([
+    portfolioMedia("airbrush/Featured.webp"),
+    portfolioMedia("airbrush/Wall First.webp"),
+  ], {
+    visibleProductDocuments: [
+      visiblePortfolioProduct({ id: "featured", storagePath: "airbrush/Featured.webp", featured: true, sortOrder: 0 }),
+      visiblePortfolioProduct({ id: "wall-first", storagePath: "airbrush/Wall First.webp", featured: false, sortOrder: 99 }),
+    ],
+    productIds: ["wall-first", "featured"],
+  });
+
+  assert.deepEqual(ordered.map((item) => item.fullPath), [
+    "airbrush/Wall First.webp",
+    "airbrush/Featured.webp",
+  ]);
+});
+
+test("incomplete Portfolio order appends managed and unmanaged media predictably", () => {
+  const ordered = storefrontProduct.sortPortfolioMedia([
+    portfolioMedia("airbrush/Unmanaged.webp", "2026-09-12T00:00:00.000Z"),
+    portfolioMedia("airbrush/Explicit.webp"),
+    portfolioMedia("airbrush/Featured Missing.webp"),
+    portfolioMedia("airbrush/Regular Missing.webp"),
+  ], {
+    visibleProductDocuments: [
+      visiblePortfolioProduct({ id: "explicit", storagePath: "airbrush/Explicit.webp", sortOrder: 99 }),
+      visiblePortfolioProduct({ id: "featured-missing", storagePath: "airbrush/Featured Missing.webp", featured: true, sortOrder: 7 }),
+      visiblePortfolioProduct({ id: "regular-missing", storagePath: "airbrush/Regular Missing.webp", sortOrder: 0 }),
+    ],
+    productIds: ["stale", "explicit"],
+  });
+
+  assert.deepEqual(ordered.map((item) => item.fullPath), [
+    "airbrush/Explicit.webp",
+    "airbrush/Featured Missing.webp",
+    "airbrush/Regular Missing.webp",
+    "airbrush/Unmanaged.webp",
+  ]);
+});
+
 test("portfolio-only products rank as managed media ahead of unmanaged Storage media", () => {
   const ordered = storefrontProduct.sortPortfolioMedia([
     portfolioMedia("airbrush/Unmanaged.webp", "2026-09-11T00:00:00.000Z"),
@@ -222,6 +263,7 @@ test("Beautiful Chaos full and thumbnail variants share one normalized artwork p
 
 test("portfolio gallery requests the Portfolio channel while retaining independent Storage media", () => {
   assert.match(gallerySource, /loadPublicFirestoreDocuments\("portfolio"\)/);
+  assert.match(gallerySource, /loadPublicCatalogOrdering\("portfolio"\)/);
   assert.doesNotMatch(gallerySource, /loadPublicFirestoreDocuments\("shop"\)/);
   assert.match(gallerySource, /filterPortfolioStorageItems/);
 });

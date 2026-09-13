@@ -25,6 +25,8 @@ const adminRoute = await readFile(new URL("../src/Components/AdminRoute.jsx", im
 const adminProducts = await readFile(new URL("../src/pages/AdminProducts.jsx", import.meta.url), "utf8");
 const productStoragePreview = await readFile(new URL("../src/Components/ProductStoragePreview.jsx", import.meta.url), "utf8");
 const adminData = await readFile(new URL("../src/services/adminProducts.js", import.meta.url), "utf8");
+const catalogOrderingPanel = await readFile(new URL("../src/Components/CatalogOrderingPanel.jsx", import.meta.url), "utf8");
+const catalogOrderingService = await readFile(new URL("../src/services/catalogOrdering.js", import.meta.url), "utf8");
 const adminStripeSyncService = await readFile(new URL("../src/services/adminStripePriceSync.js", import.meta.url), "utf8");
 const adminStripeSyncClient = await readFile(new URL("../src/utils/adminStripePriceSync.js", import.meta.url), "utf8");
 const adminStripeSyncDocs = await readFile(new URL("../docs/admin-stripe-price-sync.md", import.meta.url), "utf8");
@@ -71,12 +73,23 @@ test("admin product UI copy uses encoding-safe ASCII punctuation", () => {
 test("admin product UI distinguishes product placement from image ordering", () => {
   assert.match(
     adminProducts,
-    /<Field label="Product sort order" hint="Lower numbers appear earlier in Shop and Portfolio\.">/
+    /<Field label="Legacy fallback order" hint="Used when a Shop or Portfolio ordering document does not list this product\.">/
   );
   assert.match(
     adminProducts,
     /<Field label="Image order" hint="Only affects the order of multiple images inside this product\. It does not control Shop or Portfolio placement\.">/
   );
+});
+
+test("admin has independent Shop and Portfolio ordering controls", () => {
+  assert.match(adminProducts, /<CatalogOrderingPanel products=\{products\} \/>/);
+  assert.match(catalogOrderingPanel, /Shop order/);
+  assert.match(catalogOrderingPanel, /Portfolio order/);
+  assert.match(catalogOrderingPanel, /Featured does not override this order\./);
+  assert.match(catalogOrderingPanel, /moveCatalogOrderingId/);
+  assert.match(catalogOrderingService, /CATALOG_ORDERING_COLLECTION/);
+  assert.match(catalogOrderingService, /setDoc\(/);
+  assert.doesNotMatch(catalogOrderingService, /shopProducts|updateDoc|deleteDoc/);
 });
 
 test("admin save normalization preserves product and image sort-order values", () => {

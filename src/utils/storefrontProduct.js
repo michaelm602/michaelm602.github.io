@@ -1,3 +1,10 @@
+import {
+  applyCatalogOrdering,
+  compareLegacyPortfolioProducts,
+  compareLegacyShopProducts,
+  sanitizeCatalogOrdering,
+} from "./catalogOrdering.js";
+
 const PUBLIC_CATALOG_CHANNELS = new Set(["shop", "portfolio"]);
 
 export function normalizePortfolioStoragePath(path) {
@@ -38,30 +45,7 @@ function timestampMillis(value) {
   return null;
 }
 
-function productTimestampMillis(product) {
-  return timestampMillis(product?.updatedAt) ?? timestampMillis(product?.createdAt);
-}
-
-function productSortOrder(product) {
-  const value = Number(product?.sortOrder);
-  return Number.isSafeInteger(value) && value >= 0 ? value : Number.POSITIVE_INFINITY;
-}
-
-function compareManagedPortfolioProducts(left, right) {
-  const featuredOrder = Number(right?.featured === true) - Number(left?.featured === true);
-  if (featuredOrder) return featuredOrder;
-
-  const sortOrder = productSortOrder(left) - productSortOrder(right);
-  if (sortOrder) return sortOrder;
-
-  const timestampOrder = (productTimestampMillis(right) ?? Number.NEGATIVE_INFINITY)
-    - (productTimestampMillis(left) ?? Number.NEGATIVE_INFINITY);
-  if (timestampOrder) return timestampOrder;
-
-  return String(left?.id || "").localeCompare(String(right?.id || ""));
-}
-
-function visiblePortfolioProductsByPath(documents) {
+function visiblePortfolioProductsByPath(documents, compareProducts) {
   const productsByPath = new Map();
   for (const product of Array.isArray(documents) ? documents : []) {
     if (!isVisiblePortfolioProduct(product)) continue;
@@ -70,7 +54,7 @@ function visiblePortfolioProductsByPath(documents) {
         const normalizedPath = normalizePortfolioStoragePath(path);
         if (!normalizedPath) continue;
         const existing = productsByPath.get(normalizedPath);
-        if (!existing || compareManagedPortfolioProducts(product, existing) < 0) {
+        if (!existing || compareProducts(product, existing) < 0) {
           productsByPath.set(normalizedPath, product);
         }
       }
@@ -79,8 +63,25 @@ function visiblePortfolioProductsByPath(documents) {
   return productsByPath;
 }
 
-export function sortPortfolioMedia(media, { visibleProductDocuments = [] } = {}) {
-  const productsByPath = visiblePortfolioProductsByPath(visibleProductDocuments);
+export function sortPortfolioMedia(
+  media,
+  { visibleProductDocuments = [], productIds = [] } = {}
+) {
+  const visibleProducts = (Array.isArray(visibleProductDocuments)
+    ? visibleProductDocuments
+    : []).filter(isVisiblePortfolioProduct);
+  const rankedProducts = applyCatalogOrdering(
+    visibleProducts,
+    productIds,
+    compareLegacyPortfolioProducts
+  );
+  const rankById = new Map(rankedProducts.map((product, index) => [product.id, index]));
+  const compareProducts = (left, right) => {
+    const leftRank = rankById.get(left?.id) ?? Number.POSITIVE_INFINITY;
+    const rightRank = rankById.get(right?.id) ?? Number.POSITIVE_INFINITY;
+    return leftRank - rightRank || compareLegacyPortfolioProducts(left, right);
+  };
+  const productsByPath = visiblePortfolioProductsByPath(visibleProducts, compareProducts);
 
   return (Array.isArray(media) ? media : [])
     .map((item, index) => {
@@ -96,7 +97,7 @@ export function sortPortfolioMedia(media, { visibleProductDocuments = [] } = {})
       if (Boolean(left.product) !== Boolean(right.product)) return left.product ? -1 : 1;
 
       if (left.product && right.product) {
-        const managedOrder = compareManagedPortfolioProducts(left.product, right.product);
+        const managedOrder = compareProducts(left.product, right.product);
         if (managedOrder) return managedOrder;
       } else {
         const unmanagedOrder = (timestampMillis(right.item?.timeCreated) ?? Number.NEGATIVE_INFINITY)
@@ -160,19 +161,22 @@ function findTrustedSourceOption(document, option, sourceProducts) {
   return matches ? sourceOption : null;
 }
 
-export function filterPublicCatalog(documents, channel = "shop") {
+export function filterPublicCatalog(documents, channel = "shop", { productIds = [] } = {}) {
   if (!PUBLIC_CATALOG_CHANNELS.has(channel)) {
     throw new Error(`Unsupported public catalog channel: ${channel}`);
   }
 
-  return (Array.isArray(documents) ? documents : [])
-    .filter(
+  const visibleProducts = (Array.isArray(documents) ? documents : []).filter(
       (document) =>
         document?.active === true &&
         document?.archivedAt == null &&
         document?.channels?.[channel] === true
-    )
-    .sort((left, right) => sortByOrder(left, right) || left.id.localeCompare(right.id));
+    );
+
+  const fallbackComparator = channel === "portfolio"
+    ? compareLegacyPortfolioProducts
+    : compareLegacyShopProducts;
+  return applyCatalogOrdering(visibleProducts, productIds, fallbackComparator);
 }
 
 export function mapFirestoreProductForStorefront(document, { sourceProducts = [] } = {}) {
@@ -283,6 +287,7 @@ export function mapSourceProductForStorefront(product) {
 export async function loadSelectedStorefrontCatalog({
   mode,
   loadFirestoreDocuments,
+  loadCatalogOrdering,
   loadSourceProducts,
   sourceProducts = [],
   channel = "shop",
@@ -295,8 +300,16 @@ export async function loadSelectedStorefrontCatalog({
     throw new Error(`Unsupported storefront catalog mode: ${mode}`);
   }
 
-  const documents = await loadFirestoreDocuments(channel);
-  return filterPublicCatalog(documents, channel).map((document) =>
+  const [documents, ordering] = await Promise.all([
+    loadFirestoreDocuments(channel),
+    typeof loadCatalogOrdering === "function"
+      ? loadCatalogOrdering(channel).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+  const productIds = Array.isArray(ordering)
+    ? sanitizeCatalogOrdering({ productIds: ordering })
+    : sanitizeCatalogOrdering(ordering);
+  return filterPublicCatalog(documents, channel, { productIds }).map((document) =>
     mapFirestoreProductForStorefront(document, { sourceProducts })
   );
 }

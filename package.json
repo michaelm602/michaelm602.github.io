@@ -15,6 +15,7 @@
     "test:firestore-rules": "firebase emulators:exec --only firestore --project demo-shop-product-rules \"node --test tests/firestore-shop-products.rules.mjs\"",
     "catalog:dry-run": "node scripts/migrate-shop-products.mjs",
     "catalog:import": "node scripts/import-shop-products.mjs",
+    "catalog-ordering:backfill": "node scripts/backfill-catalog-ordering.mjs",
     "admin:claim": "node scripts/set-admin-claim.cjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "predeploy": "npm run sitemap && npm run build",
