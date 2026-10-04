@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
@@ -18,11 +18,14 @@ import { resolveStorefrontCatalogMode } from "../src/config/storefrontCatalog.js
 import { buildStripeCheckoutItems } from "../src/utils/stripeCheckout.js";
 import { getCartItemPrice, getCartItemSizeOptions } from "../src/utils/cartProduct.js";
 import OriginalAvailability from "../src/Components/OriginalAvailability.js";
-import { products as currentSourceProducts } from "../src/data/products.js";
+import {
+  getAllProducts,
+  products as currentSourceProducts,
+} from "../src/data/products.js";
 
-const importedProducts = JSON.parse(
-  await readFile(new URL("../artifacts/shop-products-migration.json", import.meta.url), "utf8")
-);
+const require = createRequire(import.meta.url);
+const { mapSourceCatalog } = require("../functions/shopProductMapper");
+const importedProducts = mapSourceCatalog(getAllProducts({ includeDrafts: true }));
 
 const sourceProduct = {
   id: "sample-piece",
