@@ -19,7 +19,7 @@ const logger = require("firebase-functions/logger");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { HttpsError, onCall, onRequest } = require("firebase-functions/v2/https");
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
-const { defineSecret } = require("firebase-functions/params");
+const { defineSecret, defineString } = require("firebase-functions/params");
 
 const cors = require("cors");
 const Stripe = require("stripe");
@@ -29,8 +29,12 @@ const {
 } = require("./stripeCatalog");
 const {
     createFirestoreCheckoutShadowStore,
-    resolveLegacyCheckoutWithShadow,
 } = require("./firestoreCheckoutShadow");
+const {
+    buildCheckoutRedirectUrls,
+    resolveCheckoutAuthority,
+    toCheckoutClientError,
+} = require("./checkoutAuthority");
 
 const {
     buildPublicOrderStatus,
@@ -40,6 +44,7 @@ const {
     buildPaidStripeOrderFields,
     buildStripeCheckoutSessionParams,
     isPaidStripeCheckoutEvent,
+    normalizeOrderItems,
 } = require("./checkoutFulfillment");
 const {
     StripePriceSyncError,
@@ -82,6 +87,9 @@ const corsHandler = cors({
 const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
 const emailjsPublicKey = defineSecret("EMAILJS_PUBLIC_KEY");
+const checkoutResolverMode = defineString("CHECKOUT_RESOLVER_MODE", {
+    default: "firestore",
+});
 
 const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID || "service_6j3le5o";
 const EMAILJS_STRIPE_CUSTOMER_TEMPLATE_ID =
@@ -123,25 +131,6 @@ function money(value, currency = "USD") {
         style: "currency",
         currency,
     }).format(amount);
-}
-
-function normalizeOrderItems(cartItems = []) {
-    if (!Array.isArray(cartItems)) return [];
-
-    return cartItems.map((item) => {
-        const quantity = Number(item.quantity) || 1;
-        const unitPrice = Number(item.unitPrice ?? item.price) || 0;
-
-        return {
-            productId: item.productId || null,
-            title: item.title || "Untitled artwork",
-            size: item.size || "Selected size",
-            quantity,
-            unitPrice,
-            lineTotal: unitPrice * quantity,
-            image: item.image || null,
-        };
-    });
 }
 
 function buildItemsText(items = [], currency = "USD") {
@@ -412,6 +401,8 @@ exports.createStripeCheckoutSession = onRequest(
     { secrets: [stripeSecretKey] },
     async (req, res) => {
         corsHandler(req, res, async () => {
+            let activeResolverMode = null;
+            let requestedItems = [];
             try {
                 if (req.method === "OPTIONS") {
                     return res.status(204).send("");
@@ -445,20 +436,21 @@ exports.createStripeCheckoutSession = onRequest(
                 const body = req.body || {};
                 // Accept legacy cartItems during rollout, but never trust its
                 // title, price, total, image, or Stripe Price values.
-                const requestedItems = body.items || body.cartItems || [];
-                const successUrl = body.successUrl;
-                const cancelUrl = body.cancelUrl;
-
-                if (!successUrl || !cancelUrl) {
-                    return res.status(400).json({ error: "Missing successUrl/cancelUrl." });
-                }
+                requestedItems = body.items || body.cartItems || [];
+                activeResolverMode = checkoutResolverMode.value();
+                const { successUrl, cancelUrl } = buildCheckoutRedirectUrls({
+                    requestOrigin: req.get("origin"),
+                });
 
                 const {
+                    resolverMode,
                     lineItems,
                     cartItems,
                     orderTotal,
+                    orderTotalCents,
                     currency,
-                } = await resolveLegacyCheckoutWithShadow({
+                } = await resolveCheckoutAuthority({
+                    resolverMode: activeResolverMode,
                     items: requestedItems,
                     stripe,
                     expectedLivemode,
@@ -475,7 +467,9 @@ exports.createStripeCheckoutSession = onRequest(
                     paymentProvider: "stripe",
                     paymentStatus: "pending",
                     orderTotal,
+                    orderTotalCents,
                     currency,
+                    resolverMode,
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
@@ -492,26 +486,26 @@ exports.createStripeCheckoutSession = onRequest(
 
                 return res.status(200).json({ id: session.id, url: session.url, orderId });
             } catch (err) {
-                const statusCode = err?.statusCode === 400 ? 400 : 500;
+                const clientError = toCheckoutClientError(err);
+                const loggedItems = Array.isArray(requestedItems) ? requestedItems : [];
                 const logContext = {
-                    message: err?.message,
-                    type: err?.type,
-                    code: err?.code,
-                    statusCode,
-                    details: err?.details || null,
+                    resolverMode: activeResolverMode || "unknown",
+                    reasonCode: err?.code || "CHECKOUT_ERROR",
+                    productIds: [...new Set(loggedItems
+                        .map((item) => item?.productId)
+                        .filter((value) => typeof value === "string"))],
+                    itemCount: loggedItems.length,
+                    statusCode: clientError.statusCode,
                 };
 
-                if (statusCode === 400) {
+                if (clientError.statusCode === 400) {
                     logger.warn("Stripe checkout request rejected", logContext);
                 } else {
                     logger.error("Stripe session error", logContext);
                 }
 
-                return res.status(statusCode).json({
-                    error:
-                        statusCode === 400
-                            ? err.message
-                            : "Checkout is temporarily unavailable. Please try again.",
+                return res.status(clientError.statusCode).json({
+                    error: clientError.message,
                 });
             }
         });

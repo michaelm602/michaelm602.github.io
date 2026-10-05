@@ -267,12 +267,19 @@ test("Firestore mode loads one complete source without per-product fallback", as
     assert.deepEqual(catalog.serenity, STRIPE_CATALOG.serenity);
 });
 
-test("checkout remains wired to the existing trusted static server catalog", () => {
+test("checkout uses Firestore authority by default with explicit whole-cart legacy rollback", () => {
     const indexSource = readFileSync(path.join(__dirname, "index.js"), "utf8");
     assert.match(indexSource, /require\("\.\/stripeCatalog"\)/);
     assert.doesNotMatch(indexSource, /require\("\.\/shopProductRepository"\)/);
-    assert.match(indexSource, /require\("\.\/firestoreCheckoutShadow"\)/);
-    assert.match(indexSource, /await resolveLegacyCheckoutWithShadow\(/);
+    assert.match(indexSource, /require\("\.\/checkoutAuthority"\)/);
+    assert.match(indexSource, /defineString\("CHECKOUT_RESOLVER_MODE",\s*\{\s*default:\s*"firestore"/);
+    assert.match(indexSource, /await resolveCheckoutAuthority\(/);
+    assert.match(indexSource, /activeResolverMode\s*=\s*checkoutResolverMode\.value\(\)/);
+    assert.match(indexSource, /resolverMode:\s*activeResolverMode/);
     assert.match(indexSource, /buildLegacyCheckout:\s*buildTrustedCheckout/);
     assert.match(indexSource, /createFirestoreCheckoutShadowStore\(\{\s*firestore:\s*admin\.firestore\(\)/);
+    assert.match(indexSource, /buildCheckoutRedirectUrls\(\{\s*requestOrigin:/);
+    assert.doesNotMatch(indexSource, /body\.successUrl/);
+    assert.doesNotMatch(indexSource, /body\.cancelUrl/);
+    assert.match(indexSource, /orderTotalCents,\s*currency,\s*resolverMode,/);
 });

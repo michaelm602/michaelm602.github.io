@@ -1,4 +1,5 @@
 "use strict";
+/* global require */
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -144,4 +145,44 @@ test("paid fulfillment accepts immediate and asynchronous Checkout success event
         }),
         false
     );
+});
+
+test("webhook email normalization reads new verified snapshots and historical orders", () => {
+    assert.deepEqual(checkoutFulfillment.normalizeOrderItems?.([{
+        productId: "the-jaguars-bloodline",
+        title: "The Jaguar’s Bloodline",
+        optionId: "16x20",
+        label: "16x20",
+        stripePriceId: "price_1UN3vuJEVsglohuhrE9SbhCZ",
+        stripeProductId: "prod_VNpbmg8RMbqhZ2",
+        amountCents: 10000,
+        currency: "usd",
+        quantity: 2,
+        firestoreVersion: "2026-10-05T17:37:28.000Z",
+    }]), [{
+        productId: "the-jaguars-bloodline",
+        title: "The Jaguar’s Bloodline",
+        size: "16x20",
+        quantity: 2,
+        unitPrice: 100,
+        lineTotal: 200,
+        image: null,
+    }]);
+
+    assert.deepEqual(checkoutFulfillment.normalizeOrderItems?.([{
+        productId: "echoes-of-the-5th-sun",
+        title: "Echoes of the 5th Sun",
+        size: "18x24",
+        quantity: 1,
+        unitPrice: 200,
+        image: "https://example.com/legacy.jpg",
+    }]), [{
+        productId: "echoes-of-the-5th-sun",
+        title: "Echoes of the 5th Sun",
+        size: "18x24",
+        quantity: 1,
+        unitPrice: 200,
+        lineTotal: 200,
+        image: "https://example.com/legacy.jpg",
+    }]);
 });

@@ -1,4 +1,5 @@
 "use strict";
+/* global module */
 
 const SUPPORTED_SHIPPING_COUNTRIES = Object.freeze(["US"]);
 const PAID_CHECKOUT_EVENTS = new Set([
@@ -78,6 +79,30 @@ function buildPaidStripeOrderFields(session) {
     };
 }
 
+function normalizeOrderItems(cartItems = []) {
+    if (!Array.isArray(cartItems)) return [];
+
+    return cartItems.map((item) => {
+        const quantity = Number(item.quantity) || 1;
+        const verifiedAmountCents = Number.isSafeInteger(item.amountCents)
+            ? item.amountCents
+            : null;
+        const unitPrice = verifiedAmountCents !== null
+            ? verifiedAmountCents / 100
+            : Number(item.unitPrice ?? item.price) || 0;
+
+        return {
+            productId: item.productId || null,
+            title: item.title || "Untitled artwork",
+            size: item.label || item.size || item.optionId || "Selected size",
+            quantity,
+            unitPrice,
+            lineTotal: unitPrice * quantity,
+            image: item.image || null,
+        };
+    });
+}
+
 function isPaidStripeCheckoutEvent({ type, session }) {
     return PAID_CHECKOUT_EVENTS.has(type) && session?.payment_status === "paid";
 }
@@ -88,4 +113,5 @@ module.exports = {
     buildStripeCheckoutSessionParams,
     extractStripeShippingInfo,
     isPaidStripeCheckoutEvent,
+    normalizeOrderItems,
 };
