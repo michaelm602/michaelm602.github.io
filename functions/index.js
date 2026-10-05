@@ -41,8 +41,11 @@ const {
     isValidOrderId,
 } = require("./orderStatus");
 const {
-    buildPaidStripeOrderFields,
+    StripeFulfillmentValidationError,
+    applyPaidStripeOrderTransition,
     buildStripeCheckoutSessionParams,
+    buildStripeFinancialVerificationLog,
+    constructStripeWebhookEvent,
     isPaidStripeCheckoutEvent,
     normalizeOrderItems,
 } = require("./checkoutFulfillment");
@@ -583,7 +586,12 @@ exports.handleStripeWebhook = onRequest(
             }
 
             const stripe = getStripe(stripeSecret);
-            const event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
+            const event = constructStripeWebhookEvent({
+                stripe,
+                rawBody: req.rawBody,
+                signature,
+                webhookSecret,
+            });
 
             if (
                 event.type === "checkout.session.completed" ||
@@ -608,14 +616,29 @@ exports.handleStripeWebhook = onRequest(
                 if (orderId) {
                     const orderRef = admin.firestore().collection("orders").doc(orderId);
 
-                    await orderRef.set(
-                        {
-                            ...buildPaidStripeOrderFields(session),
-                            paidAt: admin.firestore.FieldValue.serverTimestamp(),
-                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                        },
-                        { merge: true }
-                    );
+                    try {
+                        await applyPaidStripeOrderTransition({
+                            runTransaction: (handler) => admin.firestore().runTransaction(handler),
+                            orderRef,
+                            session,
+                            serverTimestamp: () => (
+                                admin.firestore.FieldValue.serverTimestamp()
+                            ),
+                        });
+                    } catch (error) {
+                        if (error instanceof StripeFulfillmentValidationError) {
+                            logger.error(
+                                "Stripe webhook financial verification failed",
+                                buildStripeFinancialVerificationLog({
+                                    error,
+                                    eventId: event.id,
+                                    orderId,
+                                    session,
+                                })
+                            );
+                        }
+                        throw error;
+                    }
 
                     await sendStripeOrderEmails({
                         orderRef,
