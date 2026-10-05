@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 
 const TIMESTAMP_FIELDS = new Set(["createdAt", "updatedAt"]);
+const PROTECTED_EXISTING_FIELDS = new Set(["prints"]);
 
 export function parseImportArguments(args) {
   let projectId = null;
@@ -33,6 +34,12 @@ function comparableDocument(document) {
   );
 }
 
+function existingDocumentUpdate(document) {
+  return Object.fromEntries(
+    Object.entries(document).filter(([key]) => !PROTECTED_EXISTING_FIELDS.has(key))
+  );
+}
+
 function collectChangedPaths(desired, existing, prefix = "") {
   if (isDeepStrictEqual(desired, existing)) return [];
   const desiredIsObject = desired && typeof desired === "object" && !Array.isArray(desired);
@@ -48,6 +55,7 @@ export function planShopProductChanges(desiredDocuments, existingById) {
   const create = [];
   const update = [];
   const unchanged = [];
+  const protectedChanges = [];
   const desiredIds = new Set();
 
   for (const desired of desiredDocuments) {
@@ -57,14 +65,18 @@ export function planShopProductChanges(desiredDocuments, existingById) {
       create.push({ id: desired.id, document: desired });
       continue;
     }
+    if (!isDeepStrictEqual(desired.prints, existing.prints)) {
+      protectedChanges.push({ id: desired.id, changedPaths: ["prints"] });
+    }
+    const updateDocument = existingDocumentUpdate(desired);
     const changedPaths = collectChangedPaths(
-      comparableDocument(desired),
-      comparableDocument(existing)
+      comparableDocument(updateDocument),
+      comparableDocument(existingDocumentUpdate(existing))
     ).filter(Boolean);
     if (existing.createdAt === undefined || existing.createdAt === null) {
       changedPaths.push("createdAt");
     }
-    if (changedPaths.length) update.push({ id: desired.id, document: desired, changedPaths });
+    if (changedPaths.length) update.push({ id: desired.id, document: updateDocument, changedPaths });
     else unchanged.push(desired.id);
   }
 
@@ -80,5 +92,6 @@ export function planShopProductChanges(desiredDocuments, existingById) {
     update,
     unchanged,
     untouched,
+    protected: protectedChanges,
   };
 }

@@ -42,3 +42,75 @@ test("import planning reports creates, updates, unchanged docs, and changed path
   assert.deepEqual(plan.unchanged, ["same"]);
   assert.deepEqual(plan.untouched, ["untouched"]);
 });
+
+test("import planning never overwrites Admin-managed prints on existing products", () => {
+  const adminPrints = {
+    available: true,
+    defaultOptionId: "16x20",
+    options: [{
+      id: "16x20",
+      label: "16x20",
+      amountCents: 12500,
+      currency: "usd",
+      stripePriceId: "price_admin_managed",
+      active: true,
+      sortOrder: 0,
+    }],
+  };
+  const sourcePrints = {
+    available: true,
+    defaultOptionId: "16x20",
+    options: [{
+      id: "16x20",
+      label: "16x20",
+      amountCents: 10000,
+      currency: "usd",
+      stripePriceId: "price_stale_source",
+      active: true,
+      sortOrder: 0,
+    }],
+  };
+  const desired = [{
+    id: "art",
+    title: "Updated title",
+    prints: sourcePrints,
+    createdAt: null,
+    updatedAt: null,
+  }];
+  const existing = new Map([["art", {
+    id: "art",
+    title: "Old title",
+    prints: adminPrints,
+    createdAt: "old",
+    updatedAt: "old",
+  }]]);
+
+  const plan = planShopProductChanges(desired, existing);
+
+  assert.deepEqual(plan.update[0].changedPaths, ["title"]);
+  assert.equal(Object.hasOwn(plan.update[0].document, "prints"), false);
+  assert.deepEqual(plan.protected, [{ id: "art", changedPaths: ["prints"] }]);
+});
+
+test("source-only print drift is reported but produces no existing-document write", () => {
+  const desired = [{
+    id: "art",
+    title: "Art",
+    prints: { available: true, options: [{ amountCents: 10000 }] },
+    createdAt: null,
+    updatedAt: null,
+  }];
+  const existing = new Map([["art", {
+    id: "art",
+    title: "Art",
+    prints: { available: true, options: [{ amountCents: 12500 }] },
+    createdAt: "old",
+    updatedAt: "old",
+  }]]);
+
+  const plan = planShopProductChanges(desired, existing);
+
+  assert.deepEqual(plan.update, []);
+  assert.deepEqual(plan.unchanged, ["art"]);
+  assert.deepEqual(plan.protected, [{ id: "art", changedPaths: ["prints"] }]);
+});

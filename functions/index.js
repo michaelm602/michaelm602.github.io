@@ -27,6 +27,10 @@ const {
     buildTrustedCheckout,
     getStripeModeFromSecret,
 } = require("./stripeCatalog");
+const {
+    createFirestoreCheckoutShadowStore,
+    resolveLegacyCheckoutWithShadow,
+} = require("./firestoreCheckoutShadow");
 
 const {
     buildPublicOrderStatus,
@@ -92,6 +96,12 @@ function getAdminStripeSyncStore() {
     return createFirestoreStripeSyncStore({
         firestore: admin.firestore(),
         serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    });
+}
+
+function getCheckoutShadowStore() {
+    return createFirestoreCheckoutShadowStore({
+        firestore: admin.firestore(),
     });
 }
 
@@ -448,10 +458,13 @@ exports.createStripeCheckoutSession = onRequest(
                     cartItems,
                     orderTotal,
                     currency,
-                } = await buildTrustedCheckout({
+                } = await resolveLegacyCheckoutWithShadow({
                     items: requestedItems,
                     stripe,
                     expectedLivemode,
+                    store: getCheckoutShadowStore(),
+                    buildLegacyCheckout: buildTrustedCheckout,
+                    logger,
                 });
 
                 // Create pending order in Firestore (admin SDK bypasses security rules)

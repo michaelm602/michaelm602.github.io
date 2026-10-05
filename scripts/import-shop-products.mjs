@@ -31,6 +31,11 @@ function printChangePlan(plan) {
   }
   console.log(`Unchanged (${plan.summary.unchanged}): ${plan.unchanged.join(", ") || "none"}`);
   console.log(`Existing documents left untouched (${plan.summary.untouched}): ${plan.untouched.join(", ") || "none"}`);
+  console.log("Protected existing Admin fields:");
+  if (!plan.protected.length) console.log("  none");
+  for (const change of plan.protected) {
+    console.log(`  ${change.id}: ${change.changedPaths.join(", ")}`);
+  }
 }
 
 async function writeBackup({ projectId, existingById }) {

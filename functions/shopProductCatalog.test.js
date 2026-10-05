@@ -271,5 +271,8 @@ test("checkout remains wired to the existing trusted static server catalog", () 
     const indexSource = readFileSync(path.join(__dirname, "index.js"), "utf8");
     assert.match(indexSource, /require\("\.\/stripeCatalog"\)/);
     assert.doesNotMatch(indexSource, /require\("\.\/shopProductRepository"\)/);
-    assert.match(indexSource, /await buildTrustedCheckout\(/);
+    assert.match(indexSource, /require\("\.\/firestoreCheckoutShadow"\)/);
+    assert.match(indexSource, /await resolveLegacyCheckoutWithShadow\(/);
+    assert.match(indexSource, /buildLegacyCheckout:\s*buildTrustedCheckout/);
+    assert.match(indexSource, /createFirestoreCheckoutShadowStore\(\{\s*firestore:\s*admin\.firestore\(\)/);
 });
