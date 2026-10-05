@@ -469,6 +469,41 @@ export const products = [
     relatedProductIds: ["blind-faith", "adoration-in-the-lights-darkness", "serenity"],
     status: "active",
   },
+  {
+    id: "the-jaguars-bloodline",
+    slug: "the-jaguars-bloodline",
+    title: "The Jaguar’s Bloodline",
+    description: "",
+    shortDescription: "",
+    category: "Airbrush",
+    original: {
+      status: "available",
+      size: "24x36",
+      medium: "Airbrush on canvas",
+      price: { amountCents: 50000, currency: "usd" },
+      checkoutEnabled: false,
+      quantity: 1,
+    },
+    printsAvailable: false,
+    channels: { shop: false, portfolio: true },
+    tags: [],
+    featured: true,
+    images: buildImagePaths(
+      "airbrush/The Jaguars Bloodline 9.2026.webp",
+      "",
+      "airbrush/The Jaguars Bloodline 9.2026__thumb.webp"
+    ),
+    sizes: buildSizes({
+      "16x20": "price_1UN3vuJEVsglohuhrE9SbhCZ",
+      "18x24": "price_1UN3vvJEVsglohuhhyCLPnlF",
+      "24x36": "price_1UN3vvJEVsglohuhaWtA0Sra",
+      "30x40": "price_1UN3vvJEVsglohuhVCdr55Rj",
+    }),
+    defaultSize: null,
+    seo: { title: "", description: "" },
+    relatedProductIds: [],
+    status: "active",
+  },
 ];
 
 export function getAllProducts({ includeDrafts = false } = {}) {

@@ -246,6 +246,77 @@ test("Echoes remains unavailable when a Firestore Price ID differs from the sour
   );
 });
 
+test("The Jaguar’s Bloodline compatibility mirror preserves its media, contact-only original, and private print state", () => {
+  const sourceJaguar = currentSourceProducts.find(
+    (product) => product.id === "the-jaguars-bloodline"
+  );
+
+  assert.ok(sourceJaguar);
+  assert.deepEqual(sourceJaguar.channels, { shop: false, portfolio: true });
+  assert.equal(sourceJaguar.printsAvailable, false);
+  assert.deepEqual(sourceJaguar.images, [
+    {
+      thumb: "airbrush/The Jaguars Bloodline 9.2026__thumb.webp",
+      full: "airbrush/The Jaguars Bloodline 9.2026.webp",
+      alt: "",
+    },
+  ]);
+  assert.deepEqual(sourceJaguar.original, {
+    status: "available",
+    size: "24x36",
+    medium: "Airbrush on canvas",
+    price: { amountCents: 50000, currency: "usd" },
+    checkoutEnabled: false,
+    quantity: 1,
+  });
+  assert.deepEqual(
+    sourceJaguar.sizes.map(({ label, price, stripePriceId }) => ({
+      label,
+      price,
+      stripePriceId,
+    })),
+    [
+      { label: "16x20", price: 100, stripePriceId: "price_1UN3vuJEVsglohuhrE9SbhCZ" },
+      { label: "18x24", price: 200, stripePriceId: "price_1UN3vvJEVsglohuhhyCLPnlF" },
+      { label: "24x36", price: 300, stripePriceId: "price_1UN3vvJEVsglohuhaWtA0Sra" },
+      { label: "30x40", price: 400, stripePriceId: "price_1UN3vvJEVsglohuhVCdr55Rj" },
+    ]
+  );
+
+  const mappedSource = mapSourceProductForStorefront(sourceJaguar);
+  assert.equal(mappedSource.printsAvailable, false);
+  assert.deepEqual(mappedSource.original, {
+    status: "available",
+    size: "24x36",
+    medium: "Airbrush on canvas",
+    price: { amountCents: 50000, currency: "usd" },
+    checkoutEnabled: false,
+    quantity: 1,
+  });
+
+  const importedJaguar = importedProducts.find(
+    (product) => product.id === "the-jaguars-bloodline"
+  );
+  assert.ok(importedJaguar);
+  const inactiveFirestoreDocument = {
+    ...importedJaguar,
+    channels: { shop: false, portfolio: true },
+    prints: {
+      available: false,
+      defaultOptionId: null,
+      options: importedJaguar.prints.options.map((option) => ({ ...option, active: false })),
+    },
+  };
+  const mappedFirestore = mapFirestoreProductForStorefront(inactiveFirestoreDocument, {
+    sourceProducts: currentSourceProducts,
+  });
+
+  assert.deepEqual(filterPublicCatalog([inactiveFirestoreDocument], "shop"), []);
+  assert.equal(mappedFirestore.printsAvailable, false);
+  assert.deepEqual(getCheckoutableProductSizeOptions(mappedFirestore), []);
+  assert.equal(mappedFirestore.original.checkoutEnabled, false);
+});
+
 test("source rollback products also omit Stripe Price IDs from the storefront model", () => {
   const mapped = mapSourceProductForStorefront(sourceProduct);
   assert.equal(mapped.catalogSource, "source");

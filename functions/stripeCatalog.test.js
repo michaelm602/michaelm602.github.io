@@ -1,6 +1,7 @@
 "use strict";
 
 const test = require("node:test");
+/* global require */
 const assert = require("node:assert/strict");
 
 const {
@@ -21,7 +22,7 @@ function stripeWithPrices(overrides = {}) {
                 active: true,
                 type: "one_time",
                 currency: "usd",
-                unit_amount: 12500,
+                unit_amount: 10000,
                 livemode: false,
                 ...overrides,
             }),
@@ -75,11 +76,11 @@ test("trusted checkout ignores browser prices, totals, titles, and Stripe IDs", 
             title: "Serenity",
             size,
             quantity: 2,
-            unitPrice: 125,
+            unitPrice: 100,
             image: null,
         },
     ]);
-    assert.equal(result.orderTotal, 250);
+    assert.equal(result.orderTotal, 200);
     assert.equal(result.currency, "USD");
 });
 
@@ -127,6 +128,93 @@ test("Echoes of the 5th Sun resolves only its trusted synced print Prices", asyn
     );
     assert.equal(result.orderTotal, 1000);
     assert.equal(result.currency, "USD");
+});
+
+test("The Jaguar's Bloodline resolves all four exact trusted synced print Prices", async () => {
+    const productId = "the-jaguars-bloodline";
+    const trustedPrices = {
+        "16x20": { id: "price_1UN3vuJEVsglohuhrE9SbhCZ", unitAmount: 10000 },
+        "18x24": { id: "price_1UN3vvJEVsglohuhhyCLPnlF", unitAmount: 20000 },
+        "24x36": { id: "price_1UN3vvJEVsglohuhaWtA0Sra", unitAmount: 30000 },
+        "30x40": { id: "price_1UN3vvJEVsglohuhVCdr55Rj", unitAmount: 40000 },
+    };
+
+    assert.deepEqual(STRIPE_CATALOG[productId], {
+        title: "The Jaguar’s Bloodline",
+        sizes: {
+            "16x20": "price_1UN3vuJEVsglohuhrE9SbhCZ",
+            "18x24": "price_1UN3vvJEVsglohuhhyCLPnlF",
+            "24x36": "price_1UN3vvJEVsglohuhaWtA0Sra",
+            "30x40": "price_1UN3vvJEVsglohuhVCdr55Rj",
+        },
+    });
+
+    const result = await buildTrustedCheckout({
+        items: [
+            { productId, size: "16x20", quantity: 1 },
+            { productId, size: "18x24", quantity: 1 },
+            { productId, size: "24x36", quantity: 1 },
+            { productId, size: "30x40", quantity: 1 },
+        ],
+        stripe: {
+            prices: {
+                retrieve: async (priceId) => {
+                    const trustedPrice = Object.values(trustedPrices).find(
+                        (price) => price.id === priceId
+                    );
+                    if (!trustedPrice) throw new Error(`Unexpected Price: ${priceId}`);
+                    return {
+                        id: trustedPrice.id,
+                        active: true,
+                        type: "one_time",
+                        currency: "usd",
+                        unit_amount: trustedPrice.unitAmount,
+                        livemode: true,
+                    };
+                },
+            },
+        },
+        expectedLivemode: true,
+    });
+
+    assert.deepEqual(result.lineItems, [
+        { price: "price_1UN3vuJEVsglohuhrE9SbhCZ", quantity: 1 },
+        { price: "price_1UN3vvJEVsglohuhhyCLPnlF", quantity: 1 },
+        { price: "price_1UN3vvJEVsglohuhaWtA0Sra", quantity: 1 },
+        { price: "price_1UN3vvJEVsglohuhVCdr55Rj", quantity: 1 },
+    ]);
+    assert.equal(result.orderTotal, 1000);
+    assert.equal(result.currency, "USD");
+});
+
+test("The Jaguar's Bloodline fails closed for unsupported sizes and mismatched Stripe Price data", async () => {
+    const productId = "the-jaguars-bloodline";
+    const items = [{ productId, size: "16x20", quantity: 1 }];
+
+    assert.throws(
+        () => validateAndAggregateItems([{ productId, size: "20x30", quantity: 1 }]),
+        CheckoutInputError
+    );
+
+    for (const override of [
+        { id: "price_wrong" },
+        { unit_amount: 9999 },
+        { currency: "cad" },
+    ]) {
+        await assert.rejects(
+            () =>
+                buildTrustedCheckout({
+                    items,
+                    stripe: stripeWithPrices({
+                        id: "price_1UN3vuJEVsglohuhrE9SbhCZ",
+                        unit_amount: 10000,
+                        ...override,
+                    }),
+                    expectedLivemode: false,
+                }),
+            CheckoutConfigurationError
+        );
+    }
 });
 
 test("unknown products and sizes are rejected before Stripe lookup", () => {

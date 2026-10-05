@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 
 import { deleteApp as deleteAdminApp, initializeApp as initializeAdminApp } from "firebase-admin/app";
 import { FieldValue, getFirestore as getAdminFirestore } from "firebase-admin/firestore";
@@ -26,6 +26,10 @@ import {
   normalizeAdminProductForSave,
   validateAdminProduct,
 } from "../src/utils/adminProduct.js";
+import { getAllProducts } from "../src/data/products.js";
+
+const require = createRequire(import.meta.url);
+const { mapSourceCatalog } = require("../functions/shopProductMapper");
 
 const projectId = "demo-shop-product-rules";
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
@@ -35,9 +39,7 @@ const [emulatorHost, emulatorPortText] = (
   process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080"
 ).split(":");
 const emulatorPort = Number(emulatorPortText);
-const importedProducts = JSON.parse(
-  await readFile(new URL("../artifacts/shop-products-migration.json", import.meta.url), "utf8")
-);
+const importedProducts = mapSourceCatalog(getAllProducts({ includeDrafts: true }));
 
 let adminApp;
 let adminDb;
@@ -157,8 +159,8 @@ after(async () => {
   await deleteAdminApp(adminApp);
 });
 
-test("an admin can save all 16 imported products unchanged", async () => {
-  assert.equal(importedProducts.length, 16);
+test("an admin can save all 17 imported products unchanged", async () => {
+  assert.equal(importedProducts.length, 17);
   const adminDbClient = createClient("admin-save", {
     sub: "admin-user",
     user_id: "admin-user",
@@ -233,6 +235,10 @@ test("a public client reads Shop and Portfolio channels with their required quer
   );
   const shopCatalog = await getDocs(publicShopQuery);
   assert.equal(shopCatalog.size, 16);
+  assert.equal(
+    shopCatalog.docs.some((snapshot) => snapshot.id === "the-jaguars-bloodline"),
+    false
+  );
   assert.equal(shopCatalog.docs.some((snapshot) => snapshot.id === "portfolio-only"), false);
 
   const portfolioOnlyRef = doc(publicDb, "shopProducts", "portfolio-only");

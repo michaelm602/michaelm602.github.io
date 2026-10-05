@@ -1,8 +1,15 @@
 "use strict";
+/* global module */
 
 const MAX_CART_LINES = 20;
 const MAX_ITEM_QUANTITY = 10;
 const CHECKOUT_CURRENCY = "usd";
+const CHECKOUT_UNIT_AMOUNTS = Object.freeze({
+    "16x20": 10000,
+    "18x24": 20000,
+    "24x36": 30000,
+    "30x40": 40000,
+});
 
 // This catalog is deployed with the function and is the server-side allowlist.
 // Browser-provided titles, prices, totals, and Stripe Price IDs are never used.
@@ -151,6 +158,15 @@ const STRIPE_CATALOG = Object.freeze({
             "30x40": "price_1Rr5DGJEVsglohuhBc2HGVEk",
         },
     },
+    "the-jaguars-bloodline": {
+        title: "The Jaguar’s Bloodline",
+        sizes: {
+            "16x20": "price_1UN3vuJEVsglohuhrE9SbhCZ",
+            "18x24": "price_1UN3vvJEVsglohuhhyCLPnlF",
+            "24x36": "price_1UN3vvJEVsglohuhaWtA0Sra",
+            "30x40": "price_1UN3vvJEVsglohuhVCdr55Rj",
+        },
+    },
 });
 
 class CheckoutInputError extends Error {
@@ -204,7 +220,8 @@ function validateAndAggregateItems(items) {
 
         const product = STRIPE_CATALOG[productId];
         const priceId = product?.sizes?.[size];
-        if (!product || !priceId) {
+        const expectedUnitAmount = CHECKOUT_UNIT_AMOUNTS[size];
+        if (!product || !priceId || !Number.isSafeInteger(expectedUnitAmount)) {
             throw new CheckoutInputError(
                 "An item in your cart is no longer available in the selected size."
             );
@@ -223,6 +240,7 @@ function validateAndAggregateItems(items) {
             title: product.title,
             size,
             priceId,
+            expectedUnitAmount,
             quantity: nextQuantity,
         });
     }
@@ -288,7 +306,7 @@ async function buildTrustedCheckout({ items, stripe, expectedLivemode }) {
                 price.type === "one_time" &&
                 price.currency === CHECKOUT_CURRENCY &&
                 Number.isSafeInteger(price.unit_amount) &&
-                price.unit_amount > 0;
+                price.unit_amount === item.expectedUnitAmount;
 
             if (!isValidPrice) {
                 throw new CheckoutConfigurationError(
