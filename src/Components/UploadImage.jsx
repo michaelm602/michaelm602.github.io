@@ -8,6 +8,12 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 import useAdminAuth from "../hooks/useAdminAuth";
+import {
+  getStorageFileExtension,
+  groupStorageImageRefs,
+  isStorageImage,
+  stripStorageFileExtension,
+} from "../utils/storageMedia";
 
 /**
  * AdminPanel (deduped)
@@ -23,22 +29,8 @@ import useAdminAuth from "../hooks/useAdminAuth";
  *   foo__thumb.webp
  */
 
-function stripExt(name = "") {
-  return name.replace(/\.[^.]+$/, "");
-}
-
-function getExt(name = "") {
-  const m = name.match(/\.([^.]+)$/);
-  return m ? m[1].toLowerCase() : "";
-}
-
-function isImage(name = "") {
-  const ext = getExt(name);
-  return ["jpg", "jpeg", "png", "webp"].includes(ext);
-}
-
 function isVideo(name = "") {
-  const ext = getExt(name);
+  const ext = getStorageFileExtension(name);
   return ["mp4", "webm", "mov", "m4v"].includes(ext);
 }
 
@@ -87,7 +79,7 @@ export default function AdminPanel() {
       const wantVideos = selectedFolder === "portfolio-videos";
 
       const relevant = res.items.filter((i) =>
-        wantVideos ? isVideo(i.name) : isImage(i.name)
+        wantVideos ? isVideo(i.name) : isStorageImage(i.name)
       );
 
       if (wantVideos) {
@@ -98,7 +90,7 @@ export default function AdminPanel() {
             return {
               kind: "video",
               key: itemRef.name,
-              title: stripExt(itemRef.name),
+              title: stripStorageFileExtension(itemRef.name),
               gridSrc: url,
               fullSrc: url,
               refsToDelete: [itemRef],
@@ -110,59 +102,23 @@ export default function AdminPanel() {
         return;
       }
 
-      // ---- IMAGE DEDUPE ----
-      // Map: realBase -> { webpRef, jpgRef, jpegRef, pngRef, thumbRef, allRefs[] }
-      const byBase = new Map();
-
-      for (const item of relevant) {
-        const base = stripExt(item.name);
-        const ext = getExt(item.name);
-
-        // detect thumbs like foo__thumb.webp
-        if (base.endsWith("__thumb")) {
-          const realBase = base.replace(/__thumb$/, "");
-          if (!byBase.has(realBase)) byBase.set(realBase, { allRefs: [] });
-          const entry = byBase.get(realBase);
-          entry.thumbRef = item;
-          entry.allRefs.push(item);
-          continue;
-        }
-
-        if (!byBase.has(base)) byBase.set(base, { allRefs: [] });
-        const entry = byBase.get(base);
-
-        if (ext === "webp") entry.webpRef = item;
-        if (ext === "jpg") entry.jpgRef = item;
-        if (ext === "jpeg") entry.jpegRef = item;
-        if (ext === "png") entry.pngRef = item;
-
-        entry.allRefs.push(item);
-      }
-
-      // sort bases for stable display
-      const bases = Array.from(byBase.keys()).sort((a, b) => a.localeCompare(b));
+      const groupedMedia = groupStorageImageRefs(relevant);
 
       const formatted = await Promise.all(
-        bases.map(async (base) => {
-          const entry = byBase.get(base) || {};
-
-          // prefer full webp, then jpg/jpeg, then png
-          const fullRef =
-            entry.webpRef || entry.jpgRef || entry.jpegRef || entry.pngRef;
-
-          const fullSrc = fullRef ? await safeGetURL(fullRef) : null;
-
-          // prefer thumb for grid
-          const thumbSrc = entry.thumbRef ? await safeGetURL(entry.thumbRef) : null;
+        groupedMedia.map(async (media) => {
+          const fullSrc = await safeGetURL(media.fullRef);
+          const thumbSrc = media.thumbnailRef
+            ? await safeGetURL(media.thumbnailRef)
+            : null;
           const gridSrc = thumbSrc || fullSrc;
 
           return {
             kind: "image",
-            key: base,
-            title: base,
+            key: media.key,
+            title: media.title,
             gridSrc,
             fullSrc,
-            refsToDelete: entry.allRefs || (fullRef ? [fullRef] : []),
+            refsToDelete: media.variantRefs,
           };
         })
       );
@@ -191,7 +147,7 @@ export default function AdminPanel() {
     }
 
     const expectsVideo = selectedFolder === "portfolio-videos";
-    const validType = expectsVideo ? isVideo(file.name) : isImage(file.name);
+    const validType = expectsVideo ? isVideo(file.name) : isStorageImage(file.name);
     if (!validType) {
       setOperationError(
         expectsVideo

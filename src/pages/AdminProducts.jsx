@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import ProductStoragePreview from "../Components/ProductStoragePreview";
+import ArtworkMediaPicker from "../Components/ArtworkMediaPicker";
 import CatalogOrderingPanel from "../Components/CatalogOrderingPanel";
 import useAdminAuth from "../hooks/useAdminAuth";
 import {
@@ -25,6 +26,7 @@ import {
   hasMissingStandardPrintOptions,
   validateAdminProduct,
 } from "../utils/adminProduct";
+import { addArtworkMediaToProductDraft } from "../utils/adminProductMedia";
 import { formatAdminStripeSyncError } from "../utils/adminStripePriceSync";
 
 const inputClass =
@@ -146,6 +148,7 @@ export default function AdminProducts() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [originalFilter, setOriginalFilter] = useState("all");
+  const [artworkPickerOpen, setArtworkPickerOpen] = useState(false);
   const [stripeSync, setStripeSync] = useState(null);
   const [stripeSyncing, setStripeSyncing] = useState(false);
   const [stripeSyncError, setStripeSyncError] = useState("");
@@ -207,6 +210,10 @@ export default function AdminProducts() {
     () => (draft ? validateAdminProduct(draft) : { errors: [], warnings: [] }),
     [draft]
   );
+
+  const closeArtworkPicker = useCallback(() => {
+    setArtworkPickerOpen(false);
+  }, []);
 
   const mutateDraft = (updater) => {
     setDraft((current) => {
@@ -401,6 +408,10 @@ export default function AdminProducts() {
       };
     });
 
+  const selectArtworkMedia = (media) => {
+    mutateDraft((current) => addArtworkMediaToProductDraft(current, media));
+  };
+
   const updatePrintOption = (index, field, value) =>
     mutateDraft((current) => {
       const oldId = current.prints.options[index]?.id;
@@ -590,7 +601,12 @@ export default function AdminProducts() {
                         </div>
                       </div>
                     ))}
-                    <button type="button" disabled={draft.images.length >= 8} onClick={() => mutateDraft({ ...draft, images: [...draft.images, { id: `image-${draft.images.length + 1}`, storagePath: "", thumbnailPath: null, alt: "", sortOrder: draft.images.length }] })} className={`${buttonClass} border border-white/20 text-white hover:bg-white/10`}>Add image path</button>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <button type="button" disabled={draft.images.length >= 8} onClick={() => setArtworkPickerOpen(true)} className={`${buttonClass} min-h-11 bg-white text-black hover:bg-white/85`}>
+                        Choose existing artwork
+                      </button>
+                      <button type="button" disabled={draft.images.length >= 8} onClick={() => mutateDraft({ ...draft, images: [...draft.images, { id: `image-${draft.images.length + 1}`, storagePath: "", thumbnailPath: null, alt: "", sortOrder: draft.images.length }] })} className={`${buttonClass} min-h-11 border border-white/20 text-white hover:bg-white/10`}>Add image path</button>
+                    </div>
                   </div>
                 </EditorSection>
 
@@ -784,6 +800,11 @@ export default function AdminProducts() {
             )}
           </main>
         </div>
+        <ArtworkMediaPicker
+          open={artworkPickerOpen}
+          onClose={closeArtworkPicker}
+          onSelect={selectArtworkMedia}
+        />
       </div>
     </div>
   );

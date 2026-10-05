@@ -8,6 +8,7 @@ import {
   loadPublicFirestoreDocuments,
 } from "../services/storefrontProducts";
 import { filterPortfolioStorageItems, sortPortfolioMedia } from "../utils/storefrontProduct";
+import { groupStorageImageRefs } from "../utils/storageMedia";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import "../styles/Gallery.css";
@@ -24,20 +25,6 @@ import "../styles/Gallery.css";
  *
  * If thumbs don't exist yet, it will fallback to full image URLs.
  */
-
-function stripExt(name = "") {
-  return name.replace(/\.[^.]+$/, "");
-}
-
-function getExt(name = "") {
-  const m = name.match(/\.([^.]+)$/);
-  return m ? m[1].toLowerCase() : "";
-}
-
-function isImage(name = "") {
-  const ext = getExt(name);
-  return ["jpg", "jpeg", "png", "webp"].includes(ext);
-}
 
 async function safeGetURL(storageRef) {
   try {
@@ -72,61 +59,20 @@ export default function Gallery({ folder, label }) {
           }),
         ]);
 
-        // Filter only image objects
         const items = filterPortfolioStorageItems(
-          res.items.filter((i) => isImage(i.name)),
+          res.items,
           { managedProducts, visibleProductDocuments: publicProducts }
         );
-
-        // Build a lookup by base name (no extension)
-        // Example: "iwata" => { jpgRef, webpRef, thumbRef }
-        const byBase = new Map();
-
-        for (const item of items) {
-          const base = stripExt(item.name);
-          const ext = getExt(item.name);
-
-          if (!byBase.has(base)) byBase.set(base, {});
-          const entry = byBase.get(base);
-
-          // Thumb naming option A: foo__thumb.webp
-          if (base.toLowerCase().endsWith("__thumb")) {
-            const realBase = base.replace(/__thumb$/, "");
-            if (!byBase.has(realBase)) byBase.set(realBase, {});
-            const realEntry = byBase.get(realBase);
-            realEntry.thumbRef = item;
-            continue;
-          }
-
-          if (ext === "webp") entry.webpRef = item;
-          if (ext === "jpg" || ext === "jpeg") entry.jpgRef = item;
-          if (ext === "png") entry.pngRef = item;
-        }
-
-        // For each base entry, choose best full + best thumb (thumb optional)
-        const bases = Array.from(byBase.keys())
-          .filter((b) => !b.endsWith("__thumb"))
-          .sort((a, b) => a.localeCompare(b));
+        const groupedMedia = groupStorageImageRefs(items);
 
         // We will request URLs in parallel
         const formatted = await Promise.all(
-          bases.map(async (base) => {
-            const entry = byBase.get(base) || {};
-
-            // Best full: webp > jpg > png
-            const fullRef = entry.webpRef || entry.jpgRef || entry.pngRef;
-            const [full, metadata] = fullRef
-              ? await Promise.all([
-                safeGetURL(fullRef),
-                getMetadata(fullRef).catch(() => null),
-              ])
-              : [null, null];
-
-            // Best thumb (if exists): thumbRef (prefer webp) otherwise null
-            // If you choose to store thumbs as foo__thumb.webp or foo__thumb.jpg,
-            // this will pick them up.
-            let thumb = null;
-            if (entry.thumbRef) thumb = await safeGetURL(entry.thumbRef);
+          groupedMedia.map(async (media) => {
+            const [full, metadata, thumb] = await Promise.all([
+              safeGetURL(media.fullRef),
+              getMetadata(media.fullRef).catch(() => null),
+              media.thumbnailRef ? safeGetURL(media.thumbnailRef) : null,
+            ]);
 
             // Fallback: if no thumb, use full (still works)
             const gridSrc = thumb || full;
@@ -134,7 +80,7 @@ export default function Gallery({ folder, label }) {
             return {
               src: full,            // lightbox
               gridSrc: gridSrc,     // grid
-              fullPath: fullRef?.fullPath || `${folder}/${base}`,
+              fullPath: media.fullPath,
               timeCreated: metadata?.timeCreated || null,
             };
           })
