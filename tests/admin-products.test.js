@@ -22,6 +22,7 @@ import { createAdminStripePriceSyncClient } from "../src/utils/adminStripePriceS
 
 const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 const adminRoute = await readFile(new URL("../src/Components/AdminRoute.jsx", import.meta.url), "utf8");
+const adminDashboard = await readFile(new URL("../src/pages/AdminDashboard.jsx", import.meta.url), "utf8");
 const adminProducts = await readFile(new URL("../src/pages/AdminProducts.jsx", import.meta.url), "utf8");
 const productStoragePreview = await readFile(new URL("../src/Components/ProductStoragePreview.jsx", import.meta.url), "utf8");
 const adminData = await readFile(new URL("../src/services/adminProducts.js", import.meta.url), "utf8");
@@ -320,11 +321,13 @@ test("admin Stripe sync requires confirmation and recommends a new canonical art
   assert.match(adminProducts, /confirmAdminStripePriceSync/);
 });
 
-test("post-sync UI explains that trusted checkout authorization is still required", () => {
+test("post-sync UI explains Firestore checkout readiness without requiring a source-catalog update", () => {
   assert.match(
     adminProducts,
-    /Stripe prices are synced, but print checkout still requires the trusted server checkout catalog to support this product\./
+    /Checkout will use the saved Firestore product and server-verified Stripe mapping once Shop and Prints are enabled\./
   );
+  assert.match(adminProducts, /no source-catalog code update is required/);
+  assert.doesNotMatch(adminProducts, /still requires the trusted server checkout catalog/);
   assert.match(adminStripeSyncDocs, /functions\/stripeCatalog\.js remains authoritative/);
 });
 
@@ -515,7 +518,15 @@ test("product manager uses explicit Firestore create and update operations witho
   assert.doesNotMatch(adminData, /deleteDoc|deleteField/);
 });
 
-test("storefront uses the selected display adapter while checkout retains its source catalog", () => {
+test("admin copy identifies Firestore as the live storefront catalog", () => {
+  assert.match(adminDashboard, /Firestore catalog used by the live storefront/);
+  assert.match(adminProducts, /Firestore catalog used by the live Shop/);
+  assert.match(adminProducts, /verifies current Firestore and Stripe data on the server/);
+  assert.doesNotMatch(adminDashboard, /still use the reviewed source catalogs/);
+  assert.doesNotMatch(adminProducts, /still use the source catalogs/);
+});
+
+test("storefront uses the selected Firestore adapter while checkout retains explicit legacy rollback support", () => {
   assert.match(storefront, /useStorefrontCatalog\("shop"\)/);
   assert.doesNotMatch(storefront, /getAllProducts|getDocs|onSnapshot/);
   assert.match(checkout, /require\("\.\/stripeCatalog"\)/);

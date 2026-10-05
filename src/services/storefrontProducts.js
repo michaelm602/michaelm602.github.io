@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
-import { getAllProducts, products as sourceProducts } from "../data/products";
+import { getAllProducts } from "../data/products";
 import { STOREFRONT_CATALOG_MODE } from "../config/storefrontCatalog";
 import { loadSelectedStorefrontCatalog } from "../utils/storefrontProduct";
 import { CATALOG_ORDERING_CHANNELS, sanitizeCatalogOrdering } from "../utils/catalogOrdering";
@@ -43,6 +43,5 @@ export function loadStorefrontCatalog({
     loadFirestoreDocuments: loadPublicFirestoreDocuments,
     loadCatalogOrdering: loadPublicCatalogOrdering,
     loadSourceProducts: async () => getAllProducts(),
-    sourceProducts,
   });
 }

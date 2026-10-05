@@ -39,7 +39,7 @@ export default function AdminDashboard() {
         </div>
 
         <p className="mt-8 rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-white/55">
-          Product edits currently update the dark Firestore catalog. The live storefront and checkout still use the reviewed source catalogs.
+          Product edits update the Firestore catalog used by the live storefront. Checkout independently verifies current Firestore and Stripe data on the server.
         </p>
       </div>
     </div>

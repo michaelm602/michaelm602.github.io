@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { readFile } from "node:fs/promises";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
@@ -26,6 +27,14 @@ import {
 const require = createRequire(import.meta.url);
 const { mapSourceCatalog } = require("../functions/shopProductMapper");
 const importedProducts = mapSourceCatalog(getAllProducts({ includeDrafts: true }));
+const storefrontProductSource = await readFile(
+  new URL("../src/utils/storefrontProduct.js", import.meta.url),
+  "utf8"
+);
+const storefrontServiceSource = await readFile(
+  new URL("../src/services/storefrontProducts.js", import.meta.url),
+  "utf8"
+);
 
 const sourceProduct = {
   id: "sample-piece",
@@ -163,6 +172,30 @@ function echoesFirestoreProduct(overrides = {}) {
   };
 }
 
+function firestoreOnlyProduct(overrides = {}) {
+  return firestoreProduct({
+    id: "firestore-only-release",
+    slug: "firestore-only-release",
+    title: "Firestore Only Release",
+    prints: {
+      available: true,
+      defaultOptionId: "12x18",
+      options: [
+        {
+          id: "12x18",
+          label: " 12x18 ",
+          amountCents: 12500,
+          currency: " USD ",
+          stripePriceId: "price_firestore_only_not_for_browser",
+          active: true,
+          sortOrder: 0,
+        },
+      ],
+    },
+    ...overrides,
+  });
+}
+
 test("catalog mode defaults production to Firestore and keeps an explicit source rollback", () => {
   assert.equal(resolveStorefrontCatalogMode({ isProduction: true }), "firestore");
   assert.equal(resolveStorefrontCatalogMode({ isProduction: false }), "source");
@@ -181,9 +214,7 @@ test("catalog mode defaults production to Firestore and keeps an explicit source
 });
 
 test("Firestore products map to the storefront shape without exposing Stripe Price IDs", () => {
-  const mapped = mapFirestoreProductForStorefront(firestoreProduct(), {
-    sourceProducts: [sourceProduct],
-  });
+  const mapped = mapFirestoreProductForStorefront(firestoreProduct());
 
   assert.equal(mapped.title, "Firestore title");
   assert.equal(mapped.description, "Long description");
@@ -198,7 +229,7 @@ test("Firestore products map to the storefront shape without exposing Stripe Pri
     mapped.sizes.map(({ label, price, checkoutSupported }) => ({ label, price, checkoutSupported })),
     [
       { label: "16x20", price: 100, checkoutSupported: true },
-      { label: "20x30", price: 175, checkoutSupported: false },
+      { label: "20x30", price: 175, checkoutSupported: true },
     ]
   );
   assert.equal(mapped.defaultSize, "16x20");
@@ -206,9 +237,7 @@ test("Firestore products map to the storefront shape without exposing Stripe Pri
 });
 
 test("Echoes print options enable size selection and the quantity/add-to-cart flow", () => {
-  const mapped = mapFirestoreProductForStorefront(echoesFirestoreProduct(), {
-    sourceProducts: currentSourceProducts,
-  });
+  const mapped = mapFirestoreProductForStorefront(echoesFirestoreProduct());
   const checkoutableOptions = getCheckoutableProductSizeOptions(mapped);
 
   assert.deepEqual(
@@ -229,21 +258,66 @@ test("Echoes print options enable size selection and the quantity/add-to-cart fl
   assert.equal(JSON.stringify(mapped).includes("stripePriceId"), false);
 });
 
-test("Echoes remains unavailable when a Firestore Price ID differs from the source allowlist", () => {
+test("Firestore storefront behavior does not depend on a source Price ID match", () => {
   const document = echoesFirestoreProduct();
   document.prints.options[0].stripePriceId = "price_mismatched";
 
-  const mapped = mapFirestoreProductForStorefront(document, {
-    sourceProducts: currentSourceProducts,
+  const mapped = mapFirestoreProductForStorefront(document);
+
+  assert.equal(mapped.sizes[0].checkoutSupported, true);
+  assert.equal(isProductSizeCheckoutSupported(mapped, "16x20"), true);
+  assert.equal(JSON.stringify(mapped).includes("stripePriceId"), false);
+});
+
+test("Firestore storefront mapping has no hardcoded source-catalog parity dependency", () => {
+  assert.doesNotMatch(storefrontProductSource, /findTrustedSourceOption|sourceProducts/);
+  assert.doesNotMatch(storefrontServiceSource, /products\s+as\s+sourceProducts|sourceProducts/);
+  assert.match(storefrontServiceSource, /loadSourceProducts:\s*async \(\) => getAllProducts\(\)/);
+});
+
+test("a Firestore-only product reaches the Shop model, cart snapshot, and exact checkout payload", async () => {
+  const document = firestoreOnlyProduct();
+  assert.equal(currentSourceProducts.some((product) => product.id === document.id), false);
+
+  let sourceLoads = 0;
+  const catalog = await loadSelectedStorefrontCatalog({
+    mode: "firestore",
+    channel: "shop",
+    loadFirestoreDocuments: async () => [document],
+    loadCatalogOrdering: async () => ({ productIds: [document.id] }),
+    loadSourceProducts: async () => {
+      sourceLoads += 1;
+      throw new Error("Firestore mode must not load the source catalog");
+    },
   });
 
-  assert.equal(mapped.sizes[0].checkoutSupported, false);
-  assert.match(mapped.sizes[0].configurationIssue, /temporarily unavailable/i);
-  assert.equal(isProductSizeCheckoutSupported(mapped, "16x20"), false);
-  assert.deepEqual(
-    getCheckoutableProductSizeOptions(mapped).map((option) => option.label),
-    ["18x24", "24x36", "30x40"]
-  );
+  assert.equal(sourceLoads, 0);
+  assert.deepEqual(catalog.map((product) => product.id), [document.id]);
+  assert.deepEqual(catalog[0].sizes, [
+    {
+      id: "12x18",
+      label: "12x18",
+      price: 125,
+      amountCents: 12500,
+      currency: "usd",
+      checkoutSupported: true,
+    },
+  ]);
+  assert.equal(catalog[0].printsAvailable, true);
+
+  const cartItem = {
+    productId: catalog[0].id,
+    title: catalog[0].title,
+    size: catalog[0].sizes[0].label,
+    price: catalog[0].sizes[0].price,
+    quantity: 2,
+    sizeOptions: catalog[0].sizes,
+  };
+  assert.deepEqual(getCartItemSizeOptions(cartItem, null), catalog[0].sizes);
+  assert.equal(getCartItemPrice(cartItem, "12x18", null), 125);
+  assert.deepEqual(buildStripeCheckoutItems([cartItem]), [
+    { productId: "firestore-only-release", size: "12x18", quantity: 2 },
+  ]);
 });
 
 test("The Jaguar’s Bloodline compatibility mirror preserves its media, contact-only original, and private print state", () => {
@@ -307,14 +381,28 @@ test("The Jaguar’s Bloodline compatibility mirror preserves its media, contact
       options: importedJaguar.prints.options.map((option) => ({ ...option, active: false })),
     },
   };
-  const mappedFirestore = mapFirestoreProductForStorefront(inactiveFirestoreDocument, {
-    sourceProducts: currentSourceProducts,
-  });
+  const mappedFirestore = mapFirestoreProductForStorefront(inactiveFirestoreDocument);
 
   assert.deepEqual(filterPublicCatalog([inactiveFirestoreDocument], "shop"), []);
   assert.equal(mappedFirestore.printsAvailable, false);
   assert.deepEqual(getCheckoutableProductSizeOptions(mappedFirestore), []);
   assert.equal(mappedFirestore.original.checkoutEnabled, false);
+
+  const enabledFirestoreDocument = {
+    ...importedJaguar,
+    channels: { shop: true, portfolio: true },
+    prints: {
+      ...importedJaguar.prints,
+      available: true,
+      defaultOptionId: "16x20",
+      options: importedJaguar.prints.options.map((option) => ({ ...option, active: true })),
+    },
+  };
+  const enabledFirestore = mapFirestoreProductForStorefront(enabledFirestoreDocument);
+  assert.deepEqual(
+    getCheckoutableProductSizeOptions(enabledFirestore).map((option) => option.label),
+    ["16x20", "18x24", "24x36", "30x40"]
+  );
 });
 
 test("source rollback products also omit Stripe Price IDs from the storefront model", () => {
@@ -325,16 +413,15 @@ test("source rollback products also omit Stripe Price IDs from the storefront mo
   assert.equal(mapped.original.checkoutEnabled, false);
 });
 
-test("all imported products and print options match trusted checkout configuration", () => {
-  const mapped = importedProducts.map((product) =>
-    mapFirestoreProductForStorefront(product, { sourceProducts: currentSourceProducts })
-  );
+test("all public imported Shop products and print options remain structurally usable", () => {
+  const publicDocuments = filterPublicCatalog(importedProducts, "shop");
+  const mapped = publicDocuments.map(mapFirestoreProductForStorefront);
   const printOptions = mapped.flatMap((product) => product.sizes);
 
-  assert.equal(mapped.length, currentSourceProducts.length);
+  assert.equal(mapped.length, publicDocuments.length);
   assert.equal(
     printOptions.length,
-    currentSourceProducts.flatMap((product) => product.sizes).length
+    publicDocuments.flatMap((product) => product.prints.options.filter((option) => option.active)).length
   );
   assert.equal(printOptions.every((option) => option.checkoutSupported), true);
   assert.equal(JSON.stringify(mapped).includes("stripePriceId"), false);
@@ -342,27 +429,41 @@ test("all imported products and print options match trusted checkout configurati
   assert.equal(mapped.find((product) => product.id === "overwhelmed").original.status, "sold");
 });
 
-test("checkout compatibility fails closed for trusted catalog drift", () => {
-  for (const changedOption of [
-    { amountCents: 9900 },
-    { currency: "cad" },
-    { stripePriceId: "price_different" },
-  ]) {
-    const document = firestoreProduct({
-      prints: {
-        available: true,
-        defaultOptionId: "16x20",
-        options: [{ ...firestoreProduct().prints.options[1], ...changedOption }],
-      },
-    });
-    const [option] = mapFirestoreProductForStorefront(document, {
-      sourceProducts: [sourceProduct],
-    }).sizes;
-    assert.equal(option.checkoutSupported, false);
-    assert.match(option.configurationIssue, /temporarily unavailable/i);
-    assert.equal(isProductSizeCheckoutSupported({ sizes: [option] }, option.label), false);
-    assert.deepEqual(getCheckoutableProductSizeOptions({ sizes: [option] }), []);
-  }
+test("Firestore storefront rejects structurally invalid print options", () => {
+  const document = firestoreProduct({
+    prints: {
+      available: true,
+      defaultOptionId: "valid",
+      options: [
+        { id: "valid", label: " 14x20 ", amountCents: 9900, currency: " USD ", active: true, sortOrder: 0 },
+        { id: "blank", label: "   ", amountCents: 10000, currency: "usd", active: true, sortOrder: 1 },
+        { id: "zero", label: "Zero", amountCents: 0, currency: "usd", active: true, sortOrder: 2 },
+        { id: "fraction", label: "Fraction", amountCents: 100.5, currency: "usd", active: true, sortOrder: 3 },
+        { id: "unsafe", label: "Unsafe", amountCents: Number.MAX_SAFE_INTEGER + 1, currency: "usd", active: true, sortOrder: 4 },
+        { id: "cad", label: "CAD", amountCents: 10000, currency: "cad", active: true, sortOrder: 5 },
+        { id: "inactive", label: "Inactive", amountCents: 10000, currency: "usd", active: false, sortOrder: 6 },
+      ],
+    },
+  });
+
+  const mapped = mapFirestoreProductForStorefront(document);
+  assert.deepEqual(mapped.sizes.map((option) => option.label), ["14x20"]);
+  assert.equal(mapped.sizes[0].currency, "usd");
+  assert.equal(mapped.sizes[0].checkoutSupported, true);
+  assert.equal(mapped.printsAvailable, true);
+
+  const unavailable = mapFirestoreProductForStorefront(firestoreOnlyProduct({
+    prints: { ...firestoreOnlyProduct().prints, available: false },
+  }));
+  assert.equal(unavailable.printsAvailable, false);
+  assert.deepEqual(getCheckoutableProductSizeOptions(unavailable), []);
+  assert.equal(isProductSizeCheckoutSupported(unavailable, "12x18"), false);
+
+  const portfolioOnly = mapFirestoreProductForStorefront(firestoreOnlyProduct({
+    channels: { shop: false, portfolio: true },
+  }));
+  assert.deepEqual(getCheckoutableProductSizeOptions(portfolioOnly), []);
+  assert.equal(isProductSizeCheckoutSupported(portfolioOnly, "12x18"), false);
 });
 
 test("cart uses its sanitized Firestore option snapshot and retains legacy source carts", () => {
@@ -439,7 +540,6 @@ test("Firestore catalog loading uses the channel ordering document and falls bac
       return { productIds: ["explicit-first"] };
     },
     loadSourceProducts: async () => [],
-    sourceProducts: [],
   });
   assert.deepEqual(requestedChannels, ["shop"]);
   assert.deepEqual(explicitlyOrdered.map((product) => product.id), ["explicit-first", "legacy-first"]);
@@ -450,7 +550,6 @@ test("Firestore catalog loading uses the channel ordering document and falls bac
     loadFirestoreDocuments: async () => documents,
     loadCatalogOrdering: async () => { throw new Error("ordering unavailable"); },
     loadSourceProducts: async () => [],
-    sourceProducts: [],
   });
   assert.deepEqual(fallback.map((product) => product.id), ["legacy-first", "explicit-first"]);
 });
@@ -471,7 +570,6 @@ test("whole-catalog loading selects exactly one source and never falls back afte
           throw firestoreError;
         },
         loadSourceProducts: loadSource,
-        sourceProducts: [sourceProduct],
       }),
     firestoreError
   );
@@ -481,7 +579,6 @@ test("whole-catalog loading selects exactly one source and never falls back afte
     mode: "source",
     loadFirestoreDocuments: async () => [firestoreProduct()],
     loadSourceProducts: loadSource,
-    sourceProducts: [sourceProduct],
   });
   assert.equal(sourceLoads, 1);
   assert.equal(sourceCatalog[0].title, "Source title");
@@ -489,9 +586,7 @@ test("whole-catalog loading selects exactly one source and never falls back afte
 });
 
 test("available originals render contact-to-purchase details without checkout controls", () => {
-  const product = mapFirestoreProductForStorefront(firestoreProduct(), {
-    sourceProducts: [sourceProduct],
-  });
+  const product = mapFirestoreProductForStorefront(firestoreProduct());
   const presentation = getOriginalPresentation(product);
   assert.deepEqual(presentation, {
     visible: true,
@@ -526,8 +621,7 @@ test("sold originals render sold status and not-for-sale originals render nothin
         checkoutEnabled: false,
         quantity: 0,
       },
-    }),
-    { sourceProducts: [sourceProduct] }
+    })
   );
   const soldMarkup = renderToStaticMarkup(
     React.createElement(MemoryRouter, null, React.createElement(OriginalAvailability, { product: sold }))

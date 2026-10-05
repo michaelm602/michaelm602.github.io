@@ -145,20 +145,14 @@ function formatOriginalMoney(amountCents, currency = "usd") {
   }).format(amount);
 }
 
-function findTrustedSourceOption(document, option, sourceProducts) {
-  const sourceProduct = sourceProducts.find((product) => product.id === document.id);
-  const sourceOption = sourceProduct?.sizes?.find((size) => size.label === option.label);
-  if (!sourceOption) return null;
-
-  const sourceAmountCents = Math.round(Number(sourceOption.price) * 100);
-  const matches =
-    sourceAmountCents === option.amountCents &&
-    option.currency === "usd" &&
-    typeof option.stripePriceId === "string" &&
-    option.stripePriceId.length > 0 &&
-    option.stripePriceId === sourceOption.stripePriceId;
-
-  return matches ? sourceOption : null;
+function isStructurallyUsablePrintOption(option) {
+  return option?.active === true
+    && typeof option.label === "string"
+    && option.label.trim().length > 0
+    && Number.isSafeInteger(option.amountCents)
+    && option.amountCents > 0
+    && typeof option.currency === "string"
+    && option.currency.trim().toLowerCase() === "usd";
 }
 
 export function filterPublicCatalog(documents, channel = "shop", { productIds = [] } = {}) {
@@ -179,7 +173,11 @@ export function filterPublicCatalog(documents, channel = "shop", { productIds = 
   return applyCatalogOrdering(visibleProducts, productIds, fallbackComparator);
 }
 
-export function mapFirestoreProductForStorefront(document, { sourceProducts = [] } = {}) {
+export function mapFirestoreProductForStorefront(document) {
+  const printCheckoutEnabled = document?.active === true
+    && document?.archivedAt == null
+    && document?.channels?.shop === true
+    && document?.prints?.available === true;
   const images = [...(Array.isArray(document?.images) ? document.images : [])]
     .sort((left, right) => {
       if (left.id === document.primaryImageId) return -1;
@@ -194,27 +192,16 @@ export function mapFirestoreProductForStorefront(document, { sourceProducts = []
     }));
 
   const sizes = [...(Array.isArray(document?.prints?.options) ? document.prints.options : [])]
-    .filter((option) => option?.active === true)
+    .filter(isStructurallyUsablePrintOption)
     .sort(sortByOrder)
-    .map((option) => {
-      const checkoutSupported = Boolean(
-        findTrustedSourceOption(document, option, sourceProducts)
-      );
-      return {
-        id: option.id,
-        label: option.label,
-        price: option.amountCents / 100,
-        amountCents: option.amountCents,
-        currency: option.currency,
-        checkoutSupported,
-        ...(checkoutSupported
-          ? {}
-          : {
-              configurationIssue:
-                "This print option is temporarily unavailable while its checkout configuration is reviewed.",
-            }),
-      };
-    });
+    .map((option) => ({
+      id: option.id,
+      label: option.label.trim(),
+      price: option.amountCents / 100,
+      amountCents: option.amountCents,
+      currency: option.currency.trim().toLowerCase(),
+      checkoutSupported: printCheckoutEnabled,
+    }));
 
   const defaultOption = sizes.find((option) => option.id === document?.prints?.defaultOptionId);
 
@@ -289,7 +276,6 @@ export async function loadSelectedStorefrontCatalog({
   loadFirestoreDocuments,
   loadCatalogOrdering,
   loadSourceProducts,
-  sourceProducts = [],
   channel = "shop",
 }) {
   if (mode === "source") {
@@ -309,8 +295,8 @@ export async function loadSelectedStorefrontCatalog({
   const productIds = Array.isArray(ordering)
     ? sanitizeCatalogOrdering({ productIds: ordering })
     : sanitizeCatalogOrdering(ordering);
-  return filterPublicCatalog(documents, channel, { productIds }).map((document) =>
-    mapFirestoreProductForStorefront(document, { sourceProducts })
+  return filterPublicCatalog(documents, channel, { productIds }).map(
+    mapFirestoreProductForStorefront
   );
 }
 

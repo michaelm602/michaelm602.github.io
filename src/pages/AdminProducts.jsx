@@ -33,6 +33,10 @@ const inputClass =
   "mt-1 w-full rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-white/50 focus:ring-2 focus:ring-white/10";
 const buttonClass =
   "rounded-lg px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-white/40 disabled:cursor-not-allowed disabled:opacity-40";
+const STRIPE_SYNC_COMPLETE_MESSAGE =
+  "Stripe prices are synced. Checkout will use the saved Firestore product and server-verified Stripe mapping once Shop and Prints are enabled.";
+const STRIPE_SYNC_READINESS_MESSAGE =
+  "After sync, checkout uses the saved Firestore product and server-verified Stripe mapping; no source-catalog code update is required.";
 
 function formatUpdatedAt(value) {
   const date = typeof value?.toDate === "function" ? value.toDate() : value ? new Date(value) : null;
@@ -341,10 +345,7 @@ export default function AdminProducts() {
       } else if (result.status === "completed_with_conflicts") {
         setStripeSyncError("Stripe sync finished with conflicts. Existing Stripe Price IDs were preserved.");
       } else {
-        setMessage(
-          result.checkoutReadinessMessage
-          || "Stripe prices are synced, but print checkout still requires the trusted server checkout catalog to support this product."
-        );
+        setMessage(STRIPE_SYNC_COMPLETE_MESSAGE);
       }
     } catch (syncError) {
       setStripeSyncError(formatAdminStripeSyncError(syncError));
@@ -454,7 +455,7 @@ export default function AdminProducts() {
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Product catalog</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/50">
-              Review and edit the dark Firestore catalog. Customer shop and checkout still use the source catalogs.
+              Review and edit the Firestore catalog used by the live Shop. Checkout independently verifies current Firestore and Stripe data on the server.
             </p>
           </div>
           <button type="button" onClick={startNewProduct} className={`${buttonClass} bg-white text-black hover:bg-white/85`}>
@@ -749,7 +750,7 @@ export default function AdminProducts() {
                           )}
                           {stripeSync.checkoutReadinessMessage && (
                             <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.08] px-3 py-2 text-xs text-amber-100">
-                              {stripeSync.checkoutReadinessMessage}
+                              {STRIPE_SYNC_READINESS_MESSAGE}
                             </p>
                           )}
                           {stripeSyncWarnings.map((warning) => (
