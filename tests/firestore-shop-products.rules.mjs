@@ -175,7 +175,7 @@ test("an admin can save all 17 imported products unchanged", async () => {
   }
 });
 
-test("an admin can save valid text, prints, original, and image section changes", async (context) => {
+test("an admin can save valid non-print product section changes when prints are unchanged", async (context) => {
   const adminDbClient = createClient("admin-section-updates", {
     sub: "admin-user",
     user_id: "admin-user",
@@ -185,17 +185,6 @@ test("an admin can save valid text, prints, original, and image section changes"
     {
       product: importedProducts[1],
       changes: (data) => ({ title: `${data.title} updated` }),
-    },
-    {
-      product: importedProducts[2],
-      changes: (data) => ({
-        prints: {
-          ...data.prints,
-          options: data.prints.options.map((option, index) =>
-            index === 0 ? { ...option, label: `${option.label} print` } : option
-          ),
-        },
-      }),
     },
     {
       product: importedProducts[3],
@@ -218,6 +207,28 @@ test("an admin can save valid text, prints, original, and image section changes"
       await updateDoc(productRef, { ...changes(snapshot.data()), updatedAt: serverTimestamp() });
     });
   }
+});
+
+test("an admin browser cannot mutate published prints directly", async () => {
+  const adminDbClient = createClient("admin-print-update-denial", {
+    sub: "admin-user",
+    user_id: "admin-user",
+    admin: true,
+  });
+  const productRef = doc(adminDbClient, "shopProducts", importedProducts[2].id);
+  const snapshot = await getDoc(productRef);
+  const changedPrints = {
+    ...snapshot.data().prints,
+    options: snapshot.data().prints.options.map((option, index) =>
+      index === 0 ? { ...option, amountCents: option.amountCents + 100 } : option
+    ),
+  };
+
+  await assert.rejects(
+    () => updateDoc(productRef, { prints: changedPrints, updatedAt: serverTimestamp() }),
+    isPermissionDenied
+  );
+  assert.deepEqual((await getDoc(productRef)).data().prints, snapshot.data().prints);
 });
 
 test("a public client reads Shop and Portfolio channels with their required queries", async () => {
@@ -454,37 +465,39 @@ test("an admin cannot delete a shop product", async () => {
   await assert.rejects(() => deleteDoc(productRef), isPermissionDenied);
 });
 
-test("admin creates original-only contact products and valid print products", async (context) => {
+test("an admin browser creates only a safe blank unavailable print state", async () => {
   const client = createClient("admin-create", { sub: "admin-user", admin: true });
-  for (const count of [0, 1, 4, 8]) {
-    await context.test(`${count} print options`, async () => {
-      const payload = newProductPayload(`new-product-${count}`, count);
-      context.diagnostic(`Normalized create payload: ${JSON.stringify(payload)}`);
-      const ref = doc(client, "shopProducts", payload.id);
-      assert.equal((await getDoc(ref)).exists(), false);
-      await setDoc(ref, payload);
-      const saved = (await getDoc(ref)).data();
-      assert.equal(saved.original.status, "available");
-      assert.equal(saved.original.checkoutEnabled, false);
-      assert.equal(saved.prints.options.length, count);
-      assert.ok(saved.createdAt.toMillis() > 0);
-      assert.equal(saved.createdAt.toMillis(), saved.updatedAt.toMillis());
-    });
+  const payload = newProductPayload("new-product-blank-prints", 0);
+  const ref = doc(client, "shopProducts", payload.id);
+  assert.equal((await getDoc(ref)).exists(), false);
+  await setDoc(ref, payload);
+  const saved = (await getDoc(ref)).data();
+  assert.equal(saved.original.status, "available");
+  assert.equal(saved.original.checkoutEnabled, false);
+  assert.deepEqual(saved.prints, { available: false, defaultOptionId: null, options: [] });
+  assert.ok(saved.createdAt.toMillis() > 0);
+  assert.equal(saved.createdAt.toMillis(), saved.updatedAt.toMillis());
+});
+
+test("an admin browser cannot create a product with a published print tuple", async () => {
+  const client = createClient("admin-create-print-denial", { sub: "admin-user", admin: true });
+  for (const count of [1, 4, 8]) {
+    const payload = newProductPayload(`new-product-${count}`, count);
+    await assert.rejects(
+      () => setDoc(doc(client, "shopProducts", payload.id), payload),
+      isPermissionDenied
+    );
   }
 });
 
-test("admin creates valid products with default and custom metadata at print boundaries", async (context) => {
-  const client = createClient("admin-create-boundaries", { sub: "admin-user", admin: true });
+test("an admin browser creates safe products with custom non-print metadata", async (context) => {
+  const client = createClient("admin-create-metadata", { sub: "admin-user", admin: true });
   const cases = [
-    ["eight-options-default-original", 8, (payload) => {
+    ["default-original", (payload) => {
       payload.original.status = "not_for_sale";
       payload.original.quantity = 0;
     }],
-    ["eight-options-last-default", 8, (payload) => {
-      payload.prints.defaultOptionId = "option-8";
-      payload.prints.options = normalizeAdminProductForCreate(payload).prints.options;
-    }],
-    ["four-options-custom-metadata", 4, (payload) => {
+    ["custom-metadata", (payload) => {
       payload.original.size = "24 x 36 inches";
       payload.original.medium = "Airbrush on canvas";
       payload.original.price.amountCents = 125000;
@@ -493,14 +506,40 @@ test("admin creates valid products with default and custom metadata at print bou
       payload.seo = { title: "New original artwork", description: "An original airbrush artwork." };
     }],
   ];
-  for (const [name, count, customize] of cases) {
+  for (const [name, customize] of cases) {
     await context.test(name, async () => {
-      const payload = newProductPayload(name, count);
+      const payload = newProductPayload(name, 0);
       customize(payload);
       await setDoc(doc(client, "shopProducts", name), payload);
       assert.equal((await getDoc(doc(client, "shopProducts", name))).exists(), true);
     });
   }
+});
+
+test("Admin SDK publication can atomically publish a verified print tuple", async () => {
+  const productId = "admin-sdk-print-publication";
+  const payload = newProductPayload(productId, 0);
+  const publishedPrints = {
+    available: true,
+    defaultOptionId: "custom-12x18",
+    options: [{
+      id: "custom-12x18",
+      label: "Custom 12x18",
+      amountCents: 7500,
+      currency: "usd",
+      stripePriceId: "price_server_verified",
+      active: true,
+      sortOrder: 0,
+    }],
+  };
+  const reference = adminDb.collection("shopProducts").doc(productId);
+  await reference.set({
+    ...payload,
+    prints: publishedPrints,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  assert.deepEqual((await reference.get()).data().prints, publishedPrints);
 });
 
 test("public and non-admin clients cannot create a valid original-only product", async () => {
@@ -514,19 +553,8 @@ test("admin create rejects unsafe or malformed product fields", async (context) 
   const client = createClient("admin-invalid-create", { sub: "admin-user", admin: true });
   const cases = [
     ["original-checkout", (p) => { p.original.checkoutEnabled = true; }],
-    ["missing-stripe", (p) => { p.prints.options[0].stripePriceId = null; }],
-    ["blank-stripe", (p) => { p.prints.options[0].stripePriceId = ""; }],
-    ["zero-price", (p) => { p.prints.options[0].amountCents = 0; }],
-    ["fractional-price", (p) => { p.prints.options[0].amountCents = 1.5; }],
-    ["missing-label", (p) => { p.prints.options[0].label = ""; }],
-    ["non-string-label", (p) => { p.prints.options[0].label = 123; }],
-    ["non-string-stripe", (p) => { p.prints.options[0].stripePriceId = 123; }],
-    ["non-boolean-active", (p) => { p.prints.options[0].active = 1; }],
     ["non-boolean-available", (p) => { p.prints.available = 1; }],
-    ["invalid-currency", (p) => { p.prints.options[0].currency = "US"; }],
-    ["inactive-default", (p) => { p.prints.options[0].active = false; }],
-    ["missing-default", (p) => { p.prints.defaultOptionId = "missing"; }],
-    ["no-active-options", (p) => { p.prints.options = []; }],
+    ["unsafe-default", (p) => { p.prints.defaultOptionId = "missing"; }],
     ["missing-primary", (p) => { p.primaryImageId = "missing"; }],
     ["missing-images", (p) => { p.images = []; p.primaryImageId = null; }],
     ["bad-path", (p) => { p.images[0].storagePath = "private/image.webp"; }],
@@ -538,10 +566,10 @@ test("admin create rejects unsafe or malformed product fields", async (context) 
     ["too-many-tags", (p) => { p.tags = Array(13).fill("tag"); }],
     ["mismatched-id", (p) => { p.id = "another-id"; }],
     ["extra-field", (p) => { p.unexpected = true; }],
-    ["extra-print-field", (p) => { p.prints.options[0].unexpected = true; }],
+    ["extra-print-field", (p) => { p.prints.unexpected = true; }],
     ["missing-title", (p) => { delete p.title; }],
     ["missing-archive", (p) => { delete p.archivedAt; }],
-    ["missing-print-active", (p) => { delete p.prints.options[0].active; }],
+    ["missing-print-options", (p) => { delete p.prints.options; }],
     ["missing-created-at", (p) => { delete p.createdAt; }],
     ["null-updated-at", (p) => { p.updatedAt = null; }],
     ["client-timestamps", (p) => { p.createdAt = new Date(0); p.updatedAt = new Date(0); }],
@@ -549,7 +577,7 @@ test("admin create rejects unsafe or malformed product fields", async (context) 
   for (const [name, mutate] of cases) {
     await context.test(name, async () => {
       const id = `invalid-create-${name}`;
-      const payload = newProductPayload(id, 1);
+      const payload = newProductPayload(id, 0);
       mutate(payload);
       await assert.rejects(() => setDoc(doc(client, "shopProducts", id), payload), isPermissionDenied);
       assert.equal((await getDoc(doc(client, "shopProducts", id))).exists(), false);

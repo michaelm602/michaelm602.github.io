@@ -6,6 +6,8 @@ import {
   ORIGINAL_CHECKOUT_WARNING,
   addStandardPrintSet,
   archiveProductDraft,
+  adminNonPrintDraftChanged,
+  cloneAdminProduct,
   createUniquePrintOptionId,
   createBlankAdminProduct,
   deriveOriginalQuantity,
@@ -15,10 +17,17 @@ import {
   normalizeCurrency,
   normalizeAdminProductForCreate,
   normalizeAdminProductForSave,
+  prepareAdminProductForRoutineSave,
+  prepareAdminProductUpdateFields,
   restoreProductDraft,
   validateAdminProduct,
 } from "../src/utils/adminProduct.js";
-import { createAdminStripePriceSyncClient } from "../src/utils/adminStripePriceSync.js";
+import {
+  adminPrintDraftChanged,
+  buildAdminPrintProposal,
+  createAdminStripePriceSyncClient,
+  dollarsToAmountCents,
+} from "../src/utils/adminStripePriceSync.js";
 
 const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
 const adminRoute = await readFile(new URL("../src/Components/AdminRoute.jsx", import.meta.url), "utf8");
@@ -265,27 +274,76 @@ test("standard print helper remains available until every standard ID exists", (
   assert.equal(hasMissingStandardPrintOptions(addStandardPrintSet(product)), false);
 });
 
-test("admin Stripe sync client sends only server-safe identifiers", async () => {
+test("admin Stripe sync client sends a print proposal without Stripe authority fields", async () => {
   const requests = [];
   const client = createAdminStripePriceSyncClient(async (request) => {
     requests.push(request);
-    return { operationId: "operation-1", status: "previewed" };
+    return { operationId: "operation-1", status: "confirmed" };
   });
+  const product = validProduct();
+  product.prints = {
+    available: true,
+    defaultOptionId: "16x20",
+    options: [{ id: "16x20", label: "16x20", amountCents: 12500, currency: "usd", stripePriceId: "price_secret", active: true, sortOrder: 0 }],
+  };
+  const proposal = buildAdminPrintProposal(product);
 
-  await client.preview("new-piece");
-  await client.confirm("new-piece", "operation-1", { mode: "new" });
-  await client.create("new-piece", "operation-1");
+  await client.preview("new-piece", proposal);
+  await client.apply("new-piece", "operation-1");
 
   assert.deepEqual(requests, [
-    { action: "preview", productId: "new-piece" },
     {
-      action: "confirm",
+      action: "preview",
       productId: "new-piece",
-      operationId: "operation-1",
-      canonicalProductChoice: { mode: "new" },
+      proposedPrints: {
+        available: true,
+        defaultOptionId: "16x20",
+        options: [{ optionId: "16x20", label: "16x20", amountCents: 12500, currency: "usd", active: true, sortOrder: 0 }],
+      },
     },
-    { action: "create", productId: "new-piece", operationId: "operation-1" },
+    { action: "apply", productId: "new-piece", operationId: "operation-1" },
   ]);
+  assert.doesNotMatch(JSON.stringify(requests), /stripePriceId|stripeProductId|livemode|canonicalProduct/i);
+});
+
+test("routine product save preserves published prints while the local print draft stays detectable", () => {
+  const published = validProduct();
+  published.prints = {
+    available: true,
+    defaultOptionId: "16x20",
+    options: [{ id: "16x20", label: "16x20", amountCents: 10000, currency: "usd", stripePriceId: "price_100", active: true, sortOrder: 0 }],
+  };
+  const draft = structuredClone(published);
+  draft.title = "Updated title";
+  draft.prints.options[0].amountCents = 12500;
+  const saveCandidate = prepareAdminProductForRoutineSave(draft, published, { isNew: false });
+
+  assert.equal(saveCandidate.title, "Updated title");
+  assert.deepEqual(saveCandidate.prints, published.prints);
+  assert.equal(adminPrintDraftChanged(draft, published), true);
+  assert.equal(dollarsToAmountCents("125.00"), 12500);
+});
+
+test("non-print dirty state clears when an edit is restored to its published value", () => {
+  const published = createBlankAdminProduct();
+  published.id = "artwork-one";
+  published.title = "Artwork One";
+  const edited = cloneAdminProduct(published);
+  edited.title = "Temporary title";
+  assert.equal(adminNonPrintDraftChanged(edited, published), true);
+  edited.title = published.title;
+  assert.equal(adminNonPrintDraftChanged(edited, published), false);
+});
+
+test("existing-product update fields omit prints at the Firestore write boundary", () => {
+  const product = validProduct();
+  const updateFields = prepareAdminProductUpdateFields(normalizeAdminProductForSave(product));
+
+  assert.equal(Object.hasOwn(updateFields, "prints"), false);
+  assert.equal(Object.hasOwn(updateFields, "createdAt"), false);
+  assert.equal(Object.hasOwn(updateFields, "updatedAt"), false);
+  assert.equal(updateFields.title, product.title);
+  assert.match(adminData, /prepareAdminProductUpdateFields\(normalized\)/);
 });
 
 test("admin Stripe sync frontend contains no Stripe secret or secret-key access", () => {
@@ -294,31 +352,22 @@ test("admin Stripe sync frontend contains no Stripe secret or secret-key access"
   assert.match(adminStripeSyncService, /httpsCallable\(cloudFunctions, "adminStripePrintPriceSync"\)/);
 });
 
-test("admin Stripe sync explains multi-Product conflicts without offering an unsafe reset", () => {
-  assert.match(
-    adminProducts,
-    /Use one Stripe Product per artwork, with one Price per print size\. These saved Price IDs belong to different Stripe Products\./
-  );
-  assert.match(adminProducts, /stripeProductName/);
-  assert.match(adminProducts, /stripeProductId/);
-  assert.match(adminProducts, /Keep Prints available off until the Stripe Product conflict is resolved\./);
-  assert.doesNotMatch(adminProducts, /Reset Stripe (?:Product|Price|sync)/i);
-  assert.match(adminStripeSyncDocs, /Manual cleanup for multiple Stripe Products/);
-  assert.match(adminStripeSyncDocs, /Keep Prints available off/);
-  assert.match(adminStripeSyncDocs, /Do not delete or automatically deactivate/);
+test("admin print-price UX previews classifications and keeps identifiers diagnostic-only", () => {
+  assert.match(adminProducts, /Preview print changes/);
+  assert.match(adminProducts, /Apply print changes/);
+  assert.match(adminProducts, /item\.classification/);
+  assert.match(adminProducts, /Advanced Stripe diagnostics/);
+  assert.doesNotMatch(adminProducts, /onChange=.*stripePriceId/);
+  assert.match(adminProducts, /disabled=\{isPublishedPrintOption/);
+  assert.match(adminProducts, /beforeunload/);
+  assert.match(adminProducts, /w-full sm:w-auto/);
 });
 
-test("starting Stripe creation clears the previous preview success message", () => {
-  const createHandler = adminProducts.match(/const createStripePrices = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] || "";
-  assert.match(createHandler, /setMessage\(""\)/);
-});
-
-test("admin Stripe sync requires confirmation and recommends a new canonical artwork Product", () => {
-  assert.match(adminProducts, /Create a new canonical Stripe Product named after this artwork/);
-  assert.match(adminProducts, /recommendNewCanonicalProduct \? " \(recommended\)"/);
-  assert.match(adminProducts, /Confirm canonical Product/);
-  assert.match(adminProducts, /stripeSync\?\.status === "confirmed"/);
-  assert.match(adminProducts, /confirmAdminStripePriceSync/);
+test("dollar editing accepts mobile-friendly leading decimals and preserves navigation warnings", () => {
+  assert.equal(dollarsToAmountCents(".99"), 99);
+  assert.match(adminProducts, /printPriceInputs/);
+  assert.match(adminProducts, /document\.addEventListener\("click", warnBeforeInternalNavigation, true\)/);
+  assert.match(adminProducts, /discard the unapplied print changes/i);
 });
 
 test("post-sync UI explains Firestore checkout readiness without requiring a source-catalog update", () => {
@@ -328,13 +377,14 @@ test("post-sync UI explains Firestore checkout readiness without requiring a sou
   );
   assert.match(adminProducts, /no source-catalog code update is required/);
   assert.doesNotMatch(adminProducts, /still requires the trusted server checkout catalog/);
-  assert.match(adminStripeSyncDocs, /functions\/stripeCatalog\.js remains authoritative/);
+  assert.match(adminStripeSyncDocs, /Firestore remains the storefront and checkout authority/);
+  assert.doesNotMatch(adminStripeSyncDocs, /functions\/stripeCatalog\.js remains authoritative/);
 });
 
-test("post-sync UI displays non-blocking canonical Product image warnings", () => {
-  assert.match(adminProducts, /stripeSyncWarnings/);
-  assert.match(adminProducts, /stripeSync\?\.warnings/);
-  assert.match(adminProducts, /role="alert"/);
+test("admin print-price classifications include all V2 outcomes", () => {
+  for (const classification of ["REUSE_EXISTING_PRICE", "ATTACH_EXISTING_PRICE", "CREATE_NEW_PRICE", "DISABLE", "REMOVE", "NO_CHANGE", "CONFLICT_BLOCKED"]) {
+    assert.match(adminProducts, new RegExp(classification));
+  }
 });
 
 test("available prints require complete active options and an active default before saving", () => {

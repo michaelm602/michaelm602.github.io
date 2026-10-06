@@ -50,11 +50,11 @@ const {
     normalizeOrderItems,
 } = require("./checkoutFulfillment");
 const {
-    StripePriceSyncError,
-    createFirebaseStorageProductImageResolver,
-    createFirestoreStripeSyncStore,
-    handleAdminStripePrintPriceSync,
-} = require("./adminStripePriceSync");
+    StripePriceSyncV2Error,
+    createFirestoreStripePriceSyncV2Store,
+    handleAdminStripePrintPriceSyncV2,
+} = require("./adminStripePriceSyncV2");
+const { createFirebaseStorageProductImageResolver } = require("./adminStripePriceSync");
 
 const path = require("path");
 const os = require("os");
@@ -104,7 +104,7 @@ function getStripe(secret) {
 }
 
 function getAdminStripeSyncStore() {
-    return createFirestoreStripeSyncStore({
+    return createFirestoreStripePriceSyncV2Store({
         firestore: admin.firestore(),
         serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -117,7 +117,7 @@ function getCheckoutShadowStore() {
 }
 
 function toStripeSyncHttpsError(error) {
-    if (error instanceof StripePriceSyncError) {
+    if (error instanceof StripePriceSyncV2Error) {
         return new HttpsError(error.code, error.message);
     }
     logger.error("Admin Stripe price sync failed", {
@@ -375,21 +375,19 @@ exports.adminStripePrintPriceSync = onCall(
     { secrets: [stripeSecretKey] },
     async (request) => {
         try {
-            return await handleAdminStripePrintPriceSync(request, {
-                getStripe: () => {
-                    const secret = stripeSecretKey.value();
-                    if (!secret) {
-                        throw new StripePriceSyncError(
-                            "failed-precondition",
-                            "Stripe is not configured for admin price sync."
-                        );
-                    }
-                    return getStripe(secret);
-                },
+            const secret = stripeSecretKey.value();
+            const stripeMode = getStripeModeFromSecret(secret);
+            if (!secret || !stripeMode) {
+                throw new StripePriceSyncV2Error(
+                    "failed-precondition",
+                    "Stripe is not configured for admin price sync."
+                );
+            }
+            return await handleAdminStripePrintPriceSyncV2(request, {
+                getStripe: () => getStripe(secret),
                 store: getAdminStripeSyncStore(),
-                resolveProductImageUrl: createFirebaseStorageProductImageResolver({
-                    bucket: admin.storage().bucket(),
-                }),
+                expectedLivemode: stripeMode === "live",
+                resolveProductImageUrl: createFirebaseStorageProductImageResolver({ bucket: admin.storage().bucket() }),
             });
         } catch (error) {
             throw toStripeSyncHttpsError(error);

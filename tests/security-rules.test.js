@@ -24,7 +24,8 @@ test("shopProducts permits constrained Shop and Portfolio reads while keeping wr
   assert.match(firestoreRules, /allow delete: if false;/);
   assert.match(firestoreRules, /original\.checkoutEnabled == false/);
   assert.match(firestoreRules, /data\.diff\(resource\.data\)\.removedKeys\(\)\.size\(\) == 0/);
-  assert.match(firestoreRules, /changed\.hasAny\(\['prints'\]\)[\s\S]*isValidPrints\(data\.prints\)/);
+  assert.match(firestoreRules, /!changed\.hasAny\(\['prints'\]\)/);
+  assert.match(firestoreRules, /function isValidPrintsCreate\(prints\)[\s\S]*"available": false[\s\S]*"options": \[\]/);
   assert.match(firestoreRules, /changed\.hasAny\(\['original'\]\)[\s\S]*isValidOriginal\(data\.original\)/);
   assert.match(firestoreRules, /changed\.hasAny\(\['images', 'primaryImageId', 'active', 'channels'\]\)[\s\S]*isValidUpdatedImageState\(data\)/);
   assert.match(firestoreRules, /changed\.hasAny\(\['title'\]\)[\s\S]*isValidUpdatedText\(data\.title, 200, true\)/);

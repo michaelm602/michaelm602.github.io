@@ -196,6 +196,36 @@ export function cloneAdminProduct(product) {
   };
 }
 
+export function prepareAdminProductForRoutineSave(draft, publishedProduct, { isNew = false } = {}) {
+  const candidate = cloneAdminProduct(draft);
+  candidate.prints = isNew
+    ? cloneAdminProduct(createBlankAdminProduct()).prints
+    : cloneAdminProduct(publishedProduct || createBlankAdminProduct()).prints;
+  return candidate;
+}
+
+export function adminNonPrintDraftChanged(draft, publishedProduct) {
+  if (!draft || !publishedProduct) return Boolean(draft || publishedProduct);
+  const snapshot = (product) => {
+    const value = cloneAdminProduct(product);
+    delete value.prints;
+    delete value.createdAt;
+    delete value.updatedAt;
+    return value;
+  };
+  return JSON.stringify(snapshot(draft)) !== JSON.stringify(snapshot(publishedProduct));
+}
+
+export function prepareAdminProductUpdateFields(normalizedProduct) {
+  const {
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    prints: _prints,
+    ...catalogFields
+  } = normalizedProduct;
+  return catalogFields;
+}
+
 export function normalizeAdminProductForSave(product) {
   const draft = cloneAdminProduct(product);
   const images = draft.images.slice(0, MAX_IMAGES).map((image, index) => ({

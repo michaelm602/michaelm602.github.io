@@ -253,15 +253,13 @@ service cloud.firestore {
     }
 
     function isValidPrintsCreate(prints) {
-      return [
-        prints.keys().size() == 3,
-        isValidPrintOptionList(prints.options),
-        prints.available
-          ? (prints.options.size() == 0
-            ? false
-            : [prints.options[0].active, prints.defaultOptionId == prints.options[0].id].hasOnly([true]))
-          : prints.defaultOptionId == null
-      ].hasOnly([true]);
+      // Browser-created products start with no commercial print tuple. The
+      // Admin Function publishes server-verified Price IDs through Admin SDK.
+      return prints == {
+        "available": false,
+        "defaultOptionId": null,
+        "options": []
+      };
     }
 
     function hasValidProductKeys(data) {
@@ -394,7 +392,9 @@ service cloud.firestore {
         && (!changed.hasAny(['images', 'primaryImageId', 'active', 'channels'])
           || isValidUpdatedImageState(data))
         && (!changed.hasAny(['original']) || isValidOriginal(data.original))
-        && (!changed.hasAny(['prints']) || isValidPrints(data.prints))
+        // Published print tuples are server-owned. Claimed admins may save
+        // unrelated fields only while preserving the exact stored print map.
+        && !changed.hasAny(['prints'])
         && (!changed.hasAny(['channels']) || isValidUpdatedChannels(data.channels))
         && (!changed.hasAny(['active']) || data.active is bool)
         && (!changed.hasAny(['featured']) || data.featured is bool)

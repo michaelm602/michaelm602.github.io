@@ -10,12 +10,12 @@ import {
   saveAdminProduct,
 } from "../services/adminProducts";
 import {
-  confirmAdminStripePriceSync,
-  createMissingAdminStripePrices,
+  applyAdminStripePriceSync,
   previewAdminStripePriceSync,
 } from "../services/adminStripePriceSync";
 import {
   ORIGINAL_CHECKOUT_WARNING,
+  adminNonPrintDraftChanged,
   addStandardPrintSet,
   cloneAdminProduct,
   createBlankAdminProduct,
@@ -24,10 +24,17 @@ import {
   formatProductMoney,
   formatAdminProductSaveError,
   hasMissingStandardPrintOptions,
+  prepareAdminProductForRoutineSave,
   validateAdminProduct,
 } from "../utils/adminProduct";
 import { addArtworkMediaToProductDraft } from "../utils/adminProductMedia";
-import { formatAdminStripeSyncError } from "../utils/adminStripePriceSync";
+import {
+  adminPrintDraftChanged,
+  amountCentsToDollarInput,
+  buildAdminPrintProposal,
+  dollarsToAmountCents,
+  formatAdminStripeSyncError,
+} from "../utils/adminStripePriceSync";
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-white/50 focus:ring-2 focus:ring-white/10";
@@ -37,6 +44,15 @@ const STRIPE_SYNC_COMPLETE_MESSAGE =
   "Stripe prices are synced. Checkout will use the saved Firestore product and server-verified Stripe mapping once Shop and Prints are enabled.";
 const STRIPE_SYNC_READINESS_MESSAGE =
   "After sync, checkout uses the saved Firestore product and server-verified Stripe mapping; no source-catalog code update is required.";
+const PRINT_SYNC_CLASSIFICATIONS = new Set([
+  "REUSE_EXISTING_PRICE",
+  "ATTACH_EXISTING_PRICE",
+  "CREATE_NEW_PRICE",
+  "DISABLE",
+  "REMOVE",
+  "NO_CHANGE",
+  "CONFLICT_BLOCKED",
+]);
 
 function formatUpdatedAt(value) {
   const date = typeof value?.toDate === "function" ? value.toDate() : value ? new Date(value) : null;
@@ -156,9 +172,9 @@ export default function AdminProducts() {
   const [stripeSync, setStripeSync] = useState(null);
   const [stripeSyncing, setStripeSyncing] = useState(false);
   const [stripeSyncError, setStripeSyncError] = useState("");
-  const [canonicalProductChoice, setCanonicalProductChoice] = useState({ mode: "new" });
+  const [printPriceInputs, setPrintPriceInputs] = useState({});
 
-  const loadProducts = useCallback(async (preferredId = "") => {
+  const loadProducts = useCallback(async (preferredId = "", pendingPrints = null) => {
     setLoading(true);
     setError("");
     try {
@@ -167,14 +183,16 @@ export default function AdminProducts() {
       const nextId = preferredId || nextProducts[0]?.id || "";
       const selected = nextProducts.find((product) => product.id === nextId) || nextProducts[0] || null;
       setSelectedId(selected?.id || "");
-      setDraft(selected ? cloneAdminProduct(selected) : null);
+      setDraft(selected
+        ? cloneAdminProduct(pendingPrints ? { ...selected, prints: pendingPrints } : selected)
+        : null);
       setOriginalDraft(selected ? cloneAdminProduct(selected) : null);
       setIsNew(false);
-      setDirty(false);
+      setDirty(Boolean(pendingPrints));
       setAttemptedSave(false);
       setStripeSync(null);
       setStripeSyncError("");
-      setCanonicalProductChoice({ mode: "new" });
+      setPrintPriceInputs({});
     } catch (loadError) {
       console.error("Unable to load shop products:", loadError);
       setError(
@@ -210,9 +228,48 @@ export default function AdminProducts() {
     });
   }, [originalFilter, products, search, statusFilter]);
 
+  const printsDirty = useMemo(
+    () => Boolean(draft && adminPrintDraftChanged(draft, originalDraft || createBlankAdminProduct())),
+    [draft, originalDraft]
+  );
+  const nonPrintDirty = useMemo(
+    () => isNew || Boolean(draft && originalDraft && adminNonPrintDraftChanged(draft, originalDraft)),
+    [draft, isNew, originalDraft]
+  );
+  const hasUnsavedChanges = nonPrintDirty || printsDirty || (isNew && dirty);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return undefined;
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const warnBeforeInternalNavigation = (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target?.closest?.("a[href]");
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+      const next = new URL(link.href, window.location.href);
+      const current = new URL(window.location.href);
+      if (next.origin !== current.origin || next.href === current.href) return;
+      if (!window.confirm("Discard unsaved product changes?")) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    document.addEventListener("click", warnBeforeInternalNavigation, true);
+    return () => {
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+      document.removeEventListener("click", warnBeforeInternalNavigation, true);
+    };
+  }, [hasUnsavedChanges]);
+  const routineSaveCandidate = useMemo(
+    () => (draft ? prepareAdminProductForRoutineSave(draft, originalDraft, { isNew }) : null),
+    [draft, isNew, originalDraft]
+  );
   const validation = useMemo(
-    () => (draft ? validateAdminProduct(draft) : { errors: [], warnings: [] }),
-    [draft]
+    () => (routineSaveCandidate ? validateAdminProduct(routineSaveCandidate) : { errors: [], warnings: [] }),
+    [routineSaveCandidate]
   );
 
   const closeArtworkPicker = useCallback(() => {
@@ -229,11 +286,10 @@ export default function AdminProducts() {
     setError("");
     setStripeSync(null);
     setStripeSyncError("");
-    setCanonicalProductChoice({ mode: "new" });
   };
 
   const selectProduct = (product) => {
-    if (dirty && !window.confirm("Discard unsaved product changes?")) return;
+    if (hasUnsavedChanges && !window.confirm("Discard unsaved product changes?")) return;
     setSelectedId(product.id);
     setDraft(cloneAdminProduct(product));
     setOriginalDraft(cloneAdminProduct(product));
@@ -244,11 +300,11 @@ export default function AdminProducts() {
     setError("");
     setStripeSync(null);
     setStripeSyncError("");
-    setCanonicalProductChoice({ mode: "new" });
+    setPrintPriceInputs({});
   };
 
   const startNewProduct = () => {
-    if (dirty && !window.confirm("Discard unsaved product changes?")) return;
+    if (hasUnsavedChanges && !window.confirm("Discard unsaved product changes?")) return;
     const next = createBlankAdminProduct();
     setSelectedId("");
     setDraft(next);
@@ -260,7 +316,7 @@ export default function AdminProducts() {
     setError("");
     setStripeSync(null);
     setStripeSyncError("");
-    setCanonicalProductChoice({ mode: "new" });
+    setPrintPriceInputs({});
   };
 
   const save = async () => {
@@ -281,9 +337,12 @@ export default function AdminProducts() {
 
     setSaving(true);
     try {
-      const savedId = await saveAdminProduct(draft, { isNew });
-      setMessage("Product saved to the dark Firestore catalog.");
-      await loadProducts(savedId);
+      const pendingPrints = printsDirty ? cloneAdminProduct(draft).prints : null;
+      const savedId = await saveAdminProduct(routineSaveCandidate, { isNew });
+      await loadProducts(savedId, pendingPrints);
+      setMessage(pendingPrints
+        ? "Product details saved. Print changes remain local until Apply print changes succeeds."
+        : "Product saved to the dark Firestore catalog.");
     } catch (saveError) {
       console.error("Unable to save product:", saveError);
       setError(formatAdminProductSaveError(saveError));
@@ -293,17 +352,16 @@ export default function AdminProducts() {
   };
 
   const previewStripePrices = async () => {
-    if (!draft || isNew || dirty) {
-      setStripeSyncError("Save this product before previewing Stripe price sync.");
+    if (!draft || isNew || nonPrintDirty) {
+      setStripeSyncError("Save product details before previewing print changes.");
       return;
     }
     setStripeSyncing(true);
     setStripeSyncError("");
     try {
-      const result = await previewAdminStripePriceSync(draft.id);
+      const result = await previewAdminStripePriceSync(draft.id, buildAdminPrintProposal(draft));
       setStripeSync(result);
-      setCanonicalProductChoice(result.recommendedCanonicalProductChoice || { mode: "new" });
-      setMessage("Stripe sync preview ready. No Stripe objects were created.");
+      setMessage("Print-price preview ready. No Stripe objects or product fields were changed.");
     } catch (syncError) {
       setStripeSyncError(formatAdminStripeSyncError(syncError));
     } finally {
@@ -311,42 +369,16 @@ export default function AdminProducts() {
     }
   };
 
-  const confirmStripeProduct = async () => {
-    if (!draft || !stripeSync?.operationId || stripeSync?.status !== "previewed") return;
-    setStripeSyncing(true);
-    setStripeSyncError("");
-    setMessage("");
-    try {
-      const result = await confirmAdminStripePriceSync(
-        draft.id,
-        stripeSync.operationId,
-        canonicalProductChoice
-      );
-      setStripeSync((current) => ({ ...current, ...result }));
-      setMessage("Canonical Stripe Product confirmed. No Stripe objects were created.");
-    } catch (syncError) {
-      setStripeSyncError(formatAdminStripeSyncError(syncError));
-    } finally {
-      setStripeSyncing(false);
-    }
-  };
-
-  const createStripePrices = async () => {
+  const applyStripePrices = async () => {
     if (!draft || !stripeSync?.operationId) return;
     setStripeSyncing(true);
     setStripeSyncError("");
     setMessage("");
     try {
-      const result = await createMissingAdminStripePrices(draft.id, stripeSync.operationId);
+      const result = await applyAdminStripePriceSync(draft.id, stripeSync.operationId);
       await loadProducts(draft.id);
       setStripeSync(result);
-      if (result.status === "partial_failure") {
-        setStripeSyncError("Some Stripe prices were not created. Stripe progress is recoverable and the Firestore product stayed unchanged; retry this operation.");
-      } else if (result.status === "completed_with_conflicts") {
-        setStripeSyncError("Stripe sync finished with conflicts. Existing Stripe Price IDs were preserved.");
-      } else {
-        setMessage(STRIPE_SYNC_COMPLETE_MESSAGE);
-      }
+      setMessage([STRIPE_SYNC_COMPLETE_MESSAGE, ...(result.warnings || [])].join(" "));
     } catch (syncError) {
       setStripeSyncError(formatAdminStripeSyncError(syncError));
     } finally {
@@ -355,6 +387,7 @@ export default function AdminProducts() {
   };
 
   const archive = async () => {
+    if (printsDirty && !window.confirm("Archive this product and discard the unapplied print changes?")) return;
     if (!draft || isNew || !window.confirm("Archive this product? It will remain manageable in Admin Products and be hidden from both Shop and Portfolio. Storage media will not be deleted.")) return;
     setSaving(true);
     setError("");
@@ -371,6 +404,7 @@ export default function AdminProducts() {
 
   const restore = async () => {
     if (!draft || isNew) return;
+    if (printsDirty && !window.confirm("Restore this product and discard the unapplied print changes?")) return;
     setSaving(true);
     setError("");
     try {
@@ -433,17 +467,12 @@ export default function AdminProducts() {
               : current.prints.defaultOptionId,
         },
       };
-    });
+    }, "prints");
 
   const stripeSyncItems = stripeSync?.items || stripeSync?.results || [];
-  const stripeSyncWarnings = Array.isArray(stripeSync?.warnings) ? stripeSync.warnings : [];
-  const conflictingStripeProducts = stripeSync?.conflictingStripeProducts || [];
-  const canonicalProductCandidates = stripeSync?.canonicalProductCandidates || [];
-  const recommendNewCanonicalProduct = stripeSync?.recommendedCanonicalProductChoice?.mode === "new";
-  const hasMultipleStripeProductConflict = stripeSync?.conflictCode === "multiple_stripe_products"
-    && conflictingStripeProducts.length > 1;
-  const canCreateStripePrices = stripeSync?.status === "partial_failure"
-    || stripeSync?.status === "confirmed";
+  const canApplyStripePrices = stripeSync?.canApply === true && Boolean(stripeSync?.operationId);
+  const publishedOptionIds = new Set(originalDraft?.prints?.options?.map((option) => option.id) || []);
+  const isPublishedPrintOption = (optionId) => publishedOptionIds.has(optionId);
 
   if (adminError) return <p className="min-h-screen bg-black px-4 py-12 text-center text-red-300">{adminError}</p>;
   if (adminLoading || loading) return <p className="min-h-screen bg-black px-4 py-12 text-center text-white/60">Loading product catalog...</p>;
@@ -549,7 +578,7 @@ export default function AdminProducts() {
                     ) : (
                       <button type="button" onClick={archive} disabled={saving} className={`${buttonClass} border border-rose-400/30 text-rose-200 hover:bg-rose-400/10`}>Archive</button>
                     ))}
-                    <button type="submit" disabled={!dirty || saving || !isAdmin} className={`${buttonClass} bg-white text-black hover:bg-white/85`}>
+                    <button type="submit" disabled={!nonPrintDirty || saving || !isAdmin} className={`${buttonClass} bg-white text-black hover:bg-white/85`}>
                       {saving ? "Saving..." : "Save product"}
                     </button>
                   </div>
@@ -628,11 +657,11 @@ export default function AdminProducts() {
                   <div className="mt-4"><Toggle label="Original online checkout disabled" checked={false} onChange={() => {}} uncheckedText="Locked off" disabled /></div>
                 </EditorSection>
 
-                <EditorSection title="Print options" description="For original-only contact-to-purchase, leave Prints available off and omit print options. Active options require a label, positive cent amount, currency, and a trusted Stripe Price ID. Saving a Price ID here does not authorize checkout; the product and option must also be in the trusted server catalog.">
+                <EditorSection title="Print options" description="Edit print sizes and prices locally, preview the server-owned Stripe plan, then apply the complete verified set atomically. Stripe Price IDs are managed by the server.">
                   <div className="mb-4 grid gap-3 sm:grid-cols-2">
-                    <Toggle label="Prints available" checked={draft.prints.available} checkedText="Available" uncheckedText="Unavailable" onChange={(checked) => mutateDraft({ ...draft, prints: { ...draft.prints, available: checked, defaultOptionId: checked ? draft.prints.defaultOptionId : null } })} />
+                    <Toggle label="Prints available" checked={draft.prints.available} checkedText="Available" uncheckedText="Unavailable" onChange={(checked) => mutateDraft({ ...draft, prints: { ...draft.prints, available: checked, defaultOptionId: checked ? draft.prints.defaultOptionId : null } }, "prints")} />
                     <Field label="Default print option">
-                      <select value={draft.prints.defaultOptionId || ""} disabled={!draft.prints.available} onChange={(event) => mutateDraft({ ...draft, prints: { ...draft.prints, defaultOptionId: event.target.value || null } })} className={inputClass}>
+                      <select value={draft.prints.defaultOptionId || ""} disabled={!draft.prints.available} onChange={(event) => mutateDraft({ ...draft, prints: { ...draft.prints, defaultOptionId: event.target.value || null } }, "prints")} className={inputClass}>
                         <option value="">Choose an active option</option>
                         {draft.prints.options.filter((option) => option.active).map((option) => <option key={option.id} value={option.id}>{option.label || option.id}</option>)}
                       </select>
@@ -647,130 +676,71 @@ export default function AdminProducts() {
                           </span>
                           <span className="flex flex-wrap items-center gap-2">
                             {draft.prints.defaultOptionId === option.id && <StatusPill>Default</StatusPill>}
-                            {!String(option.stripePriceId || "").trim() && <StatusPill tone="warning">Missing Stripe Price ID</StatusPill>}
+                            {isPublishedPrintOption(option.id) && <StatusPill>Published ID</StatusPill>}
                             <StatusPill tone={option.active ? "active" : "warning"}>{option.active ? "Active" : "Inactive"}</StatusPill>
                           </span>
                         </div>
-                        <Field label="Option ID"><input value={option.id} onChange={(event) => updatePrintOption(index, "id", event.target.value)} className={inputClass} /></Field>
+                        <Field label="Option ID" hint={isPublishedPrintOption(option.id) ? "Published IDs are permanent. Remove this option and add a new one to change its identity." : "This becomes permanent when first applied."}><input value={option.id} disabled={isPublishedPrintOption(option.id)} onChange={(event) => updatePrintOption(index, "id", event.target.value)} className={inputClass} /></Field>
                         <Field label="Label"><input value={option.label} onChange={(event) => updatePrintOption(index, "label", event.target.value)} className={inputClass} /></Field>
-                        <Field label="Price in cents" hint={formatProductMoney(option.amountCents, option.currency)}><input type="number" min="1" step="1" value={option.amountCents ?? ""} onChange={(event) => updatePrintOption(index, "amountCents", event.target.value === "" ? null : Number(event.target.value))} className={inputClass} /></Field>
-                        <Field label="Currency"><input value={option.currency ?? ""} onChange={(event) => updatePrintOption(index, "currency", event.target.value.toLowerCase())} className={inputClass} /></Field>
-                        <Field label="Stripe Price ID"><input value={option.stripePriceId || ""} onChange={(event) => updatePrintOption(index, "stripePriceId", event.target.value)} className={inputClass} /></Field>
+                        <Field label="Price in dollars" hint={formatProductMoney(option.amountCents, option.currency)}><input type="text" inputMode="decimal" value={printPriceInputs[`${index}:${option.id}`] ?? amountCentsToDollarInput(option.amountCents)} onChange={(event) => { const key = `${index}:${option.id}`; setPrintPriceInputs((current) => ({ ...current, [key]: event.target.value })); updatePrintOption(index, "amountCents", dollarsToAmountCents(event.target.value)); }} onBlur={() => { const key = `${index}:${option.id}`; setPrintPriceInputs((current) => ({ ...current, [key]: amountCentsToDollarInput(option.amountCents) })); }} className={inputClass} /></Field>
+                        <Field label="Currency"><input value="USD" readOnly className={inputClass} /></Field>
                         <Field label="Sort order"><input type="number" min="0" step="1" value={option.sortOrder} onChange={(event) => updatePrintOption(index, "sortOrder", Number(event.target.value))} className={inputClass} /></Field>
                         <Toggle label="Option active" checked={option.active} checkedText="Active" uncheckedText="Inactive" onChange={(checked) => updatePrintOption(index, "active", checked)} />
-                        <button type="button" onClick={() => mutateDraft({ ...draft, prints: { ...draft.prints, options: draft.prints.options.filter((_, optionIndex) => optionIndex !== index), defaultOptionId: draft.prints.defaultOptionId === option.id ? null : draft.prints.defaultOptionId } })} className={`${buttonClass} self-end border border-white/15 text-white/60 hover:bg-white/10`}>Remove option</button>
+                        <button type="button" onClick={() => mutateDraft({ ...draft, prints: { ...draft.prints, options: draft.prints.options.filter((_, optionIndex) => optionIndex !== index), defaultOptionId: draft.prints.defaultOptionId === option.id ? null : draft.prints.defaultOptionId } }, "prints")} className={`${buttonClass} self-end border border-white/15 text-white/60 hover:bg-white/10`}>Remove option</button>
+                        {option.stripePriceId && (
+                          <details className="md:col-span-2 xl:col-span-4 rounded border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/50">
+                            <summary className="cursor-pointer font-medium text-white/65">Advanced Stripe diagnostics</summary>
+                            <code className="mt-2 block break-all">{option.stripePriceId}</code>
+                          </details>
+                        )}
                       </div>
                     ))}
                     <div className="flex flex-wrap gap-2">
                       {hasMissingStandardPrintOptions(draft) && (
-                        <button type="button" onClick={() => mutateDraft((current) => addStandardPrintSet(current))} className={`${buttonClass} border border-emerald-400/30 text-emerald-100 hover:bg-emerald-400/10`}>
+                            <button type="button" onClick={() => mutateDraft((current) => addStandardPrintSet(current), "prints")} className={`${buttonClass} w-full sm:w-auto border border-emerald-400/30 text-emerald-100 hover:bg-emerald-400/10`}>
                           Add standard print set
                         </button>
                       )}
-                      <button type="button" disabled={draft.prints.options.length >= 8} onClick={() => { const optionId = createUniquePrintOptionId("", draft.prints.options); mutateDraft({ ...draft, prints: { ...draft.prints, options: [...draft.prints.options, { id: optionId, label: "", amountCents: null, currency: "usd", stripePriceId: null, active: false, sortOrder: draft.prints.options.length }] } }); }} className={`${buttonClass} border border-white/20 text-white hover:bg-white/10`}>Add print option</button>
+                        <button type="button" disabled={draft.prints.options.length >= 8} onClick={() => { const optionId = createUniquePrintOptionId("", draft.prints.options); mutateDraft({ ...draft, prints: { ...draft.prints, options: [...draft.prints.options, { id: optionId, label: "", amountCents: null, currency: "usd", stripePriceId: null, active: false, sortOrder: draft.prints.options.length }] } }, "prints"); }} className={`${buttonClass} w-full sm:w-auto border border-white/20 text-white hover:bg-white/10`}>Add print option</button>
                     </div>
                     <div className="rounded-lg border border-sky-400/25 bg-sky-400/[0.06] p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <h3 className="text-sm font-semibold text-sky-100">Stripe print-price sync</h3>
+                          <h3 className="text-sm font-semibold text-sky-100">Safe print-price publication</h3>
                           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-sky-100/65">
-                            Save product changes first. Preview and confirmation make no Stripe changes. Create resolves one Product and atomically saves the confirmed Price set without changing print availability or active options.
+                            Preview performs no writes. Apply resolves immutable Stripe Prices, verifies the complete set, then publishes all print changes to Firestore in one transaction.
                           </p>
                         </div>
                         <div className="flex shrink-0 flex-wrap gap-2">
-                          <button type="button" disabled={stripeSyncing || saving || isNew || dirty} onClick={previewStripePrices} className={`${buttonClass} border border-sky-300/35 text-sky-100 hover:bg-sky-300/10`}>
-                            {stripeSyncing ? "Checking Stripe..." : "Preview Stripe sync"}
+                              <button type="button" disabled={stripeSyncing || saving || isNew || nonPrintDirty || !printsDirty} onClick={previewStripePrices} className={`${buttonClass} w-full sm:w-auto border border-sky-300/35 text-sky-100 hover:bg-sky-300/10`}>
+                            {stripeSyncing ? "Checking Stripe..." : "Preview print changes"}
                           </button>
-                          {stripeSync?.status === "previewed" && (
-                            <button type="button" disabled={stripeSyncing || saving || isNew || dirty || stripeSync.canConfirm !== true} onClick={confirmStripeProduct} className={`${buttonClass} border border-amber-300/40 text-amber-100 hover:bg-amber-300/10`}>
-                              Confirm canonical Product
-                            </button>
-                          )}
-                          {canCreateStripePrices && (
-                            <button type="button" disabled={stripeSyncing || saving || isNew || dirty} onClick={createStripePrices} className={`${buttonClass} bg-sky-200 text-sky-950 hover:bg-sky-100`}>
-                              {stripeSync?.status === "partial_failure" ? "Retry missing Stripe prices" : "Create missing Stripe prices"}
+                          {stripeSync && (
+                                <button type="button" disabled={stripeSyncing || saving || !canApplyStripePrices} onClick={applyStripePrices} className={`${buttonClass} w-full sm:w-auto bg-sky-200 text-sky-950 hover:bg-sky-100`}>
+                              Apply print changes
                             </button>
                           )}
                         </div>
                       </div>
-                      {(isNew || dirty) && (
-                        <p className="mt-3 text-xs font-medium text-amber-200">Save this product before using Stripe sync.</p>
+                      {(isNew || nonPrintDirty) && (
+                        <p className="mt-3 text-xs font-medium text-amber-200">Save product details before previewing print changes. The print draft will remain local.</p>
                       )}
+                      {printsDirty && !isNew && !nonPrintDirty && <p className="mt-3 text-xs font-medium text-amber-100">Unapplied print changes are local and are not visible in Shop yet.</p>}
                       {stripeSyncError && <p role="alert" className="mt-3 text-sm text-rose-200">{stripeSyncError}</p>}
                       {stripeSync && (
                         <div className="mt-4 space-y-2 border-t border-sky-200/15 pt-4">
-                          <p className="text-xs text-sky-100/55">Operation {stripeSync.operationId} - {stripeSync.status.replaceAll("_", " ")}</p>
-                          {hasMultipleStripeProductConflict && (
-                            <div role="alert" className="rounded-lg border border-amber-400/35 bg-amber-400/10 p-4 text-sm text-amber-100">
-                              <p className="font-semibold">
-                                Use one Stripe Product per artwork, with one Price per print size. These saved Price IDs belong to different Stripe Products.
-                              </p>
-                              <ul className="mt-2 space-y-1 text-xs text-amber-100/80">
-                                {conflictingStripeProducts.map((product) => (
-                                  <li key={product.stripeProductId}>
-                                    {product.stripeProductName || "Unnamed Stripe Product"} ({product.stripeProductId})
-                                  </li>
-                                ))}
-                              </ul>
-                              <p className="mt-3 text-xs font-medium">Keep Prints available off until the Stripe Product conflict is resolved.</p>
-                            </div>
-                          )}
-                          {stripeSync.status === "previewed" && (
-                            <fieldset className="rounded-lg border border-white/10 bg-black/20 p-4">
-                              <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-white/65">Canonical Stripe Product</legend>
-                              <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm text-white/80">
-                                <input
-                                  type="radio"
-                                  name="canonical-stripe-product"
-                                  checked={canonicalProductChoice.mode === "new"}
-                                  onChange={() => setCanonicalProductChoice({ mode: "new" })}
-                                  className="mt-1"
-                                />
-                                <span>
-                                  Create a new canonical Stripe Product named after this artwork{recommendNewCanonicalProduct ? " (recommended)" : ""}
-                                  <span className="mt-1 block text-xs text-white/45">Creates or recovers one server-owned Product; existing Stripe objects remain untouched.</span>
-                                </span>
-                              </label>
-                              {canonicalProductCandidates.map((product) => (
-                                <label key={product.stripeProductId} className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-white/70">
-                                  <input
-                                    type="radio"
-                                    name="canonical-stripe-product"
-                                    checked={canonicalProductChoice.mode === "existing" && canonicalProductChoice.stripeProductId === product.stripeProductId}
-                                    onChange={() => setCanonicalProductChoice({ mode: "existing", stripeProductId: product.stripeProductId })}
-                                    className="mt-1"
-                                  />
-                                  <span>Use {product.stripeProductName || "Unnamed Stripe Product"} ({product.stripeProductId})</span>
-                                </label>
-                              ))}
-                              {stripeSync.canConfirm !== true && (
-                                <p className="mt-3 text-xs font-medium text-amber-200">Resolve invalid pricing first. For multiple Product conflicts, turn Prints available off, save, and preview again.</p>
-                              )}
-                            </fieldset>
-                          )}
-                          {stripeSync.checkoutReadinessMessage && (
-                            <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.08] px-3 py-2 text-xs text-amber-100">
-                              {STRIPE_SYNC_READINESS_MESSAGE}
-                            </p>
-                          )}
-                          {stripeSyncWarnings.map((warning) => (
-                            <p key={warning} role="alert" className="rounded-lg border border-amber-400/25 bg-amber-400/[0.08] px-3 py-2 text-xs text-amber-100">
-                              {warning}
-                            </p>
-                          ))}
+                          <p className="text-xs text-sky-100/55">Operation {stripeSync.operationId} - preview ready</p>
                           {stripeSyncItems.map((item) => (
                             <div key={item.optionId} className="flex flex-col gap-1 rounded border border-white/10 bg-black/20 px-3 py-2 text-xs">
                               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                 <span className="font-semibold text-white/85">{item.label || item.optionId}</span>
-                                <span className="text-white/55">{item.status.replaceAll("_", " ")} - {item.message}</span>
-                              </div>
-                              {item.stripeProductId && (
-                                <span className="text-white/40">
-                                  Stripe Product: {item.stripeProductName || "Unnamed Stripe Product"} ({item.stripeProductId})
+                                <span className={item.classification === "CONFLICT_BLOCKED" ? "text-rose-200" : "text-white/55"}>
+                                  {PRINT_SYNC_CLASSIFICATIONS.has(item.classification) ? item.classification.replaceAll("_", " ") : "CONFLICT BLOCKED"} - {item.message}
                                 </span>
-                              )}
+                              </div>
                             </div>
                           ))}
+                          <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.08] px-3 py-2 text-xs text-amber-100">{STRIPE_SYNC_READINESS_MESSAGE}</p>
                         </div>
                       )}
                     </div>
@@ -794,8 +764,8 @@ export default function AdminProducts() {
                 </EditorSection>
 
                 <div className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/15 bg-black/95 p-3 shadow-2xl">
-                  <span className="text-xs text-white/45">{dirty ? "Unsaved changes" : "Saved state"}</span>
-                  <button type="submit" disabled={!dirty || saving || !isAdmin} className={`${buttonClass} bg-white text-black hover:bg-white/85`}>{saving ? "Saving..." : "Save product"}</button>
+                  <span className="text-xs text-white/45">{hasUnsavedChanges ? "Unsaved changes" : "Saved state"}</span>
+                      <button type="submit" disabled={!nonPrintDirty || saving || !isAdmin} className={`${buttonClass} bg-white text-black hover:bg-white/85`}>{saving ? "Saving..." : "Save product"}</button>
                 </div>
               </form>
             )}

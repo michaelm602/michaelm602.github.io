@@ -1076,4 +1076,5 @@ module.exports = {
     lookupKeyFor,
     previewStripePrintPriceSync,
     productFingerprint,
+    updateCanonicalProductImage,
 };

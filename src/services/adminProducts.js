@@ -12,6 +12,7 @@ import {
   archiveProductDraft,
   normalizeAdminProductForCreate,
   normalizeAdminProductForSave,
+  prepareAdminProductUpdateFields,
   validateAdminProduct,
 } from "../utils/adminProduct";
 
@@ -51,14 +52,15 @@ export async function saveAdminProduct(product, { isNew = false } = {}) {
     throw error;
   }
 
-  const { createdAt: _createdAt, updatedAt: _updatedAt, ...catalogFields } = normalized;
   if (isNew) {
+    const { createdAt: _createdAt, updatedAt: _updatedAt, ...catalogFields } = normalized;
     await setDoc(productRef, {
       ...catalogFields,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
   } else {
+    const catalogFields = prepareAdminProductUpdateFields(normalized);
     await updateDoc(productRef, {
       ...catalogFields,
       updatedAt: serverTimestamp(),
