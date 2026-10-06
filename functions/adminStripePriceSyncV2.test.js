@@ -265,6 +265,51 @@ async function preview({ product = productFixture(), proposal, store, stripe, no
     return { result, store: selectedStore, stripe: selectedStripe };
 }
 
+function blindFaithLegacyFixture({ available = true } = {}) {
+    const optionFixtures = [
+        ["16x20", 10000, "price_1TIfofJEVsglohuhDbE7Mrg4", "prod_UHEGH639lCjNMB"],
+        ["18x24", 20000, "price_1TIfojJEVsglohuhIXBkerVl", "prod_UHEG21N25UiuLX"],
+        ["24x36", 30000, "price_1TIfooJEVsglohuhK8Vd5Aol", "prod_UHEHAzd9VUNynh"],
+        ["30x40", 40000, "price_1TIfosJEVsglohuhFxQ8BTq8", "prod_UHEH0EugaucM1h"],
+    ];
+    const product = productFixture({
+        id: "blind-faith",
+        title: "Blind Faith",
+        prints: {
+            available,
+            defaultOptionId: available ? "16x20" : null,
+            options: optionFixtures.map(([id, amountCents, stripePriceId], sortOrder) => printOption({
+                id,
+                label: id,
+                amountCents,
+                stripePriceId,
+                active: true,
+                sortOrder,
+            })),
+        },
+    });
+    const stripe = fakeStripe();
+    for (const [optionId, amountCents, priceId, productId] of optionFixtures) {
+        stripe.seedProduct(stripeProduct(productId, {
+            name: `Blind Faith ${optionId}`,
+            metadata: {},
+        }));
+        stripe.seedPrice(stripePrice(priceId, {
+            unit_amount: amountCents,
+            product: productId,
+            metadata: {},
+        }));
+    }
+    return {
+        legacyProductIds: optionFixtures.map(([, , , productId]) => productId),
+        legacyPriceIds: optionFixtures.map(([, , priceId]) => priceId),
+        product,
+        proposal: proposalFrom(product),
+        store: fakeStore(product, null),
+        stripe,
+    };
+}
+
 test("commercial terms hash changes only for commercial identity fields", () => {
     const base = canonicalPrintTerms({
         livemode: true,
@@ -356,6 +401,275 @@ test("preview accepts a custom size and classifies a price increase without muta
     assert.equal(store.productWrites, 0);
     assert.equal(stripe.calls.priceCreates.length, 0);
     assert.equal(stripe.calls.productCreates.length, 0);
+});
+
+test("available Blind Faith legacy Prices preview as one non-mutating canonical normalization", async () => {
+    const fixture = blindFaithLegacyFixture({ available: true });
+
+    const { result } = await preview(fixture);
+
+    assert.equal(result.normalizationRequired, true);
+    assert.equal(result.canonicalStripeProductId, null);
+    assert.deepEqual(result.legacyStripeProductIds, fixture.legacyProductIds);
+    assert.equal(result.canApply, true);
+    assert.deepEqual(
+        result.items.map((item) => [item.optionId, item.classification]),
+        fixture.product.prints.options.map((option) => [option.id, "CREATE_NEW_PRICE"])
+    );
+    const operation = fixture.store.operations.get(result.operationId);
+    assert.equal(operation.normalizationRequired, true);
+    assert.equal(operation.proposedPrints.available, true);
+    assert.equal(operation.proposedPrints.defaultOptionId, "16x20");
+    assert.equal(fixture.store.productWrites, 0);
+    assert.equal(fixture.stripe.calls.productCreates.length, 0);
+    assert.equal(fixture.stripe.calls.priceCreates.length, 0);
+});
+
+test("Blind Faith normalization Preview does not require prints to be unavailable", async () => {
+    const fixture = blindFaithLegacyFixture({ available: false });
+
+    const { result } = await preview(fixture);
+
+    assert.equal(result.normalizationRequired, true);
+    assert.equal(result.canApply, true);
+    const operation = fixture.store.operations.get(result.operationId);
+    assert.equal(operation.proposedPrints.available, false);
+    assert.equal(operation.proposedPrints.defaultOptionId, null);
+    assert.equal(fixture.store.productWrites, 0);
+});
+
+test("Blind Faith normalization Preview accepts an arbitrary proposed 30x40 amount", async () => {
+    const fixture = blindFaithLegacyFixture();
+    fixture.proposal.options.find((option) => option.optionId === "30x40").amountCents = 47234;
+
+    const { result } = await preview(fixture);
+
+    const planned = result.items.find((item) => item.optionId === "30x40");
+    assert.equal(result.normalizationRequired, true);
+    assert.equal(planned.classification, "CREATE_NEW_PRICE");
+    assert.equal(planned.amountCents, 47234);
+    assert.equal(fixture.store.operations.get(result.operationId).proposedPrints.options[3].amountCents, 47234);
+});
+
+test("legacy multi-Product normalization blocks an individually invalid saved Price", async () => {
+    const fixture = blindFaithLegacyFixture();
+    fixture.stripe.pricesById.get(fixture.legacyPriceIds[2]).active = false;
+
+    await assert.rejects(
+        () => preview(fixture),
+        (error) => error instanceof StripePriceSyncV2Error
+            && error.reasonCode === "LEGACY_PRICE_INVALID"
+    );
+    assert.equal(fixture.store.operations.size, 0);
+    assert.equal(fixture.stripe.calls.productCreates.length, 0);
+    assert.equal(fixture.stripe.calls.priceCreates.length, 0);
+});
+
+test("Apply normalizes Blind Faith under one canonical Product and preserves every legacy Stripe object", async () => {
+    const fixture = blindFaithLegacyFixture();
+    fixture.proposal.options.find((option) => option.optionId === "30x40").amountCents = 47234;
+    const legacyProductsBefore = new Map(fixture.legacyProductIds.map((id) => [id, clone(fixture.stripe.productsById.get(id))]));
+    const legacyPricesBefore = new Map(fixture.legacyPriceIds.map((id) => [id, clone(fixture.stripe.pricesById.get(id))]));
+    const { result: previewResult } = await preview(fixture);
+
+    const applied = await applyStripePrintPriceSyncV2({
+        productId: fixture.product.id,
+        operationId: previewResult.operationId,
+        requestedBy: "admin-1",
+        stripe: fixture.stripe,
+        store: fixture.store,
+        expectedLivemode: true,
+        nowMs: 1100,
+    });
+
+    assert.equal(applied.status, "completed");
+    assert.equal(fixture.stripe.calls.productCreates.length, 1);
+    assert.equal(fixture.stripe.calls.priceCreates.length, 4);
+    assert.equal(fixture.store.productWrites, 1);
+    const canonicalProductId = fixture.store.mappings.get(fixture.product.id).stripeProductId;
+    const canonicalProduct = fixture.stripe.productsById.get(canonicalProductId);
+    assert.deepEqual(canonicalProduct.metadata, {
+        source: "likwit_admin_price_sync",
+        firestore_product_id: "blind-faith",
+        canonical_product: "true",
+        schema_version: "2",
+    });
+    const published = fixture.store.products.get(fixture.product.id).prints;
+    assert.equal(published.available, true);
+    assert.equal(published.defaultOptionId, "16x20");
+    assert.deepEqual(published.options.map((option) => [option.id, option.active, option.sortOrder]), [
+        ["16x20", true, 0],
+        ["18x24", true, 1],
+        ["24x36", true, 2],
+        ["30x40", true, 3],
+    ]);
+    assert.equal(published.options[3].amountCents, 47234);
+    for (const option of published.options) {
+        const price = fixture.stripe.pricesById.get(option.stripePriceId);
+        assert.equal(price.product, canonicalProductId);
+        assert.equal(price.unit_amount, option.amountCents);
+        assert.equal(price.currency, option.currency);
+        assert.equal(price.active, true);
+        assert.equal(price.type, "one_time");
+        assert.ok(fixture.stripe.calls.retrieves.includes(price.id));
+    }
+    for (const [id, value] of legacyProductsBefore) assert.deepEqual(fixture.stripe.productsById.get(id), value);
+    for (const [id, value] of legacyPricesBefore) assert.deepEqual(fixture.stripe.pricesById.get(id), value);
+
+    const replay = await applyStripePrintPriceSyncV2({
+        productId: fixture.product.id,
+        operationId: previewResult.operationId,
+        requestedBy: "admin-1",
+        stripe: fixture.stripe,
+        store: fixture.store,
+        expectedLivemode: true,
+        nowMs: 1200,
+    });
+    assert.deepEqual(replay, applied);
+    assert.equal(fixture.stripe.calls.productCreates.length, 1);
+    assert.equal(fixture.stripe.calls.priceCreates.length, 4);
+    assert.equal(fixture.store.productWrites, 1);
+});
+
+test("a partial normalization Price failure publishes no Blind Faith print changes", async () => {
+    const fixture = blindFaithLegacyFixture();
+    const publishedBefore = clone(fixture.store.products.get(fixture.product.id).prints);
+    const { result: previewResult } = await preview(fixture);
+    const createPrice = fixture.stripe.prices.create.bind(fixture.stripe.prices);
+    fixture.stripe.prices.create = async (params, options) => {
+        if (params.metadata.print_option_id === "24x36") {
+            throw Object.assign(new Error("temporary Stripe failure"), { code: "api_error" });
+        }
+        return createPrice(params, options);
+    };
+
+    await assert.rejects(() => applyStripePrintPriceSyncV2({
+        productId: fixture.product.id,
+        operationId: previewResult.operationId,
+        requestedBy: "admin-1",
+        stripe: fixture.stripe,
+        store: fixture.store,
+        expectedLivemode: true,
+        nowMs: 1100,
+    }));
+
+    assert.equal(fixture.store.productWrites, 0);
+    assert.deepEqual(fixture.store.products.get(fixture.product.id).prints, publishedBefore);
+});
+
+test("stale Blind Faith Firestore state blocks normalization before any print publication", async () => {
+    const fixture = blindFaithLegacyFixture();
+    const { result: previewResult } = await preview(fixture);
+    fixture.store.products.get(fixture.product.id).prints.options[0].label = "Changed elsewhere";
+
+    await assert.rejects(
+        () => applyStripePrintPriceSyncV2({
+            productId: fixture.product.id,
+            operationId: previewResult.operationId,
+            requestedBy: "admin-1",
+            stripe: fixture.stripe,
+            store: fixture.store,
+            expectedLivemode: true,
+            nowMs: 1100,
+        }),
+        (error) => error instanceof StripePriceSyncV2Error && error.reasonCode === "PRINTS_CHANGED"
+    );
+
+    assert.equal(fixture.store.productWrites, 0);
+    assert.equal(fixture.stripe.calls.productCreates.length, 0);
+    assert.equal(fixture.stripe.calls.priceCreates.length, 0);
+});
+
+test("a later Preview recovers normalization after the canonical mapping was established", async () => {
+    const fixture = blindFaithLegacyFixture();
+    fixture.proposal.options.find((option) => option.optionId === "18x24").active = false;
+    const firstPreview = await preview(fixture);
+    const createPrice = fixture.stripe.prices.create.bind(fixture.stripe.prices);
+    let failOnce = true;
+    fixture.stripe.prices.create = async (params, options) => {
+        if (failOnce && params.metadata.print_option_id === "24x36") {
+            failOnce = false;
+            throw Object.assign(new Error("temporary Stripe failure"), { code: "api_error" });
+        }
+        return createPrice(params, options);
+    };
+    await assert.rejects(() => applyStripePrintPriceSyncV2({
+        productId: fixture.product.id,
+        operationId: firstPreview.result.operationId,
+        requestedBy: "admin-1",
+        stripe: fixture.stripe,
+        store: fixture.store,
+        expectedLivemode: true,
+        nowMs: 1100,
+    }));
+    const canonicalProductId = fixture.store.mappings.get(fixture.product.id).stripeProductId;
+    assert.ok(canonicalProductId);
+    assert.equal(fixture.store.productWrites, 0);
+
+    const recoveredPreview = await preview({
+        product: fixture.product,
+        proposal: fixture.proposal,
+        store: fixture.store,
+        stripe: fixture.stripe,
+        nowMs: 2000,
+    });
+
+    assert.equal(recoveredPreview.result.normalizationRequired, true);
+    assert.equal(recoveredPreview.result.canonicalStripeProductId, canonicalProductId);
+    assert.equal(recoveredPreview.result.canApply, true);
+    assert.deepEqual(recoveredPreview.result.items.map((item) => item.classification), [
+        "ATTACH_EXISTING_PRICE",
+        "DISABLE",
+        "CREATE_NEW_PRICE",
+        "CREATE_NEW_PRICE",
+    ]);
+    assert.equal(recoveredPreview.result.items[1].priceAction, "ATTACH_EXISTING_PRICE");
+
+    await applyStripePrintPriceSyncV2({
+        productId: fixture.product.id,
+        operationId: recoveredPreview.result.operationId,
+        requestedBy: "admin-1",
+        stripe: fixture.stripe,
+        store: fixture.store,
+        expectedLivemode: true,
+        nowMs: 2100,
+    });
+    assert.equal(fixture.stripe.calls.productCreates.length, 1);
+    assert.equal(fixture.stripe.calls.priceCreates.length, 4);
+    assert.equal(fixture.store.productWrites, 1);
+    const publishedOptions = fixture.store.products.get(fixture.product.id).prints.options;
+    assert.equal(publishedOptions.find((option) => option.id === "18x24").active, false);
+    for (const option of publishedOptions) {
+        assert.equal(fixture.stripe.pricesById.get(option.stripePriceId).product, canonicalProductId);
+    }
+});
+
+test("normalization keeps a disabled option classified as DISABLE while resolving its canonical Price", async () => {
+    const fixture = blindFaithLegacyFixture();
+    fixture.proposal.options.find((option) => option.optionId === "18x24").active = false;
+
+    const { result: previewResult } = await preview(fixture);
+
+    const disabledItem = previewResult.items.find((item) => item.optionId === "18x24");
+    assert.equal(disabledItem.classification, "DISABLE");
+    assert.equal(disabledItem.priceAction, "CREATE_NEW_PRICE");
+    assert.equal(previewResult.canApply, true);
+
+    await applyStripePrintPriceSyncV2({
+        productId: fixture.product.id,
+        operationId: previewResult.operationId,
+        requestedBy: "admin-1",
+        stripe: fixture.stripe,
+        store: fixture.store,
+        expectedLivemode: true,
+        nowMs: 1100,
+    });
+
+    const published = fixture.store.products.get(fixture.product.id).prints;
+    const disabledOption = published.options.find((option) => option.id === "18x24");
+    const canonicalProductId = fixture.store.mappings.get(fixture.product.id).stripeProductId;
+    assert.equal(disabledOption.active, false);
+    assert.equal(fixture.stripe.pricesById.get(disabledOption.stripePriceId).product, canonicalProductId);
 });
 
 test("preview classifies label-only reuse, disable, remove, and unchanged state", async () => {

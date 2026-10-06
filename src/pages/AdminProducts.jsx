@@ -34,6 +34,7 @@ import {
   buildAdminPrintProposal,
   dollarsToAmountCents,
   formatAdminStripeSyncError,
+  getAdminStripeNormalizationMessage,
 } from "../utils/adminStripePriceSync";
 
 const inputClass =
@@ -471,6 +472,7 @@ export default function AdminProducts() {
 
   const stripeSyncItems = stripeSync?.items || stripeSync?.results || [];
   const canApplyStripePrices = stripeSync?.canApply === true && Boolean(stripeSync?.operationId);
+  const stripeNormalizationMessage = getAdminStripeNormalizationMessage(stripeSync, draft?.title);
   const publishedOptionIds = new Set(originalDraft?.prints?.options?.map((option) => option.id) || []);
   const isPublishedPrintOption = (optionId) => publishedOptionIds.has(optionId);
 
@@ -708,11 +710,11 @@ export default function AdminProducts() {
                         <div>
                           <h3 className="text-sm font-semibold text-sky-100">Safe print-price publication</h3>
                           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-sky-100/65">
-                            Preview performs no writes. Apply resolves immutable Stripe Prices, verifies the complete set, then publishes all print changes to Firestore in one transaction.
+                            Preview performs no writes and can inspect the published print setup even without draft changes. Apply resolves immutable Stripe Prices, verifies the complete set, then publishes all print changes to Firestore in one transaction.
                           </p>
                         </div>
                         <div className="flex shrink-0 flex-wrap gap-2">
-                              <button type="button" disabled={stripeSyncing || saving || isNew || nonPrintDirty || !printsDirty} onClick={previewStripePrices} className={`${buttonClass} w-full sm:w-auto border border-sky-300/35 text-sky-100 hover:bg-sky-300/10`}>
+                              <button type="button" disabled={stripeSyncing || saving || isNew || nonPrintDirty} onClick={previewStripePrices} className={`${buttonClass} w-full sm:w-auto border border-sky-300/35 text-sky-100 hover:bg-sky-300/10`}>
                             {stripeSyncing ? "Checking Stripe..." : "Preview print changes"}
                           </button>
                           {stripeSync && (
@@ -729,6 +731,11 @@ export default function AdminProducts() {
                       {stripeSyncError && <p role="alert" className="mt-3 text-sm text-rose-200">{stripeSyncError}</p>}
                       {stripeSync && (
                         <div className="mt-4 space-y-2 border-t border-sky-200/15 pt-4">
+                          {stripeNormalizationMessage && (
+                            <div role="alert" className="rounded-lg border border-amber-300/30 bg-amber-300/[0.08] px-3 py-3 text-xs leading-relaxed text-amber-50">
+                              {stripeNormalizationMessage}
+                            </div>
+                          )}
                           <p className="text-xs text-sky-100/55">Operation {stripeSync.operationId} - preview ready</p>
                           {stripeSyncItems.map((item) => (
                             <div key={item.optionId} className="flex flex-col gap-1 rounded border border-white/10 bg-black/20 px-3 py-2 text-xs">

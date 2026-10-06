@@ -27,6 +27,7 @@ import {
   buildAdminPrintProposal,
   createAdminStripePriceSyncClient,
   dollarsToAmountCents,
+  getAdminStripeNormalizationMessage,
 } from "../src/utils/adminStripePriceSync.js";
 
 const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
@@ -361,6 +362,24 @@ test("admin print-price UX previews classifications and keeps identifiers diagno
   assert.match(adminProducts, /disabled=\{isPublishedPrintOption/);
   assert.match(adminProducts, /beforeunload/);
   assert.match(adminProducts, /w-full sm:w-auto/);
+});
+
+test("admin print-price UX explains guided normalization without exposing legacy Stripe IDs", () => {
+  const message = getAdminStripeNormalizationMessage(
+    { normalizationRequired: true },
+    "Blind Faith"
+  );
+
+  assert.match(message, /Legacy Stripe setup detected/);
+  assert.match(message, /one canonical Blind Faith Product/);
+  assert.match(message, /atomically update Firestore/);
+  assert.match(message, /remain untouched/);
+  assert.equal(getAdminStripeNormalizationMessage({ normalizationRequired: false }, "Blind Faith"), null);
+  assert.match(adminProducts, /stripeNormalizationMessage/);
+  assert.match(adminProducts, /role="alert"/);
+  assert.match(adminProducts, /disabled=\{stripeSyncing \|\| saving \|\| isNew \|\| nonPrintDirty\}/);
+  assert.doesNotMatch(adminProducts, /nonPrintDirty \|\| !printsDirty/);
+  assert.doesNotMatch(adminProducts, /legacyStripeProductIds\.map|name=.*legacyStripeProductIds|value=.*legacyStripeProductIds/);
 });
 
 test("dollar editing accepts mobile-friendly leading decimals and preserves navigation warnings", () => {

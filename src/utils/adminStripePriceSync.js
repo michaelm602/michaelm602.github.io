@@ -34,6 +34,12 @@ export function adminPrintDraftChanged(draft, published) {
   return JSON.stringify(buildAdminPrintProposal(draft)) !== JSON.stringify(buildAdminPrintProposal(published));
 }
 
+export function getAdminStripeNormalizationMessage(sync, productTitle) {
+  if (sync?.normalizationRequired !== true) return null;
+  const title = String(productTitle || "").trim() || "artwork";
+  return `Legacy Stripe setup detected. These print sizes are currently spread across multiple Stripe Products. Applying this plan will create or recover one canonical ${title} Product, resolve verified Prices for all retained options, and atomically update Firestore. Existing Stripe Products and Prices will remain untouched.`;
+}
+
 export function dollarsToAmountCents(value) {
   const normalized = String(value ?? "").trim();
   const match = /^(\d+)(?:\.(\d{0,2}))?$|^\.(\d{1,2})$/.exec(normalized);

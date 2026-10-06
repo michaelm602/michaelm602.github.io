@@ -304,6 +304,36 @@ function currentPriceAuthorityConflict(price, terms, current) {
     return null;
 }
 
+function legacyPublishedPriceConflict(price, current, productId, expectedLivemode) {
+    if (!price || typeof price.id !== "string") return "The saved Stripe Price is invalid.";
+    if (price.active !== true) return "The saved Stripe Price is inactive.";
+    if (price.type !== "one_time") return "The saved Stripe Price is recurring.";
+    if (price.livemode !== expectedLivemode) return "The saved Stripe Price is in the wrong Stripe mode.";
+    if (price.unit_amount !== current.amountCents) return "The saved Stripe Price amount does not match Firestore.";
+    if (price.currency !== current.currency) return "The saved Stripe Price currency does not match Firestore.";
+    const legacyProductId = stripeProductId(price.product);
+    if (!legacyProductId) return "The saved Stripe Price has no Product.";
+    const metadata = price.metadata || {};
+    if ((metadata.firestore_product_id && metadata.firestore_product_id !== productId)
+        || (metadata.print_option_id && metadata.print_option_id !== current.id)) {
+        return "The saved Stripe Price metadata belongs to another product or option.";
+    }
+    if (metadata.terms_hash) {
+        const expectedHash = canonicalPrintTermsHash({
+            livemode: expectedLivemode,
+            productId,
+            optionId: current.id,
+            amountCents: current.amountCents,
+            currency: current.currency,
+            stripeProductId: legacyProductId,
+        });
+        if (metadata.terms_hash !== expectedHash) {
+            return "The saved Stripe Price metadata does not match its published commercial terms.";
+        }
+    }
+    return null;
+}
+
 async function listCanonicalProductPrices(stripe, productId) {
     const prices = [];
     let startingAfter;
@@ -354,7 +384,16 @@ function sameProposedFields(current, proposed) {
         && current.sortOrder === proposed.sortOrder;
 }
 
-async function planOption({ current, proposed, productId, stripeProductId: canonicalProductId, expectedLivemode, stripe }) {
+async function planOption({
+    current,
+    proposed,
+    productId,
+    stripeProductId: canonicalProductId,
+    currentStripeProductId,
+    normalizationRequired = false,
+    expectedLivemode,
+    stripe,
+}) {
     const base = {
         optionId: proposed.optionId,
         label: proposed.label,
@@ -372,6 +411,15 @@ async function planOption({ current, proposed, productId, stripeProductId: canon
     }
     if (!canonicalProductId) {
         if (disabling) {
+            if (normalizationRequired) {
+                return {
+                    ...base,
+                    classification: "DISABLE",
+                    priceAction: "CREATE_NEW_PRICE",
+                    resolvedStripePriceId: null,
+                    message: "The option will be disabled after a verified Price is created under the new canonical Product.",
+                };
+            }
             return { ...base, classification: "CONFLICT_BLOCKED", resolvedStripePriceId: null, message: "The saved Stripe Price cannot be verified for disable." };
         }
         return { ...base, classification: "CREATE_NEW_PRICE", resolvedStripePriceId: null, message: "A canonical Product and immutable Price will be created." };
@@ -385,7 +433,10 @@ async function planOption({ current, proposed, productId, stripeProductId: canon
         stripeProductId: canonicalProductId,
     });
     const termsHash = canonicalPrintTermsHash(terms);
-    if (base.currentStripePriceId) {
+    const legacyCurrentNeedsNormalization = normalizationRequired
+        && base.currentStripePriceId
+        && currentStripeProductId !== canonicalProductId;
+    if (base.currentStripePriceId && !legacyCurrentNeedsNormalization) {
         try {
             const currentPrice = await stripe.prices.retrieve(base.currentStripePriceId);
             const authorityConflict = currentPriceAuthorityConflict(currentPrice, terms, current);
@@ -429,12 +480,25 @@ async function planOption({ current, proposed, productId, stripeProductId: canon
             // A missing legacy reference can still recover through canonical Product discovery.
         }
     }
-    if (disabling) {
+    if (disabling && !legacyCurrentNeedsNormalization) {
         return { ...base, classification: "CONFLICT_BLOCKED", resolvedStripePriceId: null, termsHash, message: "The saved Stripe Price could not be verified for disable." };
     }
     const match = await findMatchingPrice({ stripe, terms });
     if (match.conflict) {
         return { ...base, classification: "CONFLICT_BLOCKED", resolvedStripePriceId: null, termsHash, message: match.conflict };
+    }
+    if (disabling && normalizationRequired) {
+        return {
+            ...base,
+            classification: "DISABLE",
+            priceAction: match.price ? "ATTACH_EXISTING_PRICE" : "CREATE_NEW_PRICE",
+            resolvedStripePriceId: match.price?.id || null,
+            termsHash,
+            ...(!match.price ? { lookupKey: versionedPriceLookupKey(terms) } : {}),
+            message: match.price
+                ? "The option will be disabled after an exact matching Price is attached under the canonical Product."
+                : "The option will be disabled after a verified Price is created under the canonical Product.",
+        };
     }
     if (match.price) {
         return {
@@ -456,6 +520,8 @@ async function planOption({ current, proposed, productId, stripeProductId: canon
 }
 
 async function resolvePreviewCanonicalProduct({ product, mapping, stripe, store, expectedLivemode, nowMs }) {
+    let mappedStripeProduct = null;
+    let mappedSnapshot = null;
     if (mapping?.stripeProductId) {
         if (mapping.productId !== product.id || typeof mapping.stripeProductId !== "string") {
             fail("failed-precondition", "The canonical Stripe Product mapping is invalid.", "STRIPE_PRODUCT_MISMATCH");
@@ -463,17 +529,17 @@ async function resolvePreviewCanonicalProduct({ product, mapping, stripe, store,
         if (typeof mapping.livemode === "boolean" && mapping.livemode !== expectedLivemode) {
             fail("failed-precondition", "The canonical mapping is in the wrong Stripe mode.", "STRIPE_LIVEMODE_MISMATCH");
         }
-        const stripeProduct = await verifyCanonicalProduct({
+        mappedStripeProduct = await verifyCanonicalProduct({
             productValue: mapping.stripeProductId,
             productId: product.id,
             expectedProductId: mapping.stripeProductId,
             expectedLivemode,
             stripe,
         });
-        await verifyExclusiveProductMapping({ store, productId: product.id, stripeProductId: stripeProduct.id });
-        return { stripeProduct, mapping: mappingSnapshot(mapping) };
+        await verifyExclusiveProductMapping({ store, productId: product.id, stripeProductId: mappedStripeProduct.id });
+        mappedSnapshot = mappingSnapshot(mapping);
     }
-    if (mapping) {
+    if (mapping && !mapping?.stripeProductId) {
         if ((mapping.productId && mapping.productId !== product.id)
             || (typeof mapping.livemode === "boolean" && mapping.livemode !== expectedLivemode)) {
             fail("failed-precondition", "The canonical Stripe Product mapping is invalid.", "STRIPE_PRODUCT_MISMATCH");
@@ -483,20 +549,66 @@ async function resolvePreviewCanonicalProduct({ product, mapping, stripe, store,
         }
     }
     const productIds = new Set();
+    const currentStripeProductIdsByOption = {};
+    const legacyConflicts = [];
     for (const option of product.prints?.options || []) {
         const priceId = normalizeNullablePriceId(option.stripePriceId);
         if (!priceId) continue;
         try {
             const price = await stripe.prices.retrieve(priceId);
-            if (stripeProductId(price.product)) productIds.add(stripeProductId(price.product));
+            const legacyProductId = stripeProductId(price.product);
+            if (legacyProductId) {
+                productIds.add(legacyProductId);
+                currentStripeProductIdsByOption[option.id] = legacyProductId;
+            }
+            const conflict = legacyPublishedPriceConflict(price, option, product.id, expectedLivemode);
+            if (conflict) legacyConflicts.push({ optionId: option.id, message: conflict });
         } catch (error) {
             if (!isStripeResourceMissing(error)) {
                 fail("unavailable", "Stripe Price verification is temporarily unavailable.", "STRIPE_PRICE_UNAVAILABLE");
             }
-            // Invalid legacy references are handled as option conflicts during planning.
+            legacyConflicts.push({ optionId: option.id, message: "The saved Stripe Price could not be verified." });
         }
     }
-    if (productIds.size > 1) fail("failed-precondition", "Saved Prices span multiple Stripe Products.", "MULTIPLE_STRIPE_PRODUCTS");
+    const legacyStripeProductIds = mappedStripeProduct
+        ? [...productIds].filter((productId) => productId !== mappedStripeProduct.id)
+        : [...productIds];
+    const normalizationRequired = productIds.size > 1;
+    if (normalizationRequired) {
+        if (legacyConflicts.length) {
+            fail(
+                "failed-precondition",
+                `Saved legacy Stripe Price ${legacyConflicts[0].optionId} cannot be normalized: ${legacyConflicts[0].message}`,
+                "LEGACY_PRICE_INVALID"
+            );
+        }
+        for (const legacyProductId of legacyStripeProductIds) {
+            await verifyCanonicalProduct({
+                productValue: legacyProductId,
+                productId: product.id,
+                expectedProductId: legacyProductId,
+                expectedLivemode,
+                stripe,
+            });
+            await verifyExclusiveProductMapping({ store, productId: product.id, stripeProductId: legacyProductId });
+        }
+        return {
+            stripeProduct: mappedStripeProduct,
+            mapping: mappedSnapshot,
+            normalizationRequired: true,
+            legacyStripeProductIds,
+            currentStripeProductIdsByOption,
+        };
+    }
+    if (mappedStripeProduct) {
+        return {
+            stripeProduct: mappedStripeProduct,
+            mapping: mappedSnapshot,
+            normalizationRequired: false,
+            legacyStripeProductIds: [],
+            currentStripeProductIdsByOption,
+        };
+    }
     if (productIds.size === 1) {
         const productId = [...productIds][0];
         const stripeProduct = await verifyCanonicalProduct({
@@ -507,9 +619,21 @@ async function resolvePreviewCanonicalProduct({ product, mapping, stripe, store,
             stripe,
         });
         await verifyExclusiveProductMapping({ store, productId: product.id, stripeProductId: stripeProduct.id });
-        return { stripeProduct, mapping: null };
+        return {
+            stripeProduct,
+            mapping: null,
+            normalizationRequired: false,
+            legacyStripeProductIds: [],
+            currentStripeProductIdsByOption,
+        };
     }
-    return { stripeProduct: null, mapping: null };
+    return {
+        stripeProduct: null,
+        mapping: null,
+        normalizationRequired: false,
+        legacyStripeProductIds: [],
+        currentStripeProductIdsByOption,
+    };
 }
 
 async function previewStripePrintPriceSyncV2({
@@ -537,6 +661,8 @@ async function previewStripePrintPriceSyncV2({
             proposed: proposedOption,
             productId,
             stripeProductId: canonical.stripeProduct?.id || null,
+            currentStripeProductId: canonical.currentStripeProductIdsByOption?.[proposedOption.optionId] || null,
+            normalizationRequired: canonical.normalizationRequired,
             expectedLivemode,
             stripe,
         }));
@@ -567,6 +693,9 @@ async function previewStripePrintPriceSyncV2({
         proposedFingerprint: proposedPrintsFingerprint(proposed, items),
         mapping: canonical.mapping,
         stripeProductId: canonical.stripeProduct?.id || null,
+        normalizationRequired: canonical.normalizationRequired,
+        canonicalStripeProductId: canonical.stripeProduct?.id || null,
+        legacyStripeProductIds: canonical.legacyStripeProductIds,
         items,
         canApply: !blocked,
         expiresAtMs: nowMs + OPERATION_TTL_MS,
@@ -580,6 +709,9 @@ async function previewStripePrintPriceSyncV2({
         canApply: record.canApply,
         canConfirm: false,
         stripeProductId: record.stripeProductId,
+        normalizationRequired: record.normalizationRequired,
+        canonicalStripeProductId: record.canonicalStripeProductId,
+        legacyStripeProductIds: record.legacyStripeProductIds,
         items: items.map((item) => ({ ...item, status: legacyItemStatus(item.classification) })),
     };
 }
@@ -721,8 +853,10 @@ async function resolveApplyPrice({ product, item, stripeProduct, stripe, expecte
         stripeProductId: stripeProduct.id,
     });
     const termsHash = canonicalPrintTermsHash(terms);
-    const plannedPriceId = item.resolvedStripePriceId || item.currentStripePriceId;
-    if (plannedPriceId && item.classification !== "CREATE_NEW_PRICE") {
+    const priceAction = item.priceAction || item.classification;
+    const plannedPriceId = item.resolvedStripePriceId
+        || (priceAction === "CREATE_NEW_PRICE" ? null : item.currentStripePriceId);
+    if (plannedPriceId && priceAction !== "CREATE_NEW_PRICE") {
         const price = await stripe.prices.retrieve(plannedPriceId);
         if (item.currentStripePriceId === plannedPriceId
             && price.metadata?.terms_hash

@@ -25,6 +25,32 @@ draft remains unapplied. Published option IDs are immutable in the routine UI;
 changing identity is modeled as removing the old option and adding a new one.
 Stripe Price IDs are server-owned and appear only as read-only diagnostics.
 
+## Guided legacy Product normalization
+
+Some legacy products have valid published Prices spread across more than one
+Stripe Product. When no canonical mapping exists, Preview derives every parent
+Product from the saved Price IDs, validates the saved Price and Product state,
+and stores a private operation with `normalizationRequired: true`, a null
+`canonicalStripeProductId`, and the server-derived `legacyStripeProductIds`.
+Preview remains read-only and does not require `prints.available` to be turned
+off. Admin can run Preview against an unchanged published print draft, so a
+legacy product does not need an unrelated edit to enter normalization.
+
+Explicit Apply then uses the normal V2 claim/recovery path to establish exactly
+one canonical Product. Every retained option is resolved to an exact active
+one-time Price under that Product, reusing an existing match or creating an
+immutable Price with the normal deterministic identities. Only after the full
+set verifies does the existing transaction replace the complete Firestore
+`prints` map. Legacy Products and Prices are never edited, deactivated, or
+deleted.
+
+If Apply establishes the canonical mapping or creates only part of the Price
+set before interruption, the next Preview recognizes that published Firestore
+still references legacy Products. It plans against the mapped canonical
+Product, attaches already-created exact matches, and creates only missing
+Prices. Disabled retained options stay classified as `DISABLE` while their
+canonical Price is resolved for the complete atomic publication.
+
 ## Immutable Stripe identity
 
 The server canonicalizes this exact commercial tuple and SHA-256 hashes its
@@ -106,6 +132,10 @@ Release order is:
 1. deploy only `functions:adminStripePrintPriceSync`;
 2. deploy the updated frontend;
 3. deploy the reviewed Firestore rules.
+
+Phase 4.1 legacy normalization does not change Firestore rules. Its deployment
+requires the updated `adminStripePrintPriceSync` Function before the updated
+Admin frontend.
 
 ## Checkout and storefront compatibility
 
