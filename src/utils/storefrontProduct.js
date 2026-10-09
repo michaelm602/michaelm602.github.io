@@ -14,6 +14,85 @@ export function normalizePortfolioStoragePath(path) {
   return normalized.replace(/\.[^./]+$/, "").replace(/__thumb$/, "");
 }
 
+const PORTFOLIO_TITLE_LOWERCASE_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "as",
+  "at",
+  "but",
+  "by",
+  "for",
+  "from",
+  "in",
+  "into",
+  "nor",
+  "of",
+  "on",
+  "or",
+  "over",
+  "per",
+  "the",
+  "to",
+  "vs",
+  "with",
+]);
+
+function humanizePortfolioStoragePath(path) {
+  if (typeof path !== "string") return "Untitled Artwork";
+
+  const filename = path.trim().replace(/\\/g, "/").split("/").at(-1) || "";
+  let decodedFilename = filename;
+  try {
+    decodedFilename = decodeURIComponent(filename);
+  } catch {
+    // Keep the original filename when malformed percent escapes cannot be decoded.
+  }
+
+  const baseName = decodedFilename
+    .replace(/\.[^./]+$/, "")
+    .replace(/__thumb$/i, "")
+    .trim();
+  const cameraFilename = baseName.match(/^(?:dscf?|image|img|photo|scan)[ _-]*(\d+)$/i);
+  if (cameraFilename) return `Artwork ${cameraFilename[1]}`;
+  if (/^[a-f\d]{16,}$/i.test(baseName.replace(/[ _-]/g, ""))) return "Untitled Artwork";
+
+  const words = baseName
+    .replace(/([a-z\d])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+
+  if (words.length === 0) return "Untitled Artwork";
+
+  return words.map((word, index) => {
+    const lowerWord = word.toLocaleLowerCase();
+    if (index > 0 && PORTFOLIO_TITLE_LOWERCASE_WORDS.has(lowerWord)) return lowerWord;
+    if (/^\d+(?:st|nd|rd|th)$/i.test(word)) return lowerWord;
+    return `${lowerWord.charAt(0).toLocaleUpperCase()}${lowerWord.slice(1)}`;
+  }).join(" ");
+}
+
+export function getPortfolioMediaTitle(media, visibleProductDocuments = []) {
+  const normalizedMediaPath = normalizePortfolioStoragePath(media?.fullPath);
+
+  if (normalizedMediaPath) {
+    for (const product of Array.isArray(visibleProductDocuments) ? visibleProductDocuments : []) {
+      if (!isVisiblePortfolioProduct(product)) continue;
+      const matchesProductImage = (Array.isArray(product.images) ? product.images : []).some(
+        (image) => [image?.storagePath, image?.thumbnailPath]
+          .some((path) => normalizePortfolioStoragePath(path) === normalizedMediaPath)
+      );
+      const managedTitle = typeof product.title === "string" ? product.title.trim() : "";
+      if (matchesProductImage && managedTitle) return managedTitle;
+    }
+  }
+
+  return humanizePortfolioStoragePath(media?.fullPath);
+}
+
 function addProductMediaPaths(target, product, firestoreShape = false) {
   for (const image of Array.isArray(product?.images) ? product.images : []) {
     const paths = firestoreShape

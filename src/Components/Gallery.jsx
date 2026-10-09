@@ -7,7 +7,11 @@ import {
   loadPublicCatalogOrdering,
   loadPublicFirestoreDocuments,
 } from "../services/storefrontProducts";
-import { filterPortfolioStorageItems, sortPortfolioMedia } from "../utils/storefrontProduct";
+import {
+  filterPortfolioStorageItems,
+  getPortfolioMediaTitle,
+  sortPortfolioMedia,
+} from "../utils/storefrontProduct";
 import { groupStorageImageRefs } from "../utils/storageMedia";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
@@ -34,7 +38,7 @@ async function safeGetURL(storageRef) {
   }
 }
 
-export default function Gallery({ folder, label }) {
+export default function Gallery({ folder }) {
   const [pieces, setPieces] = useState([]);
   const [open, setOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -89,11 +93,10 @@ export default function Gallery({ folder, label }) {
         const clean = sortPortfolioMedia(
           formatted.filter((p) => p.src && p.gridSrc),
           { visibleProductDocuments: publicProducts, productIds: portfolioProductIds }
-        ).map((piece, index) => ({
-          ...piece,
-          title: `${label} Piece #${index + 1}`,
-          alt: `${label} Piece #${index + 1}`,
-        }));
+        ).map((piece) => {
+          const title = getPortfolioMediaTitle(piece, publicProducts);
+          return { ...piece, title, alt: title };
+        });
 
         if (alive) setPieces(clean);
       } catch (err) {
@@ -109,7 +112,7 @@ export default function Gallery({ folder, label }) {
     return () => {
       alive = false;
     };
-  }, [folder, label]);
+  }, [folder]);
 
   const slides = useMemo(
     () => pieces.map((p) => ({ src: p.src, title: p.title })),
@@ -158,15 +161,17 @@ export default function Gallery({ folder, label }) {
               onClick={() => onOpen(idx)}
               aria-label={`Open ${piece.alt}`}
             >
-              <img
-                src={piece.gridSrc}
-                alt={piece.alt}
-                loading="lazy"
-                decoding="async"
-                // hint to the browser: the grid image doesn't need to be huge
-                // (works best if your thumbs are small)
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
-              />
+              <span className="gallery-piece-image">
+                <img
+                  src={piece.gridSrc}
+                  alt={piece.alt}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </span>
+              <span className="gallery-piece-title">
+                <span className="gallery-piece-title-text">{piece.title}</span>
+              </span>
             </button>
           ))}
         </div>

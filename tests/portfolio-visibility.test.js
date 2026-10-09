@@ -261,6 +261,45 @@ test("Beautiful Chaos full and thumbnail variants share one normalized artwork p
   );
 });
 
+test("portfolio media titles prefer the matching managed Firestore product title", () => {
+  const documents = [{
+    id: "jaguar-bloodline",
+    active: true,
+    archivedAt: null,
+    channels: { portfolio: true },
+    title: "The Jaguar’s Bloodline",
+    images: [{
+      storagePath: "airbrush/the_jaguars_bloodline-v2.webp",
+      thumbnailPath: "airbrush/the_jaguars_bloodline-v2__thumb.webp",
+    }],
+  }];
+
+  assert.equal(
+    storefrontProduct.getPortfolioMediaTitle?.(
+      { fullPath: "airbrush/the_jaguars_bloodline-v2.jpg" },
+      documents
+    ),
+    "The Jaguar’s Bloodline"
+  );
+});
+
+test("unmanaged portfolio media gets a clean filename-derived title", () => {
+  assert.equal(
+    storefrontProduct.getPortfolioMediaTitle?.(
+      { fullPath: "airbrush/echoes_of-the-5th-sun__thumb.webp" },
+      []
+    ),
+    "Echoes of the 5th Sun"
+  );
+  assert.equal(
+    storefrontProduct.getPortfolioMediaTitle?.(
+      { fullPath: "airbrush/IMG_4029.JPG" },
+      []
+    ),
+    "Artwork 4029"
+  );
+});
+
 test("portfolio gallery requests the Portfolio channel while retaining independent Storage media", () => {
   assert.match(gallerySource, /loadPublicFirestoreDocuments\("portfolio"\)/);
   assert.match(gallerySource, /loadPublicCatalogOrdering\("portfolio"\)/);
