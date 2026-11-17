@@ -2,7 +2,7 @@
 
 ## Release status
 
-This change is prepared for review. It has not been merged into the production branch or deployed during this audit. Hosting redirects and a rendered desktop/mobile review remain separate release work.
+This change is prepared for review. It has not been merged into the production branch or deployed during this audit. The owner's Codex handoff reports a successful desktop home/shop/image/cart check. Mobile review, rendered metadata-navigation checks, hosting redirects, and production verification remain release work.
 
 Baseline source: `416bbe3081e0a929470a740b0cc7891fb014d178` on `main`.
 Canonical public origin: <https://www.likwitblvd.com>.
@@ -41,6 +41,8 @@ Structured data describes the artist, website, page, and verified artwork identi
 
 The existing React/Vite application remains in place. `scripts/seo-build.mjs` adds a visible, styled initial page inside the application root, served identically to all visitors. React replaces that content when it starts.
 
+Each non-root route is emitted as both a directory index and an identical companion HTML file, for example `dist/shop/index.html` and `dist/shop.html`. This supports Vite preview's distinct resolution of `/shop/` and `/shop`. Public links, canonicals, and sitemap entries continue to use the clean URL `/shop`; the companion files are delivery artifacts, not additional sitemap entries.
+
 This is a static HTML fallback, not full React server rendering or hydration. It provides real headings, shared editorial copy, navigation, current artwork names/descriptions/images, and artwork links before JavaScript runs. Category/gallery fallbacks provide the shared introduction and navigation; they do not pretend to reproduce the entire Storage-backed gallery.
 
 Prices, stock, payment controls, and carts are not baked into the fallback. The existing runtime catalog and checkout remain authoritative. The initial fallback can transition through the app’s existing loading state, so its visual transition must be reviewed on desktop and mobile before release.
@@ -65,6 +67,25 @@ The build writes `dist/sitemap.xml` from the same successful snapshot as the art
 
 **Publishing dependency:** changing a product in the admin updates the running React catalog, but the initial HTML and sitemap refresh on the next build/deployment. Rebuild after publishing, renaming, unpublishing, or materially editing an artwork. This change does not add a scheduler or deployment webhook.
 
+## Follow-up: clean paths and hosting access
+
+The initial output wrote only directory-index files. A raw-HTTP check against installed Vite preview reproduced the owner's observation: `/shop`, `/shop/blind-faith`, and `/login` received the homepage shell, while their trailing-slash forms received the intended documents. This also meant the clean login path missed its initial noindex. Vite checks `<path>.html` for clean paths and `<path>/index.html` for paths ending in a slash. The companion output above addresses that defect. A real HTTP preview regression now exercises clean paths, slash paths, and query strings instead of relying only on generated-file inspection.
+
+This confirms preview behavior, not DigitalOcean's production resolution rules. The current production release uses identical shells at those routes; its responses cannot establish which generated snapshot a future release will serve. Check the deployed route-specific title, canonical, robots directive, and visible content on both path forms after deployment.
+
+A follow-up direct HTTP probe distinguished methods on the bare domain:
+
+| Request | Observed response |
+| --- | --- |
+| `GET https://likwitblvd.com/` | 301 to `https://www.likwitblvd.com` |
+| `HEAD https://likwitblvd.com/` | 405 |
+| `GET https://likwitblvd.com/shop` | 404 |
+| `HEAD https://likwitblvd.com/shop` | 405 |
+
+The redirect defect is therefore bare-domain deep-link handling; a HEAD-only 405 does not establish that the homepage GET fails to redirect. Validate the permanent redirect using GET with redirect following disabled first, then follow it and check path/query preservation and the final response.
+
+The owner's Codex handoff reports an unauthenticated `doctl`. This audit's separate cloud browser could open a tab, but the DigitalOcean Apps dashboard showed “Site Unavailable,” including after one reload. Neither environment inspected or changed the app configuration. DigitalOcean's control panel supports app-level redirects and deployments without local CLI authentication; the repository documents a manual production deployment workflow, so automatic deployment must not be assumed. Do not use this repository's GitHub Pages `npm run deploy` command for DigitalOcean.
+
 ## Verification completed
 
 | Check | Result |
@@ -75,10 +96,11 @@ The build writes `dist/sitemap.xml` from the same successful snapshot as the art
 | Current artwork images resolved | 16 of 16 |
 | Public HTML inspection | One title, H1, canonical, and valid JSON-LD per generated public route |
 | Sitemap versus generated artwork routes | Exact match; no stale Out for Fame route |
-| Focused automated tests | 73 passed, zero failures |
+| Focused automated tests | 74 passed, zero failures |
+| Actual Vite preview HTTP regression | 12 clean, slash, and query-string URLs delivered the expected initial metadata and content |
 | DOM metadata transitions | Passed product → home, login → contact, and missing-product → shop; no duplicate managed tags |
 | Whitespace/diff validation | Passed |
-| Rendered browser/navigation review | Not completed: Chromium startup was blocked by the execution environment |
+| Rendered browser/navigation review | Owner's Codex reports desktop home/shop/images/local cart passed; mobile and metadata navigation remain incomplete |
 | Production deployment/verification of this patch | Not performed |
 
 The focused suite covers the new metadata/build behavior and existing portfolio visibility, public catalog, contact-intent, print-policy, and payment-method boundaries:
@@ -93,9 +115,9 @@ The existing large-bundle and stale Browserslist warnings remain. Neither is rep
 
 ## Remaining release actions
 
-1. Preview home, portfolio, shop, a current artwork, an unknown artwork, and the contact flow at desktop/mobile widths. Check the initial fallback transition, image display, cart opening, and product → home navigation. Do not place a test order or submit a contact form merely for this review.
+1. Complete the remaining rendered review: mobile home/portfolio/shop/artwork/contact, initial fallback transition, and product → home metadata reset. Check an unknown artwork's not-found view and noindex. The owner's Codex reports adding a Jaguar print to the local preview cart; remove that test item in the same local browser profile. Do not place a test order or submit a contact form merely for this review.
 2. Configure a permanent bare-domain-to-www redirect that preserves path and query. For example, `https://likwitblvd.com/contact?intent=custom-art` must land on `https://www.likwitblvd.com/contact?intent=custom-art`. Verify the actual hosting/domain setup before changing it.
-3. Merge and deploy the reviewed branch through the normal pipeline. Verify raw deployed HTML and the 23 current sitemap URLs after the deployment completes.
+3. Merge and deploy the reviewed branch through the normal pipeline. Confirm the configured source branch and whether deployment is manual or automatic in the hosting dashboard. Verify raw deployed HTML on clean and trailing-slash routes, utility noindex, and the 23 current sitemap URLs after the deployment completes.
 4. Review hosting error behavior. The current index.html catchall can still serve HTTP 200 for unknown paths; runtime noindex is implemented here. Switching to a server 404 document requires confirming how newly published Firestore routes reach the app between builds.
 5. Submit/check the sitemap and inspect representative URLs in the owner’s Google Search Console. The paid integration is not required to use Search Console directly. Establish traffic and indexing baselines there; this audit cannot establish them.
 
@@ -110,4 +132,6 @@ Homepage service-card content is administered through Firestore; editing only th
 - [Google: JavaScript SEO basics](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics) — Google can render JavaScript; meaningful initial HTML, unique metadata, and sensible error handling remain useful.
 - [Google: canonical URL consolidation](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls) — consistent canonical links and permanent redirects help consolidate URL signals.
 - [Google: build and submit a sitemap](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap) — sitemap discovery and truthful modification dates; submission does not guarantee indexing.
+- [DigitalOcean: rewrite or redirect URL paths](https://docs.digitalocean.com/products/app-platform/how-to/url-rewrites/) — permanent app-level domain redirects through the Networking settings.
+- [DigitalOcean: manage static sites](https://docs.digitalocean.com/products/app-platform/how-to/manage-static-sites/) — source/deployment settings and catchall/error documents.
 

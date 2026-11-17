@@ -276,6 +276,10 @@ export async function buildSeoSite({ root = PROJECT_ROOT, env, fetchImpl = globa
     const target = resolve(dist, `.${document.path}`, "index.html");
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, document.html, "utf8");
+    // Vite preview resolves clean URLs through .html and slash URLs through index.html.
+    if (document.path !== "/") {
+      await writeFile(resolve(dist, `.${document.path}.html`), document.html, "utf8");
+    }
   }
   await writeFile(resolve(dist, "sitemap.xml"), sitemap, "utf8");
   return { publicPages: STATIC_PUBLIC_ROUTES.length + catalog.products.length, utilityPages: UTILITY_ROUTES.length, products: catalog.products.length };

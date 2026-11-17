@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { preview } from "vite";
 import {
   buildSeoSite,
   createSitemap,
@@ -184,6 +185,65 @@ test("build emits matching direct-entry pages and sitemap from one public catalo
   for (const path of [...STATIC_PUBLIC_ROUTES, ...UTILITY_ROUTES, `/shop/${product.slug}`]) {
     const html = await readFile(join(root, "dist", `.${path}`, "index.html"), "utf8");
     assert.match(html, /\/assets\/app\.js/);
+    if (path !== "/") {
+      assert.equal(await readFile(join(root, "dist", `.${path}.html`), "utf8"), html);
+    }
+  }
+});
+
+test("Vite preview serves route-specific initial HTML for clean, slash, and query-string URLs", { timeout: 15000 }, async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "likwit-seo-preview-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, "dist"));
+  await writeFile(join(root, "dist/index.html"), shell);
+  await buildSeoSite({ root, env, fetchImpl: publicFetch() });
+  const server = await preview({
+    configFile: false,
+    root,
+    build: { outDir: "dist" },
+    preview: { host: "127.0.0.1", port: 0, strictPort: true, open: false },
+    logLevel: "silent",
+  });
+  try {
+    const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+    const cases = [
+      {
+        paths: ["/shop", "/shop/", "/shop?utm_source=seo-check", "/shop/?utm_source=seo-check"],
+        title: "Airbrush Art Prints | Likwit Blvd",
+        canonical: "https://www.likwitblvd.com/shop",
+        h1: "Airbrush Art Prints",
+      },
+      {
+        paths: ["/shop/test-art", "/shop/test-art/", "/shop/test-art?utm_source=seo-check"],
+        title: "Test Artwork | Likwit Blvd Artwork",
+        canonical: "https://www.likwitblvd.com/shop/test-art",
+        h1: "Test Artwork",
+      },
+      {
+        paths: ["/login", "/login/", "/login?redirect=%2Fshop"],
+        title: "Account &amp; Order Pages | Likwit Blvd",
+        robots: "noindex, follow",
+      },
+      {
+        paths: ["/contact?intent=custom-art", "/contact/?intent=custom-art"],
+        title: "Art Commissions &amp; Questions | Contact Likwit Blvd",
+        canonical: "https://www.likwitblvd.com/contact",
+        h1: "Contact the Artist",
+      },
+    ];
+    for (const expected of cases) {
+      for (const path of expected.paths) {
+        const response = await fetch(`${origin}${path}`, { signal: AbortSignal.timeout(3000) });
+        assert.equal(response.status, 200, path);
+        const html = await response.text();
+        assert.equal(html.match(/<title>(.*?)<\/title>/)?.[1], expected.title, `${path} title`);
+        assert.equal(html.match(/<link rel="canonical" href="([^"]+)"/)?.[1], expected.canonical, `${path} canonical`);
+        assert.equal(html.match(/<meta name="robots" content="([^"]+)"/)?.[1], expected.robots || "index, follow, max-image-preview:large", `${path} robots`);
+        assert.equal(html.match(/<h1>(.*?)<\/h1>/)?.[1], expected.h1, `${path} H1`);
+      }
+    }
+  } finally {
+    await new Promise((resolve, reject) => server.httpServer.close((error) => error ? reject(error) : resolve()));
   }
 });
 
