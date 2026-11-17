@@ -2,134 +2,87 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://www.likwitblvd.com/</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
   </url>
   <url>
     <loc>https://www.likwitblvd.com/portfolio</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.likwitblvd.com/portfolio/airbrush</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://www.likwitblvd.com/portfolio/photoshop</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://www.likwitblvd.com/gallery</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/contact</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.likwitblvd.com/shop</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.likwitblvd.com/shop/adoration-in-the-lights-darkness</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <loc>https://www.likwitblvd.com/contact</loc>
   </url>
   <url>
-    <loc>https://www.likwitblvd.com/shop/alter-ego</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <loc>https://www.likwitblvd.com/shop/the-jaguars-bloodline</loc>
+    <lastmod>2026-10-05T12:20:39.083Z</lastmod>
   </url>
   <url>
     <loc>https://www.likwitblvd.com/shop/blind-faith</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/shop/feathered-serenity</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/shop/fractured-perception</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/shop/harmony-in-shadows</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/shop/illuminated-void</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/shop/lost-in-thought</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/shop/love-is-love</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/shop/out-for-fame</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/shop/overwhelmed</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.likwitblvd.com/shop/serenity</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-10-07T00:14:38.275Z</lastmod>
   </url>
   <url>
     <loc>https://www.likwitblvd.com/shop/spirit-of-the-knight</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-09-12T01:48:22.843Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/echoes-of-the-5th-sun</loc>
+    <lastmod>2026-09-12T01:47:56.540Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/alter-ego</loc>
+    <lastmod>2026-09-12T02:23:16.758Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/love-is-love</loc>
+    <lastmod>2026-09-12T03:16:46.115Z</lastmod>
   </url>
   <url>
     <loc>https://www.likwitblvd.com/shop/veiled-whispers</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-09-12T02:19:36.358Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/harmony-in-shadows</loc>
+    <lastmod>2026-09-12T02:20:20.921Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/feathered-serenity</loc>
+    <lastmod>2026-09-12T02:20:28.674Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/fractured-perception</loc>
+    <lastmod>2026-09-08T22:56:51.647Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/lost-in-thought</loc>
+    <lastmod>2026-09-12T14:30:00.255Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/overwhelmed</loc>
+    <lastmod>2026-09-08T03:24:41.085Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/serenity</loc>
+    <lastmod>2026-09-08T23:37:23.559Z</lastmod>
   </url>
   <url>
     <loc>https://www.likwitblvd.com/shop/walk-in-faith</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-09-08T23:40:04.898Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/adoration-in-the-lights-darkness</loc>
+    <lastmod>2026-09-12T14:28:42.204Z</lastmod>
+  </url>
+  <url>
+    <loc>https://www.likwitblvd.com/shop/illuminated-void</loc>
+    <lastmod>2026-09-12T14:28:55.928Z</lastmod>
   </url>
 </urlset>

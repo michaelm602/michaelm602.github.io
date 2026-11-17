@@ -18,6 +18,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminProducts from "./pages/AdminProducts";
 import UploadImage from "./Components/UploadImage";
 import ScrollToTop from "./Components/ScrollToTop";
+import RouteSeo from "./Components/RouteSeo";
+import NotFound from "./pages/NotFound";
 import { isPortfolioCategoryVisible } from "./config/portfolioCategories";
 
 import ShopPage from "./pages/ShopPage";
@@ -30,6 +32,7 @@ function App() {
 
   return (
     <Router>
+      <RouteSeo />
       <ScrollToTop />
       <div className="flex flex-col min-h-screen">
         <Navbar />
@@ -95,8 +98,7 @@ function App() {
             {/* OPTIONAL: if you still want /upload to exist */}
             <Route path="/upload" element={<Navigate to="/admin/artwork" replace />} />
 
-            {/* Catch-all (optional but recommended) */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
 
         </main>

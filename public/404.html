@@ -2,17 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <script>
-      // Fallback for paths not covered by the build-time route copy
-      // (e.g. typos, removed slugs). Known routes return 200 directly.
-      var l = window.location;
-      l.replace(
-        l.protocol + '//' + l.host +
-        '/?p=' + l.pathname.replace(/^\/+/, '').replace(/&/g, '~and~') +
-        (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-        l.hash
-      );
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, follow" />
+    <title>Page Not Found | Likwit Blvd</title>
+    <style>
+      body { margin: 0; background: #080808; color: #eee; font: 18px/1.6 system-ui, sans-serif; }
+      main { max-width: 42rem; margin: 15vh auto; padding: 2rem; }
+      a { color: #fff; text-underline-offset: .25em; }
+      nav { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+    </style>
   </head>
-  <body></body>
+  <body>
+    <main>
+      <p>Likwit Blvd · 404</p>
+      <h1>This page isn’t here.</h1>
+      <p>The link may have changed. Find your way back to the artwork below.</p>
+      <nav aria-label="Find artwork">
+        <a href="/portfolio">View the portfolio</a>
+        <a href="/shop">Shop prints</a>
+        <a href="/contact">Contact the artist</a>
+      </nav>
+    </main>
+  </body>
 </html>

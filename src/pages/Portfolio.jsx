@@ -1,14 +1,15 @@
 // src/pages/Portfolio.jsx
 import { Link } from "react-router-dom";
 import { getVisiblePortfolioCategories } from "../config/portfolioCategories";
+import { PAGE_COPY } from "../content/pageCopy";
 
 export default function Portfolio() {
   const categories = getVisiblePortfolioCategories();
 
   return (
     <div className="py-12 px-8 text-center text-white min-h-screen bg-gradient-to-r from-black to-[#222]">
-      <h2 className="text-3xl md:text-4xl font-bold mb-4">Portfolio</h2>
-      <p className="text-lg mb-8">Select a category to see the work:</p>
+      <h1 className="text-3xl md:text-4xl font-bold mb-4">{PAGE_COPY["/portfolio"].heading}</h1>
+      <p className="text-lg mb-8 max-w-2xl mx-auto leading-relaxed text-zinc-300">{PAGE_COPY["/portfolio"].intro}</p>
 
       <div className="mx-auto flex max-w-6xl flex-wrap items-stretch justify-center gap-8 animate-fadeSlideUp">
         {categories.map((category) => (
