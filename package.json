@@ -18,7 +18,7 @@
     "catalog-ordering:backfill": "node scripts/backfill-catalog-ordering.mjs",
     "admin:claim": "node scripts/set-admin-claim.cjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
-    "predeploy": "npm run sitemap && npm run build",
+    "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
     "images:webp": "node scripts/optimize-images.mjs"
   },

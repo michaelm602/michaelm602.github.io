@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import emailjs from "@emailjs/browser";
 import { CONTACT_INTENTS, parseContactContext, buildContactPayload } from "../utils/contactIntent";
+import { PAGE_COPY } from "../content/pageCopy";
 
 export default function Contact() {
     const { search } = useLocation();
@@ -54,6 +55,7 @@ export default function Contact() {
                 className="w-full max-w-xl bg-[#111] p-5 sm:p-8 rounded-lg shadow-md space-y-4"
             >
                 <h1 className="text-3xl font-bold text-center mb-4">{heading}</h1>
+                <p className="text-sm text-zinc-400 leading-relaxed">{PAGE_COPY["/contact"].intro}</p>
                 <p className="text-zinc-300 leading-relaxed">{helper}</p>
                 {(context.product || context.piece) && (
                     <div className="rounded border border-white/20 p-3 text-sm break-words">

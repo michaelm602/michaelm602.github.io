@@ -4,6 +4,7 @@ import { useCart } from "../Components/CartContext";
 import ShopGallery from "../Components/ShopGallery";
 import { toast } from "react-hot-toast";
 import { PRINT_SALES_CONTACT_EMAIL } from "../utils/printCheckoutPolicy";
+import { PAGE_COPY } from "../content/pageCopy";
 
 export default function ShopPage() {
     const location = useLocation();
@@ -69,10 +70,9 @@ export default function ShopPage() {
 
             {/* Foreground content */}
             <div className="relative z-10 text-center">
-                <h1 className="text-4xl font-bold mb-3">Shop Prints</h1>
+                <h1 className="text-4xl font-bold mb-3">{PAGE_COPY["/shop"].heading}</h1>
                 <p className="text-zinc-300 text-sm mb-4 max-w-xl mx-auto leading-relaxed">
-                    You’re shopping made-to-order prints of my artwork. An original canvas is only
-                    for sale when explicitly listed; sold originals can still have prints available.
+                    {PAGE_COPY["/shop"].intro}
                 </p>
                 <p className="mb-8 max-w-2xl mx-auto text-xs sm:text-sm leading-relaxed text-zinc-400">
                     <span className="font-medium text-zinc-200">Made-to-order prints:</span>{" "}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { PAGE_COPY } from "../content/pageCopy";
 
 export default function Hero({ images = [], intervalMs = 3000 }) {
   const incomingImages = useMemo(
@@ -133,14 +134,14 @@ export default function Hero({ images = [], intervalMs = 3000 }) {
           className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 tracking-tight"
           style={{ textShadow: "0 2px 24px rgba(0,0,0,0.6)" }}
         >
-          Made to Order. Built to Hit.
+          {PAGE_COPY["/"].heading}
         </h1>
 
         <p
           className="text-base sm:text-lg md:text-xl max-w-md sm:max-w-xl mb-7 sm:mb-9 text-white/80 leading-relaxed"
           style={{ textShadow: "0 2px 18px rgba(0,0,0,0.58)" }}
         >
-          Made-to-order prints of my airbrush artwork, plus custom artwork created around your idea.
+          {PAGE_COPY["/"].intro}
         </p>
 
         <div className="flex w-full max-w-xs flex-col sm:max-w-none sm:w-auto sm:flex-row gap-3 sm:gap-4">

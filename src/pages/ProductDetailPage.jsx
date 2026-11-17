@@ -15,6 +15,7 @@ import {
 } from "../data/products";
 import { resolveProductImageUrl } from "../utils/productImageUrls";
 import { PRINT_SALES_POLICY } from "../utils/printCheckoutPolicy";
+import { applyPageMetadata, getPageSeo } from "../utils/seo.js";
 import {
   getCheckoutableProductSizeOptions,
   isProductSizeCheckoutSupported,
@@ -33,6 +34,7 @@ export default function ProductDetailPage() {
   );
 
   const [imageUrl, setImageUrl] = useState(null);
+  const [imageProductSlug, setImageProductSlug] = useState(null);
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -79,56 +81,34 @@ export default function ProductDetailPage() {
   }, []);
 
   useEffect(() => {
-    if (!product) return;
-
-    const title = product.seo?.title || `${product.title} - Airbrush Artwork Print | Likwit Blvd`;
-    const description =
-      product.seo?.description ||
-      `${product.title} print of airbrush artwork by Likwit Blvd. Made to order and fulfilled by a professional print partner.`;
-
-    document.title = title;
-
-    const setMeta = (property, content, attr = "name") => {
-      let el = document.querySelector(`meta[${attr}="${property}"]`);
-      if (!el) {
-        el = document.createElement("meta");
-        el.setAttribute(attr, property);
-        document.head.appendChild(el);
+    const path = `/shop/${slug}`;
+    const pendingMetadata = getPageSeo(path);
+    if (catalogLoading || catalogError) {
+      // Preserve this route's built metadata during a direct load or transient failure.
+      // A client-side visit from another page must not retain that previous page's head.
+      if (document.querySelector('link[rel="canonical"]')?.getAttribute("href") !== pendingMetadata.canonical) {
+        applyPageMetadata(document, pendingMetadata);
       }
-      el.setAttribute("content", content);
-    };
-
-    setMeta("description", description);
-    setMeta("og:title", title, "property");
-    setMeta("og:description", description, "property");
-    setMeta("og:type", "product", "property");
-    setMeta("og:url", `https://www.likwitblvd.com/shop/${product.slug}`, "property");
-    if (imageUrl) setMeta("og:image", imageUrl, "property");
-
-    const canonicalHref = `https://www.likwitblvd.com/shop/${product.slug}`;
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.setAttribute("rel", "canonical");
-      document.head.appendChild(canonical);
+      return;
     }
-    canonical.setAttribute("href", canonicalHref);
-
-    return () => {
-      document.title = "Likwit Blvd";
-      canonical.removeAttribute("href");
-    };
-  }, [product, imageUrl]);
+    applyPageMetadata(document, getPageSeo(path, {
+      product,
+      imageUrl: imageProductSlug === slug ? imageUrl : null,
+      missing: !product,
+    }));
+  }, [product, imageUrl, imageProductSlug, slug, catalogLoading, catalogError]);
 
   useEffect(() => {
-    if (!product || !primaryImage) return;
     let alive = true;
 
     setImageUrl(null);
+    setImageProductSlug(null);
     setLightboxUrl(null);
     setImageError(false);
     setImageLoaded(false);
     setRelatedProducts([]);
+
+    if (!product || !primaryImage) return;
 
     const fetchImages = async () => {
       try {
@@ -148,6 +128,7 @@ export default function ProductDetailPage() {
 
         if (!alive) return;
 
+        setImageProductSlug(product.slug);
         setImageUrl(thumbUrl || fullUrl);
         setLightboxUrl(fullUrl || thumbUrl);
         setRelatedProducts(relatedEntries);
