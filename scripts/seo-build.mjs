@@ -245,6 +245,43 @@ export function renderSeoHead(seo) {
   ].filter(Boolean).join("\n  ");
 }
 
+const SPA_FALLBACK_HEAD = [
+  "<title>Likwit Blvd</title>",
+  '<meta name="description" content="Loading Likwit Blvd." />',
+  '<meta name="robots" content="index, follow, max-image-preview:large" />',
+].join("\n  ");
+
+const SPA_FALLBACK_CONTENT = `<div id="spa-fallback" role="status"><nav aria-label="Main navigation">${anchor("/", "Likwit Blvd")}${anchor("/portfolio", "Portfolio")}${anchor("/shop", "Shop")}${anchor("/contact", "Contact")}</nav><main><h1>Likwit Blvd</h1><p>Loading page...</p></main></div>`;
+
+function replaceApplicationRoot(shell, content) {
+  const root = /<div\b[^>]*\bid=["']root["'][^>]*>/i.exec(shell);
+  if (!root) throw new Error("SEO build expected the application root in the Vite output.");
+  const tags = /<\/?div\b[^>]*>/gi;
+  tags.lastIndex = root.index;
+  let depth = 0;
+  let tag;
+  while ((tag = tags.exec(shell))) {
+    depth += tag[0].startsWith("</") ? -1 : 1;
+    if (depth === 0) return `${shell.slice(0, root.index)}<div id="root">${content}</div>${shell.slice(tags.lastIndex)}`;
+  }
+  throw new Error("SEO build found an unclosed application root in the Vite output.");
+}
+
+// This is the hosting catchall document, not a route snapshot. It deliberately
+// starts neutral and indexable so a new public Firestore artwork can still be
+// discovered before the next static catalog export. React replaces this shell
+// and ProductDetailPage applies noindex only after a catalog lookup confirms a
+// requested artwork is absent.
+export function createSpaFallbackDocument(shell) {
+  if (!shell.includes("<!-- SEO:START -->") || !shell.includes("<!-- SEO:END -->")) {
+    throw new Error("SEO build cannot find the managed metadata block in dist/index.html.");
+  }
+  return replaceApplicationRoot(shell
+    .replace(/<!-- SEO:START -->[\s\S]*?<!-- SEO:END -->/, () => `<!-- SEO:START -->\n  ${SPA_FALLBACK_HEAD}\n  <!-- SEO:END -->`)
+    .replace(/\s*<!-- Critical homepage image hints -->/, "")
+    .replace(/\s*<link\b(?=[^>]*\brel=["']preload["'])(?=[^>]*\bhref=["'][^"']*\/hero-images\/iwata\.webp["'])[^>]*\/?>(?:\s*)/i, ""), SPA_FALLBACK_CONTENT);
+}
+
 export function renderRouteDocument(shell, path, options = {}) {
   if (!shell.includes("<!-- SEO:START -->") || !shell.includes("<!-- SEO:END -->")) {
     throw new Error("SEO build cannot find the managed metadata block in dist/index.html.");
@@ -271,6 +308,7 @@ export async function buildSeoSite({ root = PROJECT_ROOT, env, fetchImpl = globa
     path,
     html: renderRouteDocument(shell, path, { products: catalog.products, product: productByPath.get(path), imageUrls }),
   }));
+  const spaFallback = createSpaFallbackDocument(shell);
   const sitemap = createSitemap(catalog);
   for (const document of documents) {
     const target = resolve(dist, `.${document.path}`, "index.html");
@@ -281,6 +319,7 @@ export async function buildSeoSite({ root = PROJECT_ROOT, env, fetchImpl = globa
       await writeFile(resolve(dist, `.${document.path}.html`), document.html, "utf8");
     }
   }
+  await writeFile(resolve(dist, "spa-fallback.html"), spaFallback, "utf8");
   await writeFile(resolve(dist, "sitemap.xml"), sitemap, "utf8");
   return { publicPages: STATIC_PUBLIC_ROUTES.length + catalog.products.length, utilityPages: UTILITY_ROUTES.length, products: catalog.products.length };
 }

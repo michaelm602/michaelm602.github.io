@@ -7,6 +7,7 @@ import { preview } from "vite";
 import {
   buildSeoSite,
   createSitemap,
+  createSpaFallbackDocument,
   loadBuildCatalog,
   renderRouteDocument,
   renderStaticFallback,
@@ -162,6 +163,27 @@ test("utility routes receive raw noindex without a public canonical or artwork s
   }
 });
 
+test("SPA fallback keeps the built app assets but has neutral, indexable initial content", () => {
+  const homepageShell = shell
+    .replace("<!-- SEO:START --><title>Old shared title</title><!-- SEO:END -->", `<!-- SEO:START -->
+    <title>Portland Airbrush Art, Prints &amp; Commissions | Likwit Blvd</title>
+    <link rel="canonical" href="https://www.likwitblvd.com/" />
+    <meta property="og:title" content="Portland Airbrush Art, Prints &amp; Commissions | Likwit Blvd" />
+    <script id="page-structured-data" type="application/ld+json">{"@type":"WebSite"}</script>
+    <!-- SEO:END -->`)
+    .replace("</head>", '<link rel="preload" as="image" href="/hero-images/iwata.webp" type="image/webp" fetchpriority="high" /></head>')
+    .replace('<div id="root"></div>', '<div id="root"><div id="seo-fallback"><h1>Made to Order. Built to Hit.</h1></div></div>');
+  const html = createSpaFallbackDocument(homepageShell);
+
+  assert.match(html, /<script type="module" src="\/assets\/app\.js"><\/script>/);
+  assert.match(html, /<title>Likwit Blvd<\/title>/);
+  assert.match(html, /name="robots" content="index, follow, max-image-preview:large"/);
+  assert.match(html, /id="spa-fallback"/);
+  assert.match(html, /Loading page/);
+  assert.match(html, /href="\/shop"/);
+  assert.doesNotMatch(html, /rel="canonical"|property="og:|application\/ld\+json|Made to Order\. Built to Hit|Portland Airbrush Art|hero-images\/iwata\.webp/);
+});
+
 test("sitemap uses the supplied current products and only truthful available lastmod values", () => {
   const xml = createSitemap({ products: [product, { ...product, id: "second", slug: "second-art" }], updatedAtBySlug: { [product.slug]: "2026-09-09T12:00:00Z" } });
   assert.equal((xml.match(/<loc>/g) || []).length, STATIC_PUBLIC_ROUTES.length + 2);
@@ -182,6 +204,10 @@ test("build emits matching direct-entry pages and sitemap from one public catalo
   assert.equal(result.publicPages, STATIC_PUBLIC_ROUTES.length + 1);
   const xml = await readFile(join(root, "dist/sitemap.xml"), "utf8");
   assert.match(xml, /\/shop\/test-art/);
+  const spaFallback = await readFile(join(root, "dist/spa-fallback.html"), "utf8");
+  assert.match(spaFallback, /<script type="module" src="\/assets\/app\.js"><\/script>/);
+  assert.match(spaFallback, /id="spa-fallback"/);
+  assert.doesNotMatch(spaFallback, /rel="canonical"|application\/ld\+json|id="seo-fallback"/);
   for (const path of [...STATIC_PUBLIC_ROUTES, ...UTILITY_ROUTES, `/shop/${product.slug}`]) {
     const html = await readFile(join(root, "dist", `.${path}`, "index.html"), "utf8");
     assert.match(html, /\/assets\/app\.js/);
