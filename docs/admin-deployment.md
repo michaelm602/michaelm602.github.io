@@ -58,9 +58,9 @@ After review, commit and push normally. Do not run the repository's GitHub Pages
 In the static-site component settings, configure the custom page as:
 
 ```yaml
-catchall_document: index.html
+catchall_document: spa-fallback.html
 ```
 
-In the control panel this is **Settings > Static Site > Custom Pages > Catchall**, with page name `index.html`. A catch-all is preferred over the JavaScript `404.html` compatibility fallback because direct client-side routes return the application shell immediately.
+In the control panel this is **Settings > Static Site > Custom Pages > Catchall**, with page name `spa-fallback.html`. The production build generates this neutral application shell alongside the route snapshots. Verify that the deployed `/spa-fallback.html` is available before changing this setting. A catch-all is preferred over the JavaScript `404.html` compatibility fallback because direct client-side routes return the application shell immediately.
 
 Trigger a manual DigitalOcean deployment only after the frontend commit is available to App Platform. Verify direct, refreshed visits to `/admin`, `/admin/home`, and `/login` after deployment.
