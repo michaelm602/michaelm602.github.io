@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import ProductStoragePreview from "../Components/ProductStoragePreview";
 import ArtworkMediaPicker from "../Components/ArtworkMediaPicker";
 import CatalogOrderingPanel from "../Components/CatalogOrderingPanel";
@@ -27,7 +28,10 @@ import {
   prepareAdminProductForRoutineSave,
   validateAdminProduct,
 } from "../utils/adminProduct";
-import { addArtworkMediaToProductDraft } from "../utils/adminProductMedia";
+import {
+  addArtworkMediaToProductDraft,
+  createPortfolioProductDraftFromArtworkMedia,
+} from "../utils/adminProductMedia";
 import {
   adminPrintDraftChanged,
   amountCentsToDollarInput,
@@ -155,6 +159,8 @@ function EditorSection({ title, description, children }) {
 
 export default function AdminProducts() {
   const { isAdmin, loading: adminLoading, error: adminError } = useAdminAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState(null);
@@ -238,6 +244,26 @@ export default function AdminProducts() {
     [draft, isNew, originalDraft]
   );
   const hasUnsavedChanges = nonPrintDirty || printsDirty || (isNew && dirty);
+
+  useEffect(() => {
+    const portfolioMedia = location.state?.portfolioMedia;
+    if (!portfolioMedia || adminLoading || !isAdmin || loading) return;
+    if (hasUnsavedChanges && !window.confirm("Discard unsaved product changes?")) return;
+
+    const next = createPortfolioProductDraftFromArtworkMedia(portfolioMedia);
+    setSelectedId("");
+    setDraft(next);
+    setOriginalDraft(null);
+    setIsNew(true);
+    setDirty(true);
+    setAttemptedSave(false);
+    setMessage("Review this Portfolio-only draft before saving. The existing Storage media was reused; nothing was uploaded or published.");
+    setError("");
+    setStripeSync(null);
+    setStripeSyncError("");
+    setPrintPriceInputs({});
+    navigate(location.pathname, { replace: true, state: null });
+  }, [adminLoading, hasUnsavedChanges, isAdmin, loading, location.pathname, location.state, navigate]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) return undefined;
