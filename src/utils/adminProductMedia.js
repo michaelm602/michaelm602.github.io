@@ -1,4 +1,5 @@
 import { stripStorageFileExtension } from "./storageMedia.js";
+import { createBlankAdminProduct } from "./adminProduct.js";
 
 function safeIdStem(value) {
   return String(value || "")
@@ -50,4 +51,28 @@ export function addArtworkMediaToProductDraft(product, media) {
     images: [...images.map((existing) => ({ ...existing })), image],
     primaryImageId: images.length === 0 ? image.id : product.primaryImageId,
   };
+}
+
+export function getArtworkManagementState(media, products = []) {
+  const fullPath = typeof media?.fullPath === "string" ? media.fullPath : "";
+  const managedProducts = (Array.isArray(products) ? products : [])
+    .filter((product) => Array.isArray(product?.images) && product.images.some(
+      (image) => image?.storagePath === fullPath
+    ))
+    .map((product) => ({ id: product.id, title: product.title }));
+
+  return { managed: managedProducts.length > 0, products: managedProducts };
+}
+
+// This prepares an inactive, Portfolio-only draft. It never writes Firestore
+// or Storage: the owner reviews the draft in Admin Products before saving.
+export function createPortfolioProductDraftFromArtworkMedia(media) {
+  const draft = createBlankAdminProduct();
+  return addArtworkMediaToProductDraft({
+    ...draft,
+    title: String(media?.title || "").trim(),
+    category: "Airbrush",
+    channels: { shop: false, portfolio: true },
+    active: false,
+  }, media);
 }

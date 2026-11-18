@@ -91,6 +91,30 @@ test("Featured never overrides an explicit Portfolio position", () => {
   );
 });
 
+test("a newly managed active Portfolio product joins Portfolio ordering without joining Shop", () => {
+  const managedPortfolioProduct = {
+    id: "to-hold-you-again",
+    title: "To Hold You Again",
+    active: true,
+    archivedAt: null,
+    featured: false,
+    sortOrder: 0,
+    channels: { shop: false, portfolio: true },
+  };
+  const visiblePortfolioProducts = [managedPortfolioProduct].filter(
+    (product) => product.active && product.archivedAt == null && product.channels.portfolio
+  );
+  const visibleShopProducts = [managedPortfolioProduct].filter(
+    (product) => product.active && product.archivedAt == null && product.channels.shop
+  );
+
+  assert.deepEqual(
+    ids(applyCatalogOrdering(visiblePortfolioProducts, [], compareLegacyPortfolioProducts)),
+    ["to-hold-you-again"]
+  );
+  assert.deepEqual(visibleShopProducts, []);
+});
+
 test("catalog ordering moves one visible product without changing the others", () => {
   assert.deepEqual(moveCatalogOrderingId(["one", "two", "three"], "two", -1), [
     "two", "one", "three",

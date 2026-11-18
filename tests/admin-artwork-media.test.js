@@ -191,6 +191,53 @@ test("later artwork selections preserve existing alt and primary fields while ma
   assert.deepEqual(draft, originalDraft);
 });
 
+test("artwork management state distinguishes a Storage-only item from a referenced product", () => {
+  const media = {
+    title: "To Hold You Again",
+    fullPath: "airbrush/To Hold You Again.webp",
+    thumbnailPath: "airbrush/To Hold You Again__thumb.webp",
+  };
+  const products = [{
+    id: "managed-piece",
+    title: "Managed Piece",
+    images: [{ storagePath: "airbrush/Managed Piece.webp" }],
+  }];
+
+  assert.deepEqual(adminProductMedia.getArtworkManagementState?.(media, products), {
+    managed: false,
+    products: [],
+  });
+  assert.deepEqual(
+    adminProductMedia.getArtworkManagementState?.(
+      { ...media, fullPath: "airbrush/Managed Piece.webp" },
+      products
+    ),
+    { managed: true, products: [{ id: "managed-piece", title: "Managed Piece" }] }
+  );
+});
+
+test("creating a portfolio entry reuses existing media without publishing to Shop", () => {
+  const media = {
+    title: "To Hold You Again",
+    fullPath: "airbrush/To Hold You Again.webp",
+    thumbnailPath: "airbrush/To Hold You Again__thumb.webp",
+  };
+  const draft = adminProductMedia.createPortfolioProductDraftFromArtworkMedia?.(media);
+
+  assert.equal(draft?.title, "To Hold You Again");
+  assert.equal(draft?.active, false);
+  assert.deepEqual(draft?.channels, { shop: false, portfolio: true });
+  assert.deepEqual(draft?.prints, { available: false, defaultOptionId: null, options: [] });
+  assert.deepEqual(draft?.images, [{
+    id: "to-hold-you-again-primary",
+    storagePath: "airbrush/To Hold You Again.webp",
+    thumbnailPath: "airbrush/To Hold You Again__thumb.webp",
+    alt: "To Hold You Again",
+    sortOrder: 0,
+  }]);
+  assert.equal(draft?.primaryImageId, "to-hold-you-again-primary");
+});
+
 test("generated artwork image IDs remain unique after save normalization", () => {
   const draft = createBlankAdminProduct();
   draft.images = [{
@@ -251,6 +298,15 @@ test("picker exposes responsive search and keyboard-dismissable dialog states", 
   assert.match(pickerSource, /listAdminArtworkMedia/);
   assert.match(adminProductsSource, /Choose existing artwork/);
   assert.match(adminProductsSource, /Add image path/);
+});
+
+test("Artwork & Media sends an unmanaged item into the existing portfolio Product editor", () => {
+  assert.match(uploaderSource, /Managed/);
+  assert.match(uploaderSource, /Unmanaged/);
+  assert.match(uploaderSource, /Manage in Portfolio/);
+  assert.match(uploaderSource, /navigate\("\/admin\/products"/);
+  assert.match(adminProductsSource, /createPortfolioProductDraftFromArtworkMedia/);
+  assert.match(adminProductsSource, /portfolioMedia/);
 });
 
 test("modal focus wrapping keeps forward and reverse Tab navigation inside the dialog", () => {

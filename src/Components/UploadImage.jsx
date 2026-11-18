@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { storage } from "../firebase";
 import {
   ref,
@@ -14,6 +15,8 @@ import {
   isStorageImage,
   stripStorageFileExtension,
 } from "../utils/storageMedia";
+import { listAdminProducts } from "../services/adminProducts";
+import { getArtworkManagementState } from "../utils/adminProductMedia";
 
 /**
  * AdminPanel (deduped)
@@ -54,6 +57,7 @@ export default function AdminPanel() {
   const [items, setItems] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState("airbrush");
   const { isAdmin, loading: adminLoading, error: adminError } = useAdminAuth();
+  const navigate = useNavigate();
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -73,7 +77,10 @@ export default function AdminPanel() {
 
     try {
       const listRef = ref(storage, `${selectedFolder}/`);
-      const res = await listAll(listRef);
+      const [res, products] = await Promise.all([
+        listAll(listRef),
+        selectedFolder === "airbrush" ? listAdminProducts() : Promise.resolve([]),
+      ]);
 
       // If it's portfolio-videos, treat as videos; otherwise images
       const wantVideos = selectedFolder === "portfolio-videos";
@@ -119,6 +126,11 @@ export default function AdminPanel() {
             gridSrc,
             fullSrc,
             refsToDelete: media.variantRefs,
+            fullPath: media.fullPath,
+            thumbnailPath: media.thumbnailPath,
+            management: selectedFolder === "airbrush"
+              ? getArtworkManagementState(media, products)
+              : { managed: false, products: [] },
           };
         })
       );
@@ -224,6 +236,18 @@ export default function AdminPanel() {
         ? "Delete denied. Confirm the admin claim, then sign out and back in."
         : err?.message || "Failed to delete.");
     }
+  };
+
+  const manageInPortfolio = (item) => {
+    navigate("/admin/products", {
+      state: {
+        portfolioMedia: {
+          title: item.title,
+          fullPath: item.fullPath,
+          thumbnailPath: item.thumbnailPath,
+        },
+      },
+    });
   };
 
   if (adminError) {
@@ -351,6 +375,27 @@ export default function AdminPanel() {
                   <div className="mt-2 text-sm text-gray-300 text-center line-clamp-1">
                     {it.title}
                   </div>
+
+                  {selectedFolder === "airbrush" && (
+                    <div className="mt-2 w-full text-center">
+                      {it.management?.managed ? (
+                        <p className="text-xs text-emerald-200">
+                          Managed{it.management.products[0]?.title ? `: ${it.management.products[0].title}` : ""}
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-xs text-amber-200">Unmanaged — visible in the portfolio only as Storage media.</p>
+                          <button
+                            type="button"
+                            onClick={() => manageInPortfolio(it)}
+                            className="mt-2 rounded border border-amber-200/40 px-3 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-200/10"
+                          >
+                            Manage in Portfolio
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {isAdmin && (
                     <button
